@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { useDebounce } from './hooks/useDebounce';
 import { DEFAULT_CODE } from './constants';
@@ -19,22 +19,55 @@ export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export interface Message {
   actor: 'user' | 'ai' | 'system';
   text: string;
+  plan?: string[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  code: string;
+  messages: Message[];
 }
 
 const App: React.FC = () => {
-  const [code, setCode] = useState<string>(DEFAULT_CODE);
   const [transpiledCode, setTranspiledCode] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const debouncedCode = useDebounce(code, 500);
+  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
+  const [progress, setProgress] = useState<number | null>(null);
+
+  const activeProject = projects.find(p => p.id === activeProjectId);
+  const debouncedCode = useDebounce(activeProject?.code ?? '', 500);
+
+  // Load projects from local storage on initial render
+  useEffect(() => {
+    try {
+      const savedProjects = localStorage.getItem('silo_projects');
+      if (savedProjects) {
+        setProjects(JSON.parse(savedProjects));
+      }
+    } catch (e) {
+      console.error("Failed to load projects from local storage", e);
+    }
+  }, []);
+
+  // Save projects to local storage whenever they change
+  useEffect(() => {
+    localStorage.setItem('silo_projects', JSON.stringify(projects));
+  }, [projects]);
 
 
   useEffect(() => {
+    if (!debouncedCode) {
+      setTranspiledCode('');
+      return;
+    };
     try {
       const transformedCode = Babel.transform(debouncedCode, {
         presets: ['typescript', ['react', { runtime: 'classic' }]],
@@ -65,20 +98,55 @@ const App: React.FC = () => {
     const match = responseText.match(codeBlockRegex);
     return match ? match[1].trim() : responseText;
   };
-
-  const callGemini = async (prompt: string, codeToUpdate: string, selectedModel: GeminiModel) => {
+  
+  const getAiClient = () => {
     const userApiKey = localStorage.getItem('gemini_api_key');
     const apiKey = userApiKey || process.env.API_KEY as string;
     
     if (!apiKey) {
       throw new Error("Gemini API key is not set. Please add it in Settings.");
     }
+    return new GoogleGenAI({ apiKey });
+  }
 
-    const ai = new GoogleGenAI({ apiKey });
-    
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<string[]> => {
+    const ai = getAiClient();
+    const planPrompt = `
+      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React component. The plan should be a list of key features to be implemented.
+      Respond ONLY with a JSON array of strings. Do not include any other text, explanations, or markdown.
+      
+      User Request: "${prompt}"
+
+      Example response for "a simple counter app":
+      ["Create a main container div.", "Add a state variable for the count, initialized to 0.", "Display the current count in an h1 tag.", "Add a button to increment the count.", "Add a button to decrement the count."]
+    `;
+    const response = await ai.models.generateContent({
+      model: selectedModel,
+      contents: planPrompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text);
+    } catch (e) {
+      console.error("Failed to parse plan:", e);
+      // Fallback if the AI doesn't return perfect JSON
+      return ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."];
+    }
+  };
+
+  const generateCode = async (prompt: string, codeToUpdate: string, plan: string[], selectedModel: GeminiModel) => {
+    const ai = getAiClient();
     const fullPrompt = `
       You are an expert React developer with a keen eye for modern UI/UX design. 
-      Based on the current code and the user's request, provide the updated and complete React component code.
+      Based on the current code, the user's request, and the provided plan, create the updated and complete React component code.
+      You MUST follow the plan.
 
       **Theme Selection:**
       - Analyze the user's prompt for keywords like "dark theme", "dark mode", "black background", etc.
@@ -86,24 +154,23 @@ const App: React.FC = () => {
       - Otherwise, you MUST default to the "Light Theme Guidelines".
 
       **Light Theme Guidelines (Default):**
-      - **Overall Style:** Modern, clean, and minimalist.
-      - **Background:** The root element must have a white background (e.g., \`#FFFFFF\` or \`bg-white\`).
-      - **Text:** Main text should be black or dark gray. For headers and titles, use bold, black text.
-      - **Buttons:** Buttons must be pill-shaped (fully rounded). They can be either solid black with white text, or have a black outline with black text and a transparent background.
-      - **Containers/Taskbars:** Top bars or main containers should be styled as pill-shaped, floating, and transparent or semi-transparent where appropriate.
+      - **Background:** White background (\`#FFFFFF\` or \`bg-white\`).
+      - **Text:** Black or dark gray text.
+      - **Buttons:** Pill-shaped (fully rounded). Solid black with white text, or black outline with black text.
 
       **Dark Theme Guidelines:**
-      - **Overall Style:** Modern, clean, and minimalist with a dark aesthetic.
-      - **Background:** The root element must have a black or very dark gray background (e.g., \`#000000\` or \`bg-black\`).
-      - **Text:** Main text should be white or light gray. For headers and titles, use bold, white text.
-      - **Buttons:** Buttons must be pill-shaped (fully rounded). They can be either solid white with black text, or have a white outline with white text and a transparent background.
-      - **Containers/Taskbars:** Top bars or main containers should be styled as pill-shaped, floating, and transparent or semi-transparent, designed to look good on a dark background.
+      - **Background:** Black or very dark gray background (\`#000000\` or \`bg-black\`).
+      - **Text:** White or light gray text.
+      - **Buttons:** Pill-shaped (fully rounded). Solid white with black text, or white outline with white text.
       
       **General Rules:**
-      - **Styling:** Use inline styles or Tailwind CSS classes. Prioritize Tailwind CSS if it's already present in the code.
+      - **Styling:** Use Tailwind CSS classes.
       - **Font:** Use a modern, sans-serif font (like system-ui or Inter).
 
-      The user's request is: "${prompt}".
+      The user's original request is: "${prompt}".
+
+      The agreed upon plan is:
+      - ${plan.join('\n- ')}
 
       The current code is:
       \`\`\`tsx
@@ -122,93 +189,158 @@ const App: React.FC = () => {
 
     return extractCode(response.text);
   };
-
-  const startBuild = async (prompt: string) => {
-    if (!prompt.trim()) return;
-
+  
+  const updateProjectState = (projectId: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+  };
+  
+  const runBuildProcess = async (prompt: string, baseCode: string, projectId: string) => {
     setIsLoading(true);
-    setCurrentPage('builder');
-    setMessages([{ actor: 'user', text: prompt }]);
     setError(null);
 
+    const plan = await generatePlan(prompt, model);
+    updateProjectState(projectId, { 
+      messages: [...(projects.find(p => p.id === projectId)?.messages || []), { actor: 'ai', text: "Here's the plan:", plan }]
+    });
+
+    setProgress(0);
+    const codePromise = generateCode(prompt, baseCode, plan, model);
+
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev === null) return null;
+        if (prev >= 95) {
+          clearInterval(interval);
+          return prev;
+        }
+        const increment = prev < 70 ? 5 : 2;
+        return Math.min(prev + increment, 95);
+      });
+    }, 400);
+
+    const newCode = await codePromise;
+    clearInterval(interval);
+    setProgress(100);
+
+    const currentProject = projects.find(p => p.id === projectId);
+    if (currentProject) {
+        updateProjectState(projectId, { 
+            code: newCode,
+            messages: [...currentProject.messages, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' }]
+        });
+    }
+    
+    setTimeout(() => {
+      setProgress(null);
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const createNewProject = async (prompt: string) => {
+    if (!prompt.trim()) return;
+    
+    setIsLoading(true);
+    const newProject: Project = {
+        id: Date.now().toString(),
+        name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
+        code: DEFAULT_CODE,
+        messages: [{ actor: 'user', text: prompt }],
+    };
+    
+    setProjects(prev => [...prev, newProject]);
+    setActiveProjectId(newProject.id);
+    setCurrentPage('builder');
+    
     try {
-      const newCode = await callGemini(prompt, DEFAULT_CODE, model);
-      setCode(newCode);
-      setMessages((prev) => [
-        ...prev,
-        { actor: 'ai', text: 'I have created the initial code for you. Check it out and let me know what to do next!' }
-      ]);
+      await runBuildProcess(prompt, DEFAULT_CODE, newProject.id);
     } catch (err: any) {
       const errorMessage = `AI Error: ${err.message}`;
       setError(errorMessage);
-      setMessages((prev) => [
-        ...prev,
-        { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` }
-      ]);
-    } finally {
+       updateProjectState(newProject.id, { 
+            messages: [...newProject.messages, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` }]
+        });
       setIsLoading(false);
+      setProgress(null);
     }
   };
   
   const handleSend = async () => {
-    if (!userInput.trim() || isLoading) return;
+    if (!userInput.trim() || isLoading || !activeProject) return;
 
-    const newMessages: Message[] = [...messages, { actor: 'user', text: userInput }];
-    setMessages(newMessages);
     const currentInput = userInput;
+    const newMessages: Message[] = [...activeProject.messages, { actor: 'user', text: currentInput }];
+    updateProjectState(activeProject.id, { messages: newMessages });
     setUserInput('');
-    setIsLoading(true);
-    setError(null);
 
     try {
-      const newCode = await callGemini(currentInput, code, model);
-      setCode(newCode);
-
-      setMessages((prev) => [
-        ...prev,
-        { actor: 'ai', text: 'I have updated the code based on your request. Check out the changes in the Code and Preview tabs.' }
-      ]);
+      await runBuildProcess(currentInput, activeProject.code, activeProject.id);
     } catch (err: any) {
       const errorMessage = `AI Error: ${err.message}`;
       setError(errorMessage);
-      setMessages((prev) => [
-        ...prev,
-        { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` }
-      ]);
-    } finally {
+       updateProjectState(activeProject.id, { 
+            messages: [...newMessages, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` }]
+        });
       setIsLoading(false);
+      setProgress(null);
     }
   };
   
+  const handleCodeChange = (newCode: string) => {
+    if (activeProjectId) {
+      updateProjectState(activeProjectId, { code: newCode });
+    }
+  };
+
   const handleModelChange = (newModel: GeminiModel) => {
     setModel(newModel);
     localStorage.setItem('gemini_model', newModel);
+  };
+  
+  const handleNavigate = (page: Page) => {
+    if (page === 'home') {
+      setActiveProjectId(null);
+    }
+    setCurrentPage(page);
+  };
+
+  const handleSelectProject = (projectId: string) => {
+    setActiveProjectId(projectId);
+    setCurrentPage('builder');
+  };
+  
+  const handleDeleteProject = (projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    if (activeProjectId === projectId) {
+      setActiveProjectId(null);
+      setCurrentPage('home');
+    }
   };
 
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
-      <FloatingNav currentPage={currentPage} onNavigate={setCurrentPage} />
-      <div className="flex-1 flex flex-col overflow-hidden ml-20"> {/* Add margin to offset for the floating nav */}
-        {currentPage === 'home' && <HomePage onStartBuild={startBuild} isLoading={isLoading} />}
+      <FloatingNav currentPage={currentPage} onNavigate={handleNavigate} />
+      <div className="flex-1 flex flex-col overflow-hidden ml-20">
+        {currentPage === 'home' && <HomePage onStartBuild={createNewProject} isLoading={isLoading} />}
         
-        {currentPage === 'builder' && (
+        {currentPage === 'builder' && activeProject && (
           <>
             <main className="flex flex-1 overflow-hidden">
               <div className="w-1/3 flex flex-col border-r border-gray-900">
                 <ChatPanel
-                  messages={messages}
+                  messages={activeProject.messages}
                   userInput={userInput}
                   onUserInput={setUserInput}
                   onSend={handleSend}
                   isLoading={isLoading}
+                  progress={progress}
                 />
               </div>
               <div className="w-2/3 flex flex-col">
                 <Workspace
-                  code={code}
+                  code={activeProject.code}
                   transpiledCode={transpiledCode}
-                  onCodeChange={setCode}
+                  onCodeChange={handleCodeChange}
                   onRuntimeError={handleRuntimeError}
                 />
               </div>
@@ -216,8 +348,15 @@ const App: React.FC = () => {
             <ErrorDisplay error={error} onClose={() => setError(null)} />
           </>
         )}
+        
+        {!activeProject && currentPage === 'builder' && (
+             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <h1 className="text-4xl font-bold text-gray-400">No Project Selected</h1>
+                <p className="text-gray-500 mt-2">Go to the Home page to start a new project or select one from your Projects.</p>
+            </div>
+        )}
 
-        {currentPage === 'projects' && <ProjectsPage />}
+        {currentPage === 'projects' && <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />}
         {currentPage === 'settings' && <SettingsPage selectedModel={model} onModelChange={handleModelChange} />}
       </div>
     </div>

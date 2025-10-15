@@ -7,6 +7,7 @@ interface ChatPanelProps {
   onUserInput: (value: string) => void;
   onSend: () => void;
   isLoading: boolean;
+  progress: number | null;
 }
 
 const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
@@ -14,6 +15,17 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   const userStyle = "bg-blue-600 text-white self-end";
   const aiStyle = "bg-gray-800 text-gray-200 self-start";
   const systemStyle = "bg-gray-900 text-gray-400 self-center text-sm italic w-full text-center";
+
+  if (message.plan) {
+    return (
+      <div className="self-start bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 max-w-lg mb-2 text-gray-200 shadow-lg">
+        <p className="font-semibold mb-2">{message.text}</p>
+        <ul className="space-y-1 list-disc list-inside text-sm text-gray-300">
+          {message.plan.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </div>
+    );
+  }
 
   const getStyle = () => {
     switch (message.actor) {
@@ -26,12 +38,21 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   return <div className={getStyle()}>{message.text}</div>;
 };
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading }) => {
+const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
+  <div className="w-full bg-gray-800 rounded-full h-1.5 my-2">
+    <div 
+      className="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-linear" 
+      style={{ width: `${progress}%` }}
+    ></div>
+  </div>
+);
+
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, progress }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, progress]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -46,13 +67,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
         {messages.map((msg, index) => (
           <ChatMessage key={index} message={msg} />
         ))}
-        {isLoading && (
+        
+        {/* Shows spinner while waiting for the plan */}
+        {isLoading && progress === null && (
           <div className="self-start bg-gray-800 p-3 rounded-lg flex items-center space-x-2">
             <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
             <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
             <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
           </div>
         )}
+
+        {/* Shows progress bar while generating code */}
+        {progress !== null && (
+          <div className="self-start w-full max-w-lg">
+            <ProgressBar progress={progress} />
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
       <div className="p-4 border-t border-gray-900">
