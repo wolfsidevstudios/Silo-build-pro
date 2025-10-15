@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -17,6 +18,7 @@ interface WorkspaceProps {
   isSupabaseConnected: boolean;
   supabaseSql?: string;
   previewMode: PreviewMode;
+  onPublish: () => void;
 }
 
 const TabButton: React.FC<{
@@ -152,7 +154,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql, previewMode }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql, previewMode, onPublish }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   
@@ -220,7 +222,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
               <span>Supabase Connected</span>
             </div>
           )}
-
+           <button
+            onClick={onPublish}
+            title="Publish to Netlify"
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">publish</span>
+            <span>Publish</span>
+          </button>
           <button
             onClick={handleOpenInNewTab}
             title="Open preview in a new tab"

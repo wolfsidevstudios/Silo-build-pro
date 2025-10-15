@@ -12,9 +12,11 @@ import { ProjectsPage } from './components/ProjectsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
 import DebugAssistPanel from './components/DebugAssistPanel';
+import { PublishModal, PublishState } from './components/PublishModal';
 
 
 declare const Babel: any;
+declare const JSZip: any;
 
 interface ProjectSelectorModalProps {
   isOpen: boolean;
@@ -126,6 +128,7 @@ export interface Project {
   messages: Message[];
   supabaseSql?: string;
   projectType: ProjectType;
+  netlifySiteId?: string;
 }
 
 export interface SupabaseConfig {
@@ -154,6 +157,8 @@ const App: React.FC = () => {
   const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishState, setPublishState] = useState<PublishState>({ status: 'idle' });
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -722,6 +727,110 @@ const App: React.FC = () => {
   const handleSupabaseDisconnect = () => {
     setSupabaseConfig(null);
   };
+    
+  const createDeploymentPackage = async (files: ProjectFile[]): Promise<Blob> => {
+    const zip = new JSZip();
+    
+    const productionHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Silo Build App</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+          <style> body { background-color: #ffffff; } </style>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="module" src="/src/App.tsx"></script>
+        </body>
+      </html>
+    `;
+    zip.file('index.html', productionHtml);
+
+    files.forEach(file => {
+      zip.file(file.path, file.code);
+    });
+
+    return zip.generateAsync({ type: 'blob' });
+  };
+  
+  const handlePublish = async () => {
+    if (!activeProject) return;
+
+    setIsPublishModalOpen(true);
+    setPublishState({ status: 'idle' });
+
+    const token = localStorage.getItem('silo_netlify_token');
+    if (!token) {
+      setPublishState({ status: 'error', error: 'Netlify token not found. Please add it on the Settings page.' });
+      return;
+    }
+
+    try {
+      setPublishState({ status: 'packaging' });
+      const zipBlob = await createDeploymentPackage(activeProject.files);
+
+      let siteId = activeProject.netlifySiteId;
+
+      if (!siteId) {
+        setPublishState({ status: 'creating_site' });
+        const siteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!siteResponse.ok) {
+          const errorText = await siteResponse.text();
+          throw new Error(`Netlify API Error (Create Site): ${errorText}`);
+        }
+        const siteData = await siteResponse.json();
+        siteId = siteData.id;
+        updateProjectState(activeProject.id, { netlifySiteId: siteId });
+      }
+
+      setPublishState({ status: 'uploading' });
+      const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
+        body: zipBlob,
+      });
+      if (!deployResponse.ok) {
+        const errorText = await deployResponse.text();
+        throw new Error(`Netlify Deploy Error: ${errorText}`);
+      }
+      const deployData = await deployResponse.json();
+      const deployId = deployData.id;
+
+      setPublishState({ status: 'building' });
+      const pollDeploy = async (): Promise<string> => {
+        const statusResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!statusResponse.ok) throw new Error('Failed to poll deploy status.');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.state === 'ready') {
+          return statusData.ssl_url || statusData.url;
+        } else if (statusData.state === 'error') {
+          throw new Error(`Netlify build failed: ${statusData.error_message || 'Unknown error'}`);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          return pollDeploy();
+        }
+      };
+
+      const finalUrl = await pollDeploy();
+      setPublishState({ status: 'success', url: finalUrl });
+    } catch (err: any) {
+      console.error("Publishing error:", err);
+      setPublishState({ status: 'error', error: err.message });
+    }
+  };
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -773,6 +882,7 @@ const App: React.FC = () => {
                 isSupabaseConnected={!!supabaseConfig}
                 supabaseSql={activeProject.supabaseSql}
                 previewMode={previewMode}
+                onPublish={() => setIsPublishModalOpen(true)}
               />
             </div>
           </main>
@@ -827,6 +937,13 @@ const App: React.FC = () => {
         onClose={() => setIsProjectSelectorOpen(false)}
         onConnect={handleProjectRefSubmit}
         isLoading={isLoading}
+      />
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setIsPublishModalOpen(false)}
+        onPublish={handlePublish}
+        publishState={publishState}
+        projectName={activeProject?.name || ''}
       />
     </div>
   );
