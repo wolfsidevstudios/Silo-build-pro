@@ -11,6 +11,7 @@ import { HomePage } from './components/HomePage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
+import DebugAssistPanel from './components/DebugAssistPanel';
 
 
 declare const Babel: any;
@@ -134,7 +135,7 @@ export interface SupabaseConfig {
 }
 
 const App: React.FC = () => {
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -148,6 +149,7 @@ const App: React.FC = () => {
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
+  const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
 
@@ -221,7 +223,7 @@ const App: React.FC = () => {
     const exchangeCodeForToken = async (code: string) => {
       const codeVerifier = sessionStorage.getItem('supabase_code_verifier');
       if (!codeVerifier) {
-          setError("Supabase Authentication Error: Could not find code verifier. Please try authenticating again.");
+          setErrors(prev => ["Supabase Authentication Error: Could not find code verifier. Please try authenticating again.", ...prev]);
           return;
       }
       sessionStorage.removeItem('supabase_code_verifier');
@@ -259,7 +261,7 @@ const App: React.FC = () => {
           throw new Error('Access token not found in response.');
         }
       } catch (err: any) {
-        setError(`Supabase Authentication Error: ${err.message}`);
+        setErrors(prev => [`Supabase Authentication Error: ${err.message}`, ...prev]);
       } finally {
         setIsLoading(false);
       }
@@ -270,7 +272,7 @@ const App: React.FC = () => {
     const errorParam = params.get('error_description');
 
     if (errorParam) {
-      setError(`Supabase Auth Error: ${errorParam}`);
+      setErrors(prev => [`Supabase Auth Error: ${errorParam}`, ...prev]);
       window.history.replaceState(null, document.title, window.location.pathname);
     } else if (code) {
       window.history.replaceState(null, document.title, window.location.pathname);
@@ -295,7 +297,7 @@ const App: React.FC = () => {
           await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId, projectType);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
-          setError(errorMessage);
+          setErrors(prev => [errorMessage, ...prev]);
           addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` });
           setIsLoading(false);
           setProgress(null);
@@ -307,7 +309,11 @@ const App: React.FC = () => {
 
 
   const handleRuntimeError = useCallback((message: string) => {
-    setError(`Runtime Error: ${message}`);
+    setErrors(prev => {
+      const filtered = prev.filter(e => e !== message);
+      return [message, ...filtered];
+    });
+    setIsDebugAssistOpen(true);
   }, []);
   
   const getAiClient = () => {
@@ -477,7 +483,7 @@ const App: React.FC = () => {
 
   const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType) => {
     setIsLoading(true);
-    setError(null);
+    setErrors([]);
 
     addMessageToProject(projectId, { actor: 'user', text: prompt });
     
@@ -544,12 +550,54 @@ const App: React.FC = () => {
       await runBuildProcess(currentInput, activeProject.files, activeProject.id);
     } catch (err: any) {
       const errorMessage = `AI Error: ${err.message}`;
-      setError(errorMessage);
+      setErrors(prev => [errorMessage, ...prev]);
       addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
       setIsLoading(false);
       setProgress(null);
     }
   };
+
+  const handleFixError = async (errorToFix: string) => {
+    if (!activeProject) return;
+
+    setIsLoading(true);
+    setProgress(0);
+    
+    const fixPrompt = `
+      An error occurred in the application: "${errorToFix}". 
+      Please analyze the existing files and fix the bug that is causing this error.
+      Provide the complete, corrected code for ALL necessary files.
+    `;
+
+    try {
+      const plan = [`Identify the cause of the error: "${errorToFix}"`, "Correct the code in the appropriate file(s).", "Ensure the application still meets the original requirements."];
+      
+      const interval = setInterval(() => {
+        setProgress(prev => Math.min((prev ?? 0) + 5, 95));
+      }, 400);
+
+      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, model, activeProject.projectType);
+      
+      clearInterval(interval);
+      setProgress(100);
+
+      updateProjectState(activeProject.id, { files: newFiles });
+      setErrors(prev => prev.filter(e => e !== errorToFix)); 
+      
+      addMessageToProject(activeProject.id, { actor: 'system', text: `I've attempted a fix for the error: "${errorToFix.substring(0, 100)}...". Please check the preview.` });
+
+    } catch (err: any) {
+      const errorMessage = `AI Error during fix attempt: ${err.message}`;
+      setErrors(prev => [errorMessage, ...prev]);
+      addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error while trying to apply a fix.` });
+    } finally {
+      setTimeout(() => {
+        setProgress(null);
+        setIsLoading(false);
+      }, 500);
+    }
+  };
+
 
   const handleModelChange = (newModel: GeminiModel) => {
     setModel(newModel);
@@ -589,7 +637,7 @@ const App: React.FC = () => {
 
   const handleProjectRefSubmit = async (projectRef: string) => {
     if (!tempSupabaseToken) {
-      setError("An authentication error occurred. Please try connecting again.");
+      setErrors(prev => ["An authentication error occurred. Please try connecting again.", ...prev]);
       return;
     }
     
@@ -630,7 +678,7 @@ const App: React.FC = () => {
       window.location.hash = '/authorized';
       
     } catch (err: any) {
-      setError(`Supabase Connection Error: ${err.message}`);
+      setErrors(prev => [`Supabase Connection Error: ${err.message}`, ...prev]);
     } finally {
       setIsLoading(false);
     }
@@ -656,7 +704,7 @@ const App: React.FC = () => {
       });
 
     } catch (err: any) {
-      setError(`Invalid Supabase details: ${err.message}`);
+      setErrors(prev => [`Invalid Supabase details: ${err.message}`, ...prev]);
     }
   };
   
@@ -714,7 +762,30 @@ const App: React.FC = () => {
               />
             </div>
           </main>
-          <ErrorDisplay error={error} onClose={() => setError(null)} />
+          <ErrorDisplay error={errors[0] || null} onClose={() => setErrors(prev => prev.slice(1))} />
+           <button
+            onClick={() => setIsDebugAssistOpen(true)}
+            title="Open Debug Assist"
+            className="fixed bottom-8 right-8 w-14 h-14 z-40 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+            >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" height="24" width="24">
+                <defs>
+                <linearGradient id="paint0_linear_14402_15643_fab" x1="2.288" x2="13.596" y1="2.692" y2="8.957" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#8425cc"></stop>
+                    <stop offset="1" stop-color="#2599cc"></stop>
+                </linearGradient>
+                </defs>
+                <path fill="url(#paint0_linear_14402_15643_fab)" fill-rule="evenodd" d="M9.56049.6564C9.74797-.214503 10.9808-.220724 11.176.649356l.0252.112754c.2386 1.06349 1.0796 1.87059 2.1254 2.0556.8979.15883.8979 1.45575 0 1.61458-1.0458.18501-1.8868.99211-2.1254 2.0556l-.0252.11276c-.1952.87008-1.42803.86385-1.61551-.00705l-.02083-.09675c-.22983-1.06762-1.06995-1.88082-2.1176-2.06615-.89608-.15853-.89608-1.45287 0-1.61139 1.04765-.18534 1.88777-.99854 2.1176-2.066158L9.56049.6564ZM11.5 8.18049V12.25c0 .1381-.1119.25-.25.25h-9.5c-.13807 0-.25-.1119-.25-.25V6h6.38531c-.19048-.17448-.42601-.2933-.681-.33841C5.30951 5.32639 4.99463 2.99769 6.25976 2H1.75C.783502 2 0 2.7835 0 3.75v8.5C0 13.2165.783501 14 1.75 14h9.5c.9665 0 1.75-.7835 1.75-1.75V5.88959c-.2829.19769-.4962.50254-.5791.87189l-.0253.11275c-.1354.60388-.4711 1.03901-.8956 1.30626Zm-7.54414-.66174c-.24408-.24408-.63981-.24408-.88389 0-.24407.24408-.24407.63981 0 .88389l1.05806 1.05805-1.05806 1.05811c-.24407.244-.24407.6398 0 .8838.24408.2441.63981.2441.88389 0l1.5-1.49996c.24408-.24408.24408-.63981 0-.88389l-1.5-1.5Zm2.55806 2.81695c-.34518 0-.625.2798-.625.625s.27982.625.625.625h1.5c.34517 0 .625-.2798.625-.625s-.27983-.625-.625-.625h-1.5Z" clip-rule="evenodd"></path>
+            </svg>
+            </button>
+
+            <DebugAssistPanel
+                isOpen={isDebugAssistOpen}
+                onClose={() => setIsDebugAssistOpen(false)}
+                errors={errors}
+                onFixError={handleFixError}
+                isLoading={isLoading}
+            />
         </>
       );
     }
