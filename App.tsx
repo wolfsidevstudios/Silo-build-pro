@@ -14,6 +14,7 @@ import { SettingsPage } from './components/SettingsPage';
 declare const Babel: any;
 
 export type Page = 'home' | 'builder' | 'projects' | 'settings';
+export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
 
 
   useEffect(() => {
@@ -47,6 +49,13 @@ const App: React.FC = () => {
     }
   }, [debouncedCode]);
   
+  useEffect(() => {
+    const savedModel = localStorage.getItem('gemini_model') as GeminiModel;
+    if (savedModel && (savedModel === 'gemini-2.5-flash' || savedModel === 'gemini-2.5-pro')) {
+      setModel(savedModel);
+    }
+  }, []);
+
   const handleRuntimeError = useCallback((message: string) => {
     setError(`Runtime Error: ${message}`);
   }, []);
@@ -57,7 +66,7 @@ const App: React.FC = () => {
     return match ? match[1].trim() : responseText;
   };
 
-  const callGemini = async (prompt: string, codeToUpdate: string) => {
+  const callGemini = async (prompt: string, codeToUpdate: string, selectedModel: GeminiModel) => {
     const userApiKey = localStorage.getItem('gemini_api_key');
     const apiKey = userApiKey || process.env.API_KEY as string;
     
@@ -66,7 +75,6 @@ const App: React.FC = () => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const model = 'gemini-2.5-flash';
     
     const fullPrompt = `
       You are an expert React developer with a keen eye for modern UI/UX design. 
@@ -93,7 +101,7 @@ const App: React.FC = () => {
     `;
 
     const response = await ai.models.generateContent({
-      model,
+      model: selectedModel,
       contents: fullPrompt
     });
 
@@ -109,7 +117,7 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      const newCode = await callGemini(prompt, DEFAULT_CODE);
+      const newCode = await callGemini(prompt, DEFAULT_CODE, model);
       setCode(newCode);
       setMessages((prev) => [
         ...prev,
@@ -138,7 +146,7 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      const newCode = await callGemini(currentInput, code);
+      const newCode = await callGemini(currentInput, code, model);
       setCode(newCode);
 
       setMessages((prev) => [
@@ -156,6 +164,12 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+  
+  const handleModelChange = (newModel: GeminiModel) => {
+    setModel(newModel);
+    localStorage.setItem('gemini_model', newModel);
+  };
+
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
@@ -189,7 +203,7 @@ const App: React.FC = () => {
         )}
 
         {currentPage === 'projects' && <ProjectsPage />}
-        {currentPage === 'settings' && <SettingsPage />}
+        {currentPage === 'settings' && <SettingsPage selectedModel={model} onModelChange={handleModelChange} />}
       </div>
     </div>
   );
