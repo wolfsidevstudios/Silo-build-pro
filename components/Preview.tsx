@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode } from '../App';
 
@@ -124,17 +125,19 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
   const [iframeContent, setIframeContent] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Register the service worker once on mount.
+  // Register the service worker once, only when in service-worker mode.
   useEffect(() => {
-    navigator.serviceWorker.register('/preview-sw.js')
-      .then(registration => {
-        console.log('Silo Build: Service Worker registered.', registration.scope);
-      })
-      .catch(error => {
-        console.error('Silo Build: Service Worker registration failed:', error);
-        onRuntimeError('Could not register the Service Worker. Preview may not work correctly.');
-      });
-  }, [onRuntimeError]);
+    if (previewMode === 'service-worker') {
+      navigator.serviceWorker.register('/preview-sw.js')
+        .then(registration => {
+          console.log('Silo Build: Service Worker registered.', registration.scope);
+        })
+        .catch(error => {
+          console.error('Silo Build: Service Worker registration failed:', error);
+          onRuntimeError('Could not register the Service Worker. Preview may not work correctly.');
+        });
+    }
+  }, [previewMode, onRuntimeError]);
 
 
   useEffect(() => {
