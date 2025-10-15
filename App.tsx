@@ -112,10 +112,15 @@ export interface Message {
   plan?: string[];
 }
 
+export interface ProjectFile {
+    path: string;
+    code: string;
+}
+
 export interface Project {
   id: string;
   name: string;
-  code: string;
+  files: ProjectFile[];
   messages: Message[];
   supabaseUrl?: string;
   supabaseAnonKey?: string;
@@ -125,7 +130,6 @@ export interface Project {
 }
 
 const App: React.FC = () => {
-  const [transpiledCode, setTranspiledCode] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   
   const [projects, setProjects] = useState<Project[]>([]);
@@ -141,14 +145,11 @@ const App: React.FC = () => {
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [isSupabaseConnectModalOpen, setIsSupabaseConnectModalOpen] = useState(false);
   
-  // State to trigger the build effect for a new project
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
-  const debouncedCode = useDebounce(activeProject?.code ?? '', 500);
 
-  // Load projects from local storage on initial render
   useEffect(() => {
     try {
       const savedProjects = localStorage.getItem('silo_projects');
@@ -160,19 +161,16 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save projects to local storage whenever they change
   useEffect(() => {
     localStorage.setItem('silo_projects', JSON.stringify(projects));
   }, [projects]);
   
-  // Handle routing
   useEffect(() => {
     const handleHashChange = () => {
       setLocation(window.location.hash.replace(/^#/, '') || '/home');
     };
     window.addEventListener('hashchange', handleHashChange);
     
-    // On initial load, check if the URL is for a project
     const path = window.location.hash.replace(/^#/, '');
     const projectMatch = path.match(/^\/project\/([\w-]+)$/);
     if (projectMatch) {
@@ -182,7 +180,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Sync active project ID with the current route
   useEffect(() => {
     const projectMatch = location.match(/^\/project\/([\w-]+)$/);
     if (projectMatch) {
@@ -198,7 +195,6 @@ const App: React.FC = () => {
   }, [location, activeProjectId]);
 
   
-  // Handle Supabase OAuth redirect
   useEffect(() => {
     const exchangeCodeForToken = async (code: string) => {
       const codeVerifier = sessionStorage.getItem('supabase_code_verifier');
@@ -206,7 +202,7 @@ const App: React.FC = () => {
           setError("Supabase Authentication Error: Could not find code verifier. Please try authenticating again.");
           return;
       }
-      sessionStorage.removeItem('supabase_code_verifier'); // Clean up
+      sessionStorage.removeItem('supabase_code_verifier');
 
       try {
         setIsLoading(true);
@@ -235,13 +231,12 @@ const App: React.FC = () => {
         const { access_token } = await response.json();
 
         if (access_token) {
-          // Determine active project from local storage, as state might not be updated yet post-redirect
           const lastActiveId = localStorage.getItem('silo_last_active_project');
           if (!lastActiveId) {
             setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
             return;
           }
-          setActiveProjectId(lastActiveId); // Ensure active project ID is set
+          setActiveProjectId(lastActiveId);
           setTempSupabaseToken(access_token);
           setIsProjectSelectorOpen(true);
         } else {
@@ -262,7 +257,6 @@ const App: React.FC = () => {
       setError(`Supabase Auth Error: ${errorParam}`);
       window.history.replaceState(null, document.title, window.location.pathname);
     } else if (code) {
-      // Clean up the URL so the code isn't exchanged again on refresh.
       window.history.replaceState(null, document.title, window.location.pathname);
       exchangeCodeForToken(code);
     }
@@ -274,26 +268,6 @@ const App: React.FC = () => {
     }
   }, [activeProjectId]);
 
-
-  useEffect(() => {
-    if (!debouncedCode) {
-      setTranspiledCode('');
-      return;
-    };
-    try {
-      const transformedCode = Babel.transform(debouncedCode, {
-        presets: ['typescript', ['react', { runtime: 'classic' }]],
-        plugins: ['transform-modules-commonjs'],
-        filename: 'Component.tsx',
-      }).code;
-      setTranspiledCode(transformedCode);
-      setError(null);
-    } catch (err: any) {
-      setTranspiledCode('');
-      setError(`Babel Transpilation Error: ${err.message}`);
-    }
-  }, [debouncedCode]);
-  
   useEffect(() => {
     const savedModel = localStorage.getItem('gemini_model') as GeminiModel;
     if (savedModel && (savedModel === 'gemini-2.5-flash' || savedModel === 'gemini-2.5-pro')) {
@@ -301,15 +275,14 @@ const App: React.FC = () => {
     }
   }, []);
   
-  // This effect runs the build process for a new project AFTER the state has been updated.
   useEffect(() => {
     const build = async () => {
       if (projectToBuild) {
         const { projectId, prompt } = projectToBuild;
-        setProjectToBuild(null); // Reset trigger
+        setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, DEFAULT_CODE, projectId);
+          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setError(errorMessage);
@@ -326,12 +299,6 @@ const App: React.FC = () => {
   const handleRuntimeError = useCallback((message: string) => {
     setError(`Runtime Error: ${message}`);
   }, []);
-
-  const extractCode = (responseText: string): string | null => {
-    const codeBlockRegex = /```(?:tsx|typescript|javascript|jsx)\n([\s\S]*?)\n```/;
-    const match = responseText.match(codeBlockRegex);
-    return match ? match[1].trim() : null;
-  };
   
   const getAiClient = () => {
     const userApiKey = localStorage.getItem('gemini_api_key');
@@ -349,31 +316,18 @@ const App: React.FC = () => {
     const supabaseContext = activeProjectForPrompt?.supabaseUrl ? `The project is connected to Supabase, so for any data persistence requirements, plan to use Supabase client.` : ``;
 
     const planPrompt = `
-      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan and any necessary SQL DDL for building the React component.
+      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React application. 
+      This plan should include a list of all the files you intend to create or modify.
       ${supabaseContext}
       If you need to use a database table, provide the SQL code to create it. If no database is needed, the "sql" field should be an empty string.
 
       Respond ONLY with a JSON object matching this schema:
       {
-        "plan": ["A list of steps for the implementation."],
+        "plan": ["A list of steps for the implementation, including file creation."],
         "sql": "The SQL code to create tables, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax."
       }
       
       User Request: "${prompt}"
-
-      Example response for "a simple to-do app with a database":
-      {
-        "plan": [
-          "Create a 'todos' table in Supabase using the provided SQL.",
-          "Set up Supabase client in the component.",
-          "Create state for the list of todos and a new todo input.",
-          "Fetch todos from Supabase on component mount.",
-          "Display the list of todos.",
-          "Implement functionality to add a new todo.",
-          "Implement functionality to mark a todo as complete."
-        ],
-        "sql": "CREATE TABLE IF NOT EXISTS todos (\\n  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,\\n  created_at TIMESTAMPTZ DEFAULT NOW(),\\n  task TEXT NOT NULL,\\n  is_complete BOOLEAN DEFAULT FALSE\\n);"
-      }
     `;
     const response = await ai.models.generateContent({
       model: selectedModel,
@@ -409,7 +363,7 @@ const App: React.FC = () => {
     }
   };
 
-  const generateCode = async (prompt: string, codeToUpdate: string, plan: string[], selectedModel: GeminiModel) => {
+  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel) => {
     const ai = getAiClient();
     const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
     const supabaseIntegrationPrompt = activeProjectForPrompt?.supabaseUrl && activeProjectForPrompt?.supabaseAnonKey ? `
@@ -418,82 +372,83 @@ const App: React.FC = () => {
       - Supabase Project URL: "${activeProjectForPrompt.supabaseUrl}"
       - Supabase Anon Key: "${activeProjectForPrompt.supabaseAnonKey}"
       - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
-      - Initialize the client within your component like this: \`const supabaseClient = supabase.createClient("${activeProjectForPrompt.supabaseUrl}", "${activeProjectForPrompt.supabaseAnonKey}");\`
-      - For any features requiring a backend (e.g., data storage, authentication, real-time updates), you MUST use this Supabase client.
-      - If you need to create database tables, you must have included the SQL schema for them in your plan. The user is responsible for running the SQL.
+      - Initialize the client like this: \`const supabaseClient = supabase.createClient("${activeProjectForPrompt.supabaseUrl}", "${activeProjectForPrompt.supabaseAnonKey}");\`
     ` : '';
     
     const fullPrompt = `
-      You are an expert React developer with a keen eye for modern UI/UX design. 
-      Based on the current code, the user's request, and the provided plan, create the updated and complete React component code.
-      You MUST follow the plan.
-      
+      You are an expert React developer. Based on the user's request, the plan, and the current file structure, generate the complete code for ALL necessary files.
+
+      **File Generation Rules:**
+      - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
+      - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
+      - You MUST provide the full code for ALL necessary files for the application to work. Do not omit files.
+      - The main application component that should be rendered MUST be the default export of "src/App.tsx".
+      - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
+      - Your code should be clean, modern, and use Tailwind CSS for styling.
+
       ${supabaseIntegrationPrompt}
-
-      **Theme Selection:**
-      - Analyze the user's prompt for keywords like "dark theme", "dark mode", "black background", etc.
-      - If a dark theme is requested, you MUST follow the "Dark Theme Guidelines".
-      - Otherwise, you MUST default to the "Light Theme Guidelines".
-
-      **Light Theme Guidelines (Default):**
-      - **Background:** White background (\`#FFFFFF\` or \`bg-white\`).
-      - **Text:** Black or dark gray text.
-      - **Buttons:** Pill-shaped (fully rounded). Solid black with white text, or black outline with black text.
-
-      **Dark Theme Guidelines:**
-      - **Background:** Black or very dark gray background (\`#000000\` or \`bg-black\`).
-      - **Text:** White or light gray text.
-      - **Buttons:** Pill-shaped (fully rounded). Solid white with black text, or white outline with white text.
       
-      **General Rules:**
-      - **Styling:** Use Tailwind CSS classes.
-      - **Font:** Use a modern, sans-serif font (like system-ui or Inter).
-
-      The user's original request is: "${prompt}".
-
-      The agreed upon plan is:
+      **The user's request is:** "${prompt}".
+      **The plan is:**
       - ${plan.join('\n- ')}
+      **The current files are:**
+      ${JSON.stringify(currentFiles, null, 2)}
 
-      The current code is:
-      \`\`\`tsx
-      ${codeToUpdate}
-      \`\`\`
-
-      Your response must contain only the full, updated code inside a single \`\`\`tsx markdown block. 
-      Do not include any other explanations, text, or boilerplate.
-      The component must be the default export.
+      Your response MUST contain ONLY the JSON object, with no other text or markdown formatting.
     `;
 
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: fullPrompt
+      contents: fullPrompt,
+      config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                  files: {
+                      type: Type.ARRAY,
+                      items: {
+                          type: Type.OBJECT,
+                          properties: {
+                              path: { type: Type.STRING },
+                              code: { type: Type.STRING },
+                          },
+                          required: ['path', 'code']
+                      }
+                  }
+              },
+              required: ['files']
+          },
+      }
     });
 
     if (!response.text || response.promptFeedback?.blockReason) {
         throw new Error(`The AI response was blocked. Reason: ${response.promptFeedback?.blockReason || 'No content returned'}. Please modify your prompt and try again.`);
     }
 
-    const newCode = extractCode(response.text);
-
-    if (newCode === null) {
-        throw new Error("The AI did not return a valid code block. It might be helpful to ask it to provide the code again.");
+    try {
+        const parsed = JSON.parse(response.text);
+        if (!parsed.files || !Array.isArray(parsed.files)) {
+            throw new Error("AI response is missing the 'files' array.");
+        }
+        return parsed.files;
+    } catch (e) {
+        console.error("Failed to parse AI code response:", response.text);
+        throw new Error("The AI did not return valid JSON for the file structure. Please try again.");
     }
-
-    return newCode;
   };
   
   const updateProjectState = (projectId: string, updates: Partial<Project>) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   };
   
-  // Safely adds a message to a project using the functional update form of setState
   const addMessageToProject = (projectId: string, message: Message) => {
     setProjects(prev => prev.map(p => 
       p.id === projectId ? { ...p, messages: [...p.messages, message] } : p
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseCode: string, projectId: string) => {
+  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -505,7 +460,7 @@ const App: React.FC = () => {
     }
 
     setProgress(0);
-    const codePromise = generateCode(prompt, baseCode, plan, model);
+    const codePromise = generateCode(prompt, baseFiles, plan, model);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -519,11 +474,11 @@ const App: React.FC = () => {
       });
     }, 400);
 
-    const newCode = await codePromise;
+    const newFiles = await codePromise;
     clearInterval(interval);
     setProgress(100);
 
-    updateProjectState(projectId, { code: newCode });
+    updateProjectState(projectId, { files: newFiles });
     addMessageToProject(projectId, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' });
     
     setTimeout(() => {
@@ -539,13 +494,12 @@ const App: React.FC = () => {
     const newProject: Project = {
         id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
-        code: DEFAULT_CODE,
+        files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
         messages: [{ actor: 'user', text: prompt }],
     };
     
     setProjects(prev => [...prev, newProject]);
     
-    // Trigger the useEffect to run the build process
     setProjectToBuild({ projectId: newProject.id, prompt });
     window.location.hash = `/project/${newProject.id}`;
   };
@@ -558,19 +512,13 @@ const App: React.FC = () => {
     setUserInput('');
 
     try {
-      await runBuildProcess(currentInput, activeProject.code, activeProject.id);
+      await runBuildProcess(currentInput, activeProject.files, activeProject.id);
     } catch (err: any) {
       const errorMessage = `AI Error: ${err.message}`;
       setError(errorMessage);
       addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
       setIsLoading(false);
       setProgress(null);
-    }
-  };
-  
-  const handleCodeChange = (newCode: string) => {
-    if (activeProjectId) {
-      updateProjectState(activeProjectId, { code: newCode });
     }
   };
 
@@ -591,7 +539,7 @@ const App: React.FC = () => {
   };
 
   const handleConnectSupabaseClick = async () => {
-    setIsSupabaseConnectModalOpen(false); // Close modal before redirecting
+    setIsSupabaseConnectModalOpen(false);
     
     const codeVerifier = generateRandomString(128);
     sessionStorage.setItem('supabase_code_verifier', codeVerifier);
@@ -675,7 +623,7 @@ const App: React.FC = () => {
     }
 
     try {
-      new URL(url); // will throw an error if URL is invalid
+      new URL(url);
       if (!anonKey.startsWith('ey')) {
           throw new Error("Invalid Anon Key format. It should start with 'ey'.");
       }
@@ -714,7 +662,7 @@ const App: React.FC = () => {
       return (
         <>
           <main className="flex flex-1 overflow-hidden">
-            <div className="w-1/3 flex flex-col border-r border-gray-900">
+            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-900">
               <ChatPanel
                 messages={activeProject.messages}
                 userInput={userInput}
@@ -724,11 +672,9 @@ const App: React.FC = () => {
                 progress={progress}
               />
             </div>
-            <div className="w-2/3 flex flex-col">
+            <div className="flex-1 flex flex-col">
               <Workspace
-                code={activeProject.code}
-                transpiledCode={transpiledCode}
-                onCodeChange={handleCodeChange}
+                files={activeProject.files}
                 onRuntimeError={handleRuntimeError}
                 isSupabaseConnected={!!activeProject.supabaseUrl}
                 onOpenSupabaseConnectModal={() => setIsSupabaseConnectModalOpen(true)}
@@ -741,7 +687,6 @@ const App: React.FC = () => {
       );
     }
      if (projectMatch && !activeProject && projects.length > 0) {
-      // Project ID in URL but project data hasn't been loaded into `activeProject` yet
        return (
            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <h1 className="text-4xl font-bold text-gray-400">Loading Project...</h1>
@@ -750,7 +695,6 @@ const App: React.FC = () => {
       );
     }
 
-     // Fallback to home
     return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
   };
 

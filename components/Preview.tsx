@@ -1,73 +1,121 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import type { ProjectFile } from '../App';
+
+declare const Babel: any;
 
 interface PreviewProps {
-  code: string;
+  files: ProjectFile[];
   onRuntimeError: (message: string) => void;
 }
 
-const createIframeContent = (transpiledCode: string): string => `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <script src="https://cdn.tailwindcss.com"></script>
-      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-      <style>
-        body { background-color: #ffffff; color: #111827; padding: 1rem; font-family: sans-serif; }
-      </style>
-    </head>
-    <body>
-      <div id="preview-root"></div>
-      <script type="module">
-        // Shim for CommonJS 'require' used by Babel's output
-        const require = (name) => {
-          if (name === 'react') return window.parent.React;
-          if (name === 'react-dom/client') return window.parent.ReactDOM;
-          throw new Error(\`Cannot find module '\${name}'\`);
-        };
+const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeError: (message: string) => void): string => {
+    const iframeLogic = `
+        const transpiledModules = ${JSON.stringify(transpiledFiles)};
+        const moduleCache = {};
 
-        const handleError = (err) => {
-           const root = document.getElementById('preview-root');
-           root.innerHTML = \`<div style="color: red;"><h4>Runtime Error</h4>\${err.message}</div>\`;
-           console.error(err);
-           window.parent.postMessage({ type: 'error', message: err.message }, '*');
-        };
+        const resolvePath = (currentPath, requiredPath) => {
+            if (!requiredPath.startsWith('.')) {
+                return requiredPath; // Is a package or absolute path
+            }
+            const pathParts = currentPath.split('/');
+            pathParts.pop(); // remove filename -> directory
+            const requiredParts = requiredPath.split('/');
+            for (const part of requiredParts) {
+                if (part === '.') continue;
+                if (part === '..') {
+                    if (pathParts.length === 0) {
+                        // Can't go above root
+                    } else {
+                       pathParts.pop();
+                    }
+                }
+                else pathParts.push(part);
+            }
+            return pathParts.join('/');
+        }
 
-        window.addEventListener('error', (event) => {
-          event.preventDefault();
-          handleError(event.error);
-        });
+        const customRequire = (path, currentPath) => {
+            // Handle external packages
+            if (path === 'react') return window.parent.React;
+            if (path === 'react-dom/client') return window.parent.ReactDOM;
+
+            const resolvedPath = currentPath ? resolvePath(currentPath, path) : path;
+            
+            if (moduleCache[resolvedPath]) {
+                return moduleCache[resolvedPath].exports;
+            }
+
+            const code = transpiledModules[resolvedPath];
+            if (code === undefined) {
+                throw new Error(\`Module not found: "\${resolvedPath}" (required from "\${currentPath}"). Available: \${Object.keys(transpiledModules).join(', ')}\`);
+            }
+
+            const exports = {};
+            const module = { exports };
+            const factory = new Function('require', 'module', 'exports', code);
+            
+            const requireForModule = (p) => customRequire(p, resolvedPath);
+
+            factory(requireForModule, module, exports);
+            moduleCache[resolvedPath] = module;
+            return module.exports;
+        };
 
         try {
-          const exports = {};
-          const module = { exports };
-          
-          // --- INJECT TRANSPILED CODE ---
-          ${transpiledCode}
-          // --- END INJECTED CODE ---
+            const entryPoint = 'src/App.tsx';
+            if (!transpiledModules[entryPoint]) {
+                 throw new Error('Entry point "src/App.tsx" not found. Please make sure this file exists.');
+            }
+            const App = customRequire(entryPoint).default;
 
-          const Component = module.exports.default;
-
-          if (typeof Component !== 'function') {
-            throw new Error('The code must have a default export of a React component.');
-          }
-
-          const rootElement = document.getElementById('preview-root');
-          const root = window.parent.ReactDOM.createRoot(rootElement);
-          root.render(window.parent.React.createElement(Component));
-
+            if (typeof App !== 'function' && typeof App !== 'object') {
+                throw new Error('The entry point "src/App.tsx" must have a default export of a React component.');
+            }
+            const rootElement = document.getElementById('preview-root');
+            const root = window.parent.ReactDOM.createRoot(rootElement);
+            root.render(window.parent.React.createElement(App));
         } catch (err) {
-          handleError(err);
+            handleError(err);
         }
-      </script>
-    </body>
-  </html>
-`;
+    `;
 
-export const Preview: React.FC<PreviewProps> = ({ code, onRuntimeError }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+          <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
+        </head>
+        <body>
+          <div id="preview-root"></div>
+          <script type="module">
+            // Expose React and ReactDOM to the iframe's window for our module system
+            window.parent.React = window.React;
+            window.parent.ReactDOM = window.ReactDOM;
+
+            const handleError = (err) => {
+               const root = document.getElementById('preview-root');
+               root.innerHTML = \`<div style="color: red; padding: 1rem; font-family: monospace;"><h4>Runtime Error</h4><pre>\${err.stack || err.message}</pre></div>\`;
+               console.error(err);
+               window.parent.postMessage({ type: 'error', message: err.message }, '*');
+            };
+
+            window.addEventListener('error', (event) => {
+              event.preventDefault();
+              handleError(event.error);
+            });
+            ${iframeLogic}
+          </script>
+        </body>
+      </html>
+    `;
+};
+
+export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
+  const [iframeContent, setIframeContent] = useState('');
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -75,19 +123,40 @@ export const Preview: React.FC<PreviewProps> = ({ code, onRuntimeError }) => {
         onRuntimeError(event.data.message);
       }
     };
-
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [onRuntimeError]);
 
+  useEffect(() => {
+    try {
+        const transpiledFiles: Record<string, string> = {};
+        files.forEach(file => {
+             // Only transpile JS/TS files
+             if (file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) {
+                const transformedCode = Babel.transform(file.code, {
+                    presets: ['typescript', ['react', { runtime: 'classic' }]],
+                    plugins: ['transform-modules-commonjs'],
+                    filename: file.path,
+                }).code;
+                transpiledFiles[file.path] = transformedCode;
+             }
+        });
+        const content = createIframeContent(transpiledFiles, onRuntimeError);
+        setIframeContent(content);
+    } catch (e: any) {
+        onRuntimeError(`Babel Transpilation Error: ${e.message}`);
+    }
+  }, [files, onRuntimeError]);
+
   return (
     <div className="w-full h-full bg-white">
       <iframe
-        ref={iframeRef}
-        srcDoc={createIframeContent(code)}
+        srcDoc={iframeContent}
         title="Live Preview"
         className="w-full h-full border-none"
         sandbox="allow-scripts allow-same-origin"
+        // Key is important to force iframe remount on content change
+        key={iframeContent}
       />
     </div>
   );
