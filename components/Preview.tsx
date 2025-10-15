@@ -136,8 +136,8 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
     try {
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
-             // Only transpile JS/TS files
-             if (file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) {
+             // Only transpile JS/TS files, and ignore config files.
+             if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
                 const transformedCode = Babel.transform(file.code, {
                     presets: ['typescript', ['react', { runtime: 'classic' }]],
                     plugins: ['transform-modules-commonjs'],

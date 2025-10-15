@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -169,7 +168,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
     try {
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
-             if (file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) {
+             if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
                 const transformedCode = Babel.transform(file.code, {
                     presets: ['typescript', ['react', { runtime: 'classic' }]],
                     plugins: ['transform-modules-commonjs'],
