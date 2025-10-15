@@ -1,0 +1,5 @@
+{
+  "name": "React Live Code Previewer",
+  "description": "A powerful in-browser IDE that transpiles and renders React TSX code in real-time. Write your components using TypeScript and JSX, and see the live preview instantly. Includes error handling for a smooth development experience.",
+  "requestFramePermissions": []
+}
