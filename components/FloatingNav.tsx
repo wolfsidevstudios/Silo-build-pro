@@ -1,19 +1,18 @@
+
 import React from 'react';
-import type { Page } from '../App';
 
 interface FloatingNavProps {
-  currentPage: Page;
-  onNavigate: (page: Page) => void;
+  currentPath: string;
 }
 
 const NavButton: React.FC<{
   icon: string;
   label: string;
   isActive: boolean;
-  onClick: () => void;
-}> = ({ icon, label, isActive, onClick }) => (
-  <button
-    onClick={onClick}
+  href: string;
+}> = ({ icon, label, isActive, href }) => (
+  <a
+    href={href}
     title={label}
     aria-label={label}
     className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ease-in-out group ${
@@ -23,10 +22,12 @@ const NavButton: React.FC<{
     }`}
   >
     <span className="material-symbols-outlined">{icon}</span>
-  </button>
+  </a>
 );
 
-export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPage, onNavigate }) => {
+export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPath }) => {
+  const path = currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
+
   return (
     <nav className="fixed top-0 left-0 h-full w-20 bg-black flex flex-col items-center z-40 py-8">
       <div className="flex-shrink-0">
@@ -46,20 +47,20 @@ export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPage, onNavigat
         <NavButton
           icon="home"
           label="Home"
-          isActive={currentPage === 'home'}
-          onClick={() => onNavigate('home')}
+          isActive={path === '/home'}
+          href="#/home"
         />
         <NavButton
           icon="folder"
           label="Projects"
-          isActive={currentPage === 'projects'}
-          onClick={() => onNavigate('projects')}
+          isActive={path === '/projects'}
+          href="#/projects"
         />
         <NavButton
           icon="settings"
           label="Settings"
-          isActive={currentPage === 'settings'}
-          onClick={() => onNavigate('settings')}
+          isActive={path === '/settings'}
+          href="#/settings"
         />
       </div>
 

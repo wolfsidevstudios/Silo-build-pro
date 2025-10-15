@@ -1,5 +1,8 @@
 import React from 'react';
-import type { Page } from '../App';
+// Fix: The 'Page' type is not exported from App.tsx. Defining it locally based on usage.
+import type { GeminiModel } from '../App';
+
+type Page = 'home' | 'projects' | 'settings';
 
 interface SidebarProps {
   currentPage: Page;

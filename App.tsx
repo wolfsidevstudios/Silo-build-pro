@@ -11,6 +11,7 @@ import { HomePage } from './components/HomePage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { SupabaseConnectModal } from './components/SupabaseConnectModal';
+import { AuthorizedPage } from './components/AuthorizedPage';
 
 
 declare const Babel: any;
@@ -103,7 +104,6 @@ const base64urlencode = (a: ArrayBuffer): string => {
 };
 
 
-export type Page = 'home' | 'builder' | 'projects' | 'settings';
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 
 export interface Message {
@@ -133,7 +133,7 @@ const App: React.FC = () => {
 
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
   
@@ -164,6 +164,39 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('silo_projects', JSON.stringify(projects));
   }, [projects]);
+  
+  // Handle routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      setLocation(window.location.hash.replace(/^#/, '') || '/home');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // On initial load, check if the URL is for a project
+    const path = window.location.hash.replace(/^#/, '');
+    const projectMatch = path.match(/^\/project\/([\w-]+)$/);
+    if (projectMatch) {
+        setActiveProjectId(projectMatch[1]);
+    }
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Sync active project ID with the current route
+  useEffect(() => {
+    const projectMatch = location.match(/^\/project\/([\w-]+)$/);
+    if (projectMatch) {
+      const projectId = projectMatch[1];
+      if (projectId !== activeProjectId) {
+        setActiveProjectId(projectId);
+      }
+    } else {
+      if (activeProjectId !== null) {
+        setActiveProjectId(null);
+      }
+    }
+  }, [location, activeProjectId]);
+
   
   // Handle Supabase OAuth redirect
   useEffect(() => {
@@ -202,15 +235,13 @@ const App: React.FC = () => {
         const { access_token } = await response.json();
 
         if (access_token) {
-          if (!activeProjectId) {
-             const lastActiveId = localStorage.getItem('silo_last_active_project');
-             if (lastActiveId) {
-                setActiveProjectId(lastActiveId);
-             } else {
-                setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
-                return;
-             }
+          // Determine active project from local storage, as state might not be updated yet post-redirect
+          const lastActiveId = localStorage.getItem('silo_last_active_project');
+          if (!lastActiveId) {
+            setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
+            return;
           }
+          setActiveProjectId(lastActiveId); // Ensure active project ID is set
           setTempSupabaseToken(access_token);
           setIsProjectSelectorOpen(true);
         } else {
@@ -235,7 +266,7 @@ const App: React.FC = () => {
       window.history.replaceState(null, document.title, window.location.pathname);
       exchangeCodeForToken(code);
     }
-  }, [activeProjectId]);
+  }, []);
 
   useEffect(() => {
     if(activeProjectId) {
@@ -513,11 +544,10 @@ const App: React.FC = () => {
     };
     
     setProjects(prev => [...prev, newProject]);
-    setActiveProjectId(newProject.id);
-    setCurrentPage('builder');
     
     // Trigger the useEffect to run the build process
     setProjectToBuild({ projectId: newProject.id, prompt });
+    window.location.hash = `/project/${newProject.id}`;
   };
   
   const handleSend = async () => {
@@ -548,24 +578,15 @@ const App: React.FC = () => {
     setModel(newModel);
     localStorage.setItem('gemini_model', newModel);
   };
-  
-  const handleNavigate = (page: Page) => {
-    if (page === 'home') {
-      setActiveProjectId(null);
-    }
-    setCurrentPage(page);
-  };
 
   const handleSelectProject = (projectId: string) => {
-    setActiveProjectId(projectId);
-    setCurrentPage('builder');
+    window.location.hash = `/project/${projectId}`;
   };
   
   const handleDeleteProject = (projectId: string) => {
     setProjects(prev => prev.filter(p => p.id !== projectId));
     if (activeProjectId === projectId) {
-      setActiveProjectId(null);
-      setCurrentPage('home');
+      window.location.hash = '/home';
     }
   };
 
@@ -632,8 +653,10 @@ const App: React.FC = () => {
       
       addMessageToProject(lastActiveProjectId, { actor: 'system', text: 'Supabase connected successfully! I can now use it for backend features.' });
       
+      sessionStorage.setItem('silo_authorized_project_id', lastActiveProjectId);
       setIsProjectSelectorOpen(false);
       setTempSupabaseToken(null);
+      window.location.hash = '/authorized';
       
     } catch (err: any) {
       setError(`Supabase Connection Error: ${err.message}`);
@@ -670,51 +693,73 @@ const App: React.FC = () => {
     setIsSupabaseConnectModalOpen(false);
   };
 
+  const renderContent = () => {
+    const path = location.startsWith('/') ? location : `/${location}`;
+
+    if (path === '/home') {
+      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
+    }
+    if (path === '/projects') {
+      return <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />;
+    }
+    if (path === '/settings') {
+      return <SettingsPage selectedModel={model} onModelChange={handleModelChange} />;
+    }
+     if (path === '/authorized') {
+      return <AuthorizedPage />;
+    }
+
+    const projectMatch = path.match(/^\/project\/([\w-]+)$/);
+    if (projectMatch && activeProject) {
+      return (
+        <>
+          <main className="flex flex-1 overflow-hidden">
+            <div className="w-1/3 flex flex-col border-r border-gray-900">
+              <ChatPanel
+                messages={activeProject.messages}
+                userInput={userInput}
+                onUserInput={setUserInput}
+                onSend={handleSend}
+                isLoading={isLoading}
+                progress={progress}
+              />
+            </div>
+            <div className="w-2/3 flex flex-col">
+              <Workspace
+                code={activeProject.code}
+                transpiledCode={transpiledCode}
+                onCodeChange={handleCodeChange}
+                onRuntimeError={handleRuntimeError}
+                isSupabaseConnected={!!activeProject.supabaseUrl}
+                onOpenSupabaseConnectModal={() => setIsSupabaseConnectModalOpen(true)}
+                supabaseSql={activeProject.supabaseSql}
+              />
+            </div>
+          </main>
+          <ErrorDisplay error={error} onClose={() => setError(null)} />
+        </>
+      );
+    }
+     if (projectMatch && !activeProject && projects.length > 0) {
+      // Project ID in URL but project data hasn't been loaded into `activeProject` yet
+       return (
+           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <h1 className="text-4xl font-bold text-gray-400">Loading Project...</h1>
+              <p className="text-gray-500 mt-2">If this takes too long, the project might not exist.</p>
+          </div>
+      );
+    }
+
+     // Fallback to home
+    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
+  };
+
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
-      <FloatingNav currentPage={currentPage} onNavigate={handleNavigate} />
+      <FloatingNav currentPath={location} />
       <div className="flex-1 flex flex-col overflow-hidden ml-20">
-        {currentPage === 'home' && <HomePage onStartBuild={createNewProject} isLoading={isLoading} />}
-        
-        {currentPage === 'builder' && activeProject && (
-          <>
-            <main className="flex flex-1 overflow-hidden">
-              <div className="w-1/3 flex flex-col border-r border-gray-900">
-                <ChatPanel
-                  messages={activeProject.messages}
-                  userInput={userInput}
-                  onUserInput={setUserInput}
-                  onSend={handleSend}
-                  isLoading={isLoading}
-                  progress={progress}
-                />
-              </div>
-              <div className="w-2/3 flex flex-col">
-                <Workspace
-                  code={activeProject.code}
-                  transpiledCode={transpiledCode}
-                  onCodeChange={handleCodeChange}
-                  onRuntimeError={handleRuntimeError}
-                  isSupabaseConnected={!!activeProject.supabaseUrl}
-                  onOpenSupabaseConnectModal={() => setIsSupabaseConnectModalOpen(true)}
-                  supabaseSql={activeProject.supabaseSql}
-                />
-              </div>
-            </main>
-            <ErrorDisplay error={error} onClose={() => setError(null)} />
-          </>
-        )}
-        
-        {!activeProject && currentPage === 'builder' && (
-             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <h1 className="text-4xl font-bold text-gray-400">No Project Selected</h1>
-                <p className="text-gray-500 mt-2">Go to the Home page to start a new project or select one from your Projects.</p>
-            </div>
-        )}
-
-        {currentPage === 'projects' && <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />}
-        {currentPage === 'settings' && <SettingsPage selectedModel={model} onModelChange={handleModelChange} />}
+        {renderContent()}
       </div>
        <ProjectSelectorModal
         isOpen={isProjectSelectorOpen}
