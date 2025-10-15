@@ -28,16 +28,23 @@ const NavButton: React.FC<{
 
 export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPage, onNavigate }) => {
   return (
-    <nav className="fixed top-0 left-0 h-full w-20 bg-black flex flex-col items-center z-40 py-6">
-      <div className="mb-10">
+    <nav className="fixed top-0 left-0 h-full w-20 bg-black flex flex-col items-center z-40 py-8">
+      <div className="flex-shrink-0">
         <h1
-          className="text-white text-lg rotate-[-90deg] origin-center translate-x-[-10px] translate-y-[50px]"
-          style={{ fontFamily: "'Press Start 2P', system-ui", width: '150px' }}
+          className="text-white text-lg tracking-widest"
+          style={{
+            fontFamily: "'Press Start 2P', system-ui",
+            writingMode: 'vertical-rl',
+            transform: 'rotate(180deg)',
+          }}
         >
           Silo Build
         </h1>
       </div>
-      <div className="flex flex-col space-y-4 mt-24">
+
+      <div className="flex-grow" />
+
+      <div className="flex flex-col space-y-4 flex-shrink-0">
         <NavButton
           icon="home"
           label="Home"

@@ -36,22 +36,24 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
         Describe the application or component you want to create, and watch it come to life in real-time.
       </p>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6 flex flex-col items-center">
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g., a real-time crypto price tracker with a dark theme"
-          className="w-full p-5 bg-zinc-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none mb-4"
-          rows={3}
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !prompt.trim()}
-          className="px-8 py-3 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Building...' : 'Start Building'}
-        </button>
+      <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
+        <div className="relative w-full">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="e.g., a real-time crypto price tracker with a dark theme"
+            className="w-full p-5 pr-40 bg-zinc-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none"
+            rows={3}
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !prompt.trim()}
+            className="absolute bottom-4 right-4 px-6 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Building...' : 'Start Building'}
+          </button>
+        </div>
       </form>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
