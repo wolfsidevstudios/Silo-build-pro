@@ -53,11 +53,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
             <button
             onClick={() => setProjectType('multi')}
             disabled={isLoading}
-            className={`w-28 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+            className={`w-28 py-1.5 rounded-full text-sm font-semibold transition-colors flex items-center justify-center ${
                 projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
             }`}
             >
             Multi-File
+            <span className="ml-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">
+              Beta
+            </span>
             </button>
         </div>
       </div>

@@ -398,13 +398,20 @@ const App: React.FC = () => {
 
       ${projectTypeInstructions}
 
+      **Design System & UI Guidelines:**
+      - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
+      - **Background:** The main application background MUST be white.
+      - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin border.
+      - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The library is already available. Example: \`<span className="material-symbols-outlined">icon_name</span>\`.
+      - **Navigation Bars:** Any navigation bars or headers should be pill-shaped, floating, and have a frosted glass effect (using Tailwind CSS for backdrop blur and semi-transparent backgrounds, e.g., \`bg-white/50 backdrop-blur-md\`).
+      - **Styling:** You MUST use Tailwind CSS for all styling.
+
       **File Generation Rules:**
       - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
       - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
       - You MUST provide the full code for ALL necessary files for the application to work. Do not omit files.
       - The main application component that should be rendered MUST be the default export of "src/App.tsx".
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
-      - Your code should be clean, modern, and use Tailwind CSS for styling.
 
       ${supabaseIntegrationPrompt}
       
