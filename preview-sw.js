@@ -1,0 +1,55 @@
+let files = {};
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data.type === 'UPDATE_FILES') {
+    files = event.data.files;
+  }
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const path = url.pathname;
+  const filePath = path.startsWith('/') ? path.substring(1) : path;
+  
+  if (files[filePath]) {
+    event.respondWith(
+      new Response(files[filePath], {
+        headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+      })
+    );
+    return;
+  }
+
+  // Handle extensionless imports used by the browser's module loader
+  const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+  for (const ext of extensions) {
+    if (files[filePath + ext]) {
+      event.respondWith(
+        new Response(files[filePath + ext], {
+          headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+        })
+      );
+      return;
+    }
+     // Handle index file imports (e.g., './components/')
+    const indexPath = `${filePath}/index${ext}`;
+    if (files[indexPath]) {
+       event.respondWith(
+        new Response(files[indexPath], {
+          headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+        })
+      );
+      return;
+    }
+  }
+
+  // For other requests (like CDNs), let the browser handle it.
+});

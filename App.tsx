@@ -106,6 +106,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi';
+export type PreviewMode = 'iframe' | 'service-worker';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
@@ -145,6 +146,7 @@ const App: React.FC = () => {
   const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('iframe');
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
@@ -171,6 +173,10 @@ const App: React.FC = () => {
       const savedSupabaseConfig = localStorage.getItem('silo_supabase_config');
       if (savedSupabaseConfig) {
         setSupabaseConfig(JSON.parse(savedSupabaseConfig));
+      }
+      const savedPreviewMode = localStorage.getItem('silo_preview_mode') as PreviewMode;
+      if (savedPreviewMode) {
+        setPreviewMode(savedPreviewMode);
       }
     } catch (e) {
       console.error("Failed to load data from local storage", e);
@@ -603,6 +609,11 @@ const App: React.FC = () => {
     setModel(newModel);
     localStorage.setItem('gemini_model', newModel);
   };
+  
+  const handlePreviewModeChange = (mode: PreviewMode) => {
+    setPreviewMode(mode);
+    localStorage.setItem('silo_preview_mode', mode);
+  };
 
   const handleSelectProject = (projectId: string) => {
     window.location.hash = `/project/${projectId}`;
@@ -731,6 +742,8 @@ const App: React.FC = () => {
           onSupabaseManualConnect={handleManualSupabaseConnect}
           onSupabaseDisconnect={handleSupabaseDisconnect}
           isLoading={isLoading}
+          previewMode={previewMode}
+          onPreviewModeChange={handlePreviewModeChange}
         />
       );
     }
@@ -759,6 +772,7 @@ const App: React.FC = () => {
                 onRuntimeError={handleRuntimeError}
                 isSupabaseConnected={!!supabaseConfig}
                 supabaseSql={activeProject.supabaseSql}
+                previewMode={previewMode}
               />
             </div>
           </main>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Silo Build Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
+  </head>
+  <body>
+    <div id="preview-root"></div>
+    <script type="module">
+      const handleError = (err) => {
+          console.error("Preview Error:", err);
+          try {
+              const root = document.getElementById('preview-root');
+              if (root) {
+                  const errorHtml = `<div style="color: red; padding: 1rem; font-family: monospace; white-space: pre-wrap; word-break: break-word;"><h4>Runtime Error</h4><pre>${err.stack || err.message}</pre></div>`;
+                  root.innerHTML = errorHtml;
+              }
+              window.parent.postMessage({ type: 'error', message: err.message }, '*');
+          } catch (e) {
+              console.error('Failed to display error in preview:', e);
+          }
+      };
+
+      window.addEventListener('error', (event) => {
+        event.preventDefault();
+        handleError(event.error);
+      });
+
+      window.addEventListener('unhandledrejection', (event) => {
+          event.preventDefault();
+          handleError(event.reason);
+      });
+
+      try {
+        // The service worker will intercept this import and serve the transpiled code.
+        const AppContainer = await import('/src/App.tsx');
+        
+        if (!AppContainer || typeof AppContainer.default === 'undefined') {
+          throw new Error('The entry point "src/App.tsx" must have a default export.');
+        }
+
+        const App = AppContainer.default;
+        
+        if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
+            throw new Error('The default export of "src/App.tsx" must be a React component.');
+        }
+
+        const rootElement = document.getElementById('preview-root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(React.createElement(App));
+      } catch (err) {
+        handleError(err);
+      }
+    </script>
+  </body>
+</html>

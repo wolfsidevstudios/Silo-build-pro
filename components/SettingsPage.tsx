@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { GeminiModel, SupabaseConfig } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
@@ -12,9 +12,11 @@ interface SettingsPageProps {
   onSupabaseManualConnect: (url: string, anonKey: string) => void;
   onSupabaseDisconnect: () => void;
   isLoading: boolean;
+  previewMode: PreviewMode;
+  onPreviewModeChange: (mode: PreviewMode) => void;
 }
 
-const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange'>> = ({
+const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange'>> = ({
   supabaseConfig,
   onSupabaseAuthorize,
   onSupabaseManualConnect,
@@ -229,6 +231,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
            <p className="text-xs text-gray-500 mt-3 text-center">
             Flash is faster and great for simple tasks. Pro is more powerful for complex requests.
           </p>
+        </div>
+
+        <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+                Preview Mode
+            </label>
+            <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                <button
+                onClick={() => props.onPreviewModeChange('iframe')}
+                className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${
+                    props.previewMode === 'iframe'
+                    ? 'bg-white text-black'
+                    : 'text-gray-300 hover:bg-zinc-800'
+                }`}
+                >
+                Iframe (Secure)
+                </button>
+                <button
+                onClick={() => props.onPreviewModeChange('service-worker')}
+                className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${
+                    props.previewMode === 'service-worker'
+                    ? 'bg-white text-black'
+                    : 'text-gray-300 hover:bg-zinc-800'
+                }`}
+                >
+                Service Worker
+                </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+                Iframe mode is sandboxed and secure. Service Worker mode offers faster reloads.
+            </p>
         </div>
 
         <SupabaseSettings {...props} />

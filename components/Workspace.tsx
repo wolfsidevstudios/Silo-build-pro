@@ -4,7 +4,7 @@ import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
 import { DatabasePanel } from './DatabasePanel';
 import { FileExplorer } from './FileExplorer';
-import type { ProjectFile } from '../App';
+import type { ProjectFile, PreviewMode } from '../App';
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
 declare const Babel: any;
@@ -16,6 +16,7 @@ interface WorkspaceProps {
   onRuntimeError: (message: string) => void;
   isSupabaseConnected: boolean;
   supabaseSql?: string;
+  previewMode: PreviewMode;
 }
 
 const TabButton: React.FC<{
@@ -151,7 +152,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql, previewMode }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   
@@ -234,7 +235,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
         {activeTab === 'preview' && (
           <div className="flex-1 overflow-auto p-4 pt-0">
             <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
-              <Preview files={files} onRuntimeError={onRuntimeError} />
+              <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} />
             </div>
           </div>
         )}

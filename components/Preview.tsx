@@ -1,12 +1,13 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
-import type { ProjectFile } from '../App';
+import React, { useEffect, useState, useRef } from 'react';
+import type { ProjectFile, PreviewMode } from '../App';
 
 declare const Babel: any;
 
 interface PreviewProps {
   files: ProjectFile[];
   onRuntimeError: (message: string) => void;
+  previewMode: PreviewMode;
 }
 
 const createIframeContent = (transpiledFiles: Record<string, string>): string => {
@@ -119,8 +120,22 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
     `;
 };
 
-export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
+export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode }) => {
   const [iframeContent, setIframeContent] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Register the service worker once on mount.
+  useEffect(() => {
+    navigator.serviceWorker.register('/preview-sw.js')
+      .then(registration => {
+        console.log('Silo Build: Service Worker registered.', registration.scope);
+      })
+      .catch(error => {
+        console.error('Silo Build: Service Worker registration failed:', error);
+        onRuntimeError('Could not register the Service Worker. Preview may not work correctly.');
+      });
+  }, [onRuntimeError]);
+
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -133,25 +148,68 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
   }, [onRuntimeError]);
 
   useEffect(() => {
-    try {
+    let isMounted = true;
+    const transpileAndLoad = async () => {
+      try {
+        const isServiceWorkerMode = previewMode === 'service-worker';
+        const plugins = isServiceWorkerMode ? [] : ['transform-modules-commonjs'];
+        
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
-             // Only transpile JS/TS files, and ignore config files.
              if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
                 const transformedCode = Babel.transform(file.code, {
                     presets: ['typescript', ['react', { runtime: 'classic' }]],
-                    plugins: ['transform-modules-commonjs'],
+                    plugins: plugins,
                     filename: file.path,
                 }).code;
                 transpiledFiles[file.path] = transformedCode;
              }
         });
-        const content = createIframeContent(transpiledFiles);
-        setIframeContent(content);
-    } catch (e: any) {
-        onRuntimeError(`Babel Transpilation Error: ${e.message}`);
-    }
-  }, [files, onRuntimeError]);
+        
+        if (!isMounted) return;
+
+        if (isServiceWorkerMode) {
+            await navigator.serviceWorker.ready;
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'UPDATE_FILES',
+                    files: transpiledFiles,
+                });
+
+                if (iframeRef.current) {
+                  iframeRef.current.contentWindow?.location.reload();
+                }
+            } else {
+              onRuntimeError("Service Worker is not active. Please reload the page to activate the preview.");
+            }
+        } else {
+            const content = createIframeContent(transpiledFiles);
+            setIframeContent(content);
+        }
+      } catch (e: any) {
+          onRuntimeError(`Babel Transpilation Error: ${e.message}`);
+      }
+    };
+
+    transpileAndLoad();
+    
+    return () => { isMounted = false; };
+
+  }, [files, onRuntimeError, previewMode]);
+
+  if (previewMode === 'service-worker') {
+    return (
+        <div className="w-full h-full bg-white">
+          <iframe
+            ref={iframeRef}
+            src="/preview.html"
+            title="Live Preview (Service Worker)"
+            className="w-full h-full border-none"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </div>
+    );
+  }
 
   return (
     <div className="w-full h-full bg-white">
@@ -160,7 +218,6 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
         title="Live Preview"
         className="w-full h-full border-none"
         sandbox="allow-scripts allow-same-origin"
-        // Key is important to force iframe remount on content change
         key={iframeContent}
       />
     </div>
