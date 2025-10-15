@@ -13,21 +13,21 @@ import { SettingsPage } from './components/SettingsPage';
 
 declare const Babel: any;
 
-interface SupabaseModalProps {
+interface ProjectSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (url: string, anonKey: string) => void;
+  onConnect: (projectRef: string) => void;
+  isLoading: boolean;
 }
 
-const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, onConnect }) => {
-  const [url, setUrl] = useState('');
-  const [anonKey, setAnonKey] = useState('');
+const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({ isOpen, onClose, onConnect, isLoading }) => {
+  const [projectRef, setProjectRef] = useState('');
 
   if (!isOpen) return null;
 
   const handleConnect = () => {
-    if (url.trim() && anonKey.trim()) {
-      onConnect(url, anonKey);
+    if (projectRef.trim()) {
+      onConnect(projectRef.trim());
     }
   };
 
@@ -39,38 +39,25 @@ const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, onConnec
         </button>
 
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold">Connect to Supabase</h2>
-          <p className="text-gray-400 mt-2">Enter your project details to enable backend features.</p>
+          <h2 className="text-2xl font-bold">Almost there!</h2>
+          <p className="text-gray-400 mt-2">Authentication successful. Please provide your Project Reference ID to complete the connection.</p>
         </div>
 
         <div className="space-y-6">
           <div>
-            <label htmlFor="supabase-url" className="block text-sm font-medium text-gray-400 mb-2">
-              Project URL
+            <label htmlFor="supabase-ref" className="block text-sm font-medium text-gray-400 mb-2">
+              Project Reference ID
             </label>
             <input
-              id="supabase-url"
+              id="supabase-ref"
               type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://your-project-ref.supabase.co"
+              value={projectRef}
+              onChange={(e) => setProjectRef(e.target.value)}
+              placeholder="e.g., abcdefghijklmnopqrst"
               className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-          </div>
-          <div>
-            <label htmlFor="supabase-key" className="block text-sm font-medium text-gray-400 mb-2">
-              Anon Public Key
-            </label>
-            <input
-              id="supabase-key"
-              type="password"
-              value={anonKey}
-              onChange={(e) => setAnonKey(e.target.value)}
-              placeholder="ey..."
-              className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              You can find these in your Supabase project's API settings.
+             <p className="text-xs text-gray-500 mt-2">
+              You can find this in your Supabase project's General Settings page.
             </p>
           </div>
         </div>
@@ -78,10 +65,10 @@ const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, onConnec
         <div className="mt-8">
           <button
             onClick={handleConnect}
-            disabled={!url.trim() || !anonKey.trim()}
-            className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            disabled={!projectRef.trim() || isLoading}
+            className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            Connect Project
+            {isLoading ? 'Connecting...' : 'Connect Project'}
           </button>
         </div>
       </div>
@@ -106,6 +93,8 @@ export interface Project {
   messages: Message[];
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  supabaseAccessToken?: string;
+  supabaseProjectRef?: string;
 }
 
 const App: React.FC = () => {
@@ -120,7 +109,9 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  
+  const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
+  const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   
   // State to trigger the build effect for a new project
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
@@ -145,6 +136,37 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('silo_projects', JSON.stringify(projects));
   }, [projects]);
+  
+  // Handle Supabase OAuth redirect
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        if (!activeProjectId) {
+             const lastActiveId = localStorage.getItem('silo_last_active_project');
+             if (lastActiveId) {
+                setActiveProjectId(lastActiveId);
+             } else {
+                // Cannot proceed without knowing which project to connect to.
+                // Ideally, we'd store the project ID in the OAuth state parameter.
+                setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
+             }
+        }
+        setTempSupabaseToken(accessToken);
+        setIsProjectSelectorOpen(true);
+        // Clean up the URL
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if(activeProjectId) {
+      localStorage.setItem('silo_last_active_project', activeProjectId);
+    }
+  }, [activeProjectId]);
 
 
   useEffect(() => {
@@ -444,11 +466,66 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSupabaseConnect = (url: string, anonKey: string) => {
-    if (activeProjectId) {
-      updateProjectState(activeProjectId, { supabaseUrl: url, supabaseAnonKey: anonKey });
-      addMessageToProject(activeProjectId, { actor: 'system', text: 'Supabase connected! I can now use it for backend features.' });
-      setIsSupabaseModalOpen(false);
+  const handleConnectSupabaseClick = () => {
+    const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
+    // The redirect URI must be whitelisted in your Supabase OAuth App settings.
+    const redirectUri = window.location.origin;
+    // We request the 'project:read' scope to be able to fetch API keys after authentication.
+    const scopes = 'project:read';
+    const authUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${SUPABASE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scopes}`;
+    window.location.href = authUrl;
+  };
+
+  const handleProjectRefSubmit = async (projectRef: string) => {
+    const lastActiveProjectId = activeProjectId || localStorage.getItem('silo_last_active_project');
+
+    if (!tempSupabaseToken || !lastActiveProjectId) {
+      setError("An authentication error occurred. Please try connecting again.");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/api-keys`, {
+        headers: {
+          'Authorization': `Bearer ${tempSupabaseToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to fetch project details from Supabase. Status: ${response.status}`);
+      }
+      
+      const apiKeys = await response.json();
+      // The official name for the anon key in the management API response.
+      const anonKey = apiKeys[0]?.api_key;
+      
+      if (!anonKey) {
+        throw new Error("Could not find the public anon key for your project. Please ensure you have the correct Project Reference ID and permissions.");
+      }
+      
+      const projectUrl = `https://${projectRef}.supabase.co`;
+      
+      updateProjectState(lastActiveProjectId, { 
+        supabaseAccessToken: tempSupabaseToken,
+        supabaseProjectRef: projectRef,
+        supabaseUrl: projectUrl, 
+        supabaseAnonKey: anonKey 
+      });
+      
+      addMessageToProject(lastActiveProjectId, { actor: 'system', text: 'Supabase connected successfully! I can now use it for backend features.' });
+      
+      setIsProjectSelectorOpen(false);
+      setTempSupabaseToken(null);
+      
+    } catch (err: any) {
+      setError(`Supabase Connection Error: ${err.message}`);
+      addMessageToProject(lastActiveProjectId, { actor: 'system', text: `Failed to connect Supabase. ${err.message}`});
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -479,7 +556,7 @@ const App: React.FC = () => {
                   onCodeChange={handleCodeChange}
                   onRuntimeError={handleRuntimeError}
                   isSupabaseConnected={!!activeProject.supabaseUrl}
-                  onConnectSupabaseClick={() => setIsSupabaseModalOpen(true)}
+                  onConnectSupabaseClick={handleConnectSupabaseClick}
                 />
               </div>
             </main>
@@ -497,10 +574,11 @@ const App: React.FC = () => {
         {currentPage === 'projects' && <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />}
         {currentPage === 'settings' && <SettingsPage selectedModel={model} onModelChange={handleModelChange} />}
       </div>
-       <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        onConnect={handleSupabaseConnect}
+       <ProjectSelectorModal
+        isOpen={isProjectSelectorOpen}
+        onClose={() => setIsProjectSelectorOpen(false)}
+        onConnect={handleProjectRefSubmit}
+        isLoading={isLoading}
       />
     </div>
   );
