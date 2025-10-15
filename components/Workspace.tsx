@@ -189,75 +189,80 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
 
 
   return (
-    <div className="flex h-full bg-black">
-        <div className="w-64 border-r border-gray-900 bg-zinc-900/50 p-2">
-            <FileExplorer 
+    <div className="flex flex-col h-full bg-black">
+      <div className="flex items-center justify-between p-2 flex-shrink-0">
+        <div className="flex space-x-1 bg-black/30 backdrop-blur-md p-1 rounded-full border border-white/10 shadow-lg">
+          <TabButton
+            title="Preview"
+            icon={<span className="material-symbols-outlined">visibility</span>}
+            isActive={activeTab === 'preview'}
+            onClick={() => setActiveTab('preview')}
+          />
+          <TabButton
+            title="Code"
+            icon={<span className="material-symbols-outlined">code</span>}
+            isActive={activeTab === 'code'}
+            onClick={() => setActiveTab('code')}
+          />
+          {supabaseSql && (
+            <TabButton
+              title="Database"
+              icon={<span className="material-symbols-outlined">dataset</span>}
+              isActive={activeTab === 'database'}
+              onClick={() => setActiveTab('database')}
+            />
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          {isSupabaseConnected && (
+            <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
+              <span className="material-symbols-outlined text-base">cloud_done</span>
+              <span>Supabase Connected</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleOpenInNewTab}
+            title="Open preview in a new tab"
+            className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            aria-label="Open preview in new tab"
+          >
+            <span className="material-symbols-outlined">open_in_new</span>
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 flex overflow-hidden">
+        {activeTab === 'preview' && (
+          <div className="flex-1 overflow-auto p-4 pt-0">
+            <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
+              <Preview files={files} onRuntimeError={onRuntimeError} />
+            </div>
+          </div>
+        )}
+        {activeTab === 'code' && (
+           <div className="flex flex-1 overflow-hidden">
+            <div className="w-64 border-r border-gray-900 bg-zinc-900/50 p-2 flex-shrink-0">
+              <FileExplorer
                 files={files}
                 activeFilePath={activeFilePath}
                 onFileSelect={setActiveFilePath}
-            />
-        </div>
-
-        <div className="flex-1 flex flex-col">
-            <div className="flex items-center justify-between p-2">
-                <div className="flex space-x-1 bg-black/30 backdrop-blur-md p-1 rounded-full border border-white/10 shadow-lg">
-                <TabButton
-                    title="Preview"
-                    icon={<span className="material-symbols-outlined">visibility</span>}
-                    isActive={activeTab === 'preview'}
-                    onClick={() => setActiveTab('preview')}
-                />
-                <TabButton
-                    title="Code"
-                    icon={<span className="material-symbols-outlined">code</span>}
-                    isActive={activeTab === 'code'}
-                    onClick={() => setActiveTab('code')}
-                />
-                {supabaseSql && (
-                    <TabButton
-                    title="Database"
-                    icon={<span className="material-symbols-outlined">dataset</span>}
-                    isActive={activeTab === 'database'}
-                    onClick={() => setActiveTab('database')}
-                    />
-                )}
-                </div>
-                <div className="flex items-center space-x-2">
-                {isSupabaseConnected && (
-                    <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
-                    <span className="material-symbols-outlined text-base">cloud_done</span>
-                    <span>Supabase Connected</span>
-                    </div>
-                )}
-
-                <button
-                    onClick={handleOpenInNewTab}
-                    title="Open preview in a new tab"
-                    className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-                    aria-label="Open preview in new tab"
-                >
-                    <span className="material-symbols-outlined">open_in_new</span>
-                </button>
-                </div>
+              />
             </div>
             <div className="flex-1 overflow-auto p-4 pt-0">
-                {activeTab === 'preview' && (
-                <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
-                    <Preview files={files} onRuntimeError={onRuntimeError} />
-                </div>
-                )}
-                {activeTab === 'code' && (
-                <div className="w-full h-full rounded-3xl overflow-hidden">
-                    <CodeEditor value={activeFile?.code ?? ''} onChange={() => {}} readOnly />
-                </div>
-                )}
-                {activeTab === 'database' && (
-                <div className="w-full h-full">
-                    <DatabasePanel sql={supabaseSql || ''} />
-                </div>
-                )}
+              <div className="w-full h-full rounded-3xl overflow-hidden">
+                <CodeEditor value={activeFile?.code ?? ''} onChange={() => {}} readOnly />
+              </div>
             </div>
-        </div>
+          </div>
+        )}
+        {activeTab === 'database' && (
+          <div className="flex-1 overflow-auto p-4 pt-0">
+            <div className="w-full h-full">
+              <DatabasePanel sql={supabaseSql || ''} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
