@@ -94,7 +94,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ files, activeFilePat
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Explorer</h2>
       </div>
       <div className="flex-1 mt-2 space-y-1 pr-1">
-        {Object.values(fileTree.children ?? {}).map(node => (
+        {/* Fix: Explicitly type the `node` parameter as `TreeNode` to resolve TypeScript error. */}
+        {Object.values(fileTree.children ?? {}).map((node: TreeNode) => (
           <FileNode key={node.path} node={node} activeFilePath={activeFilePath} onFileSelect={onFileSelect} level={0} />
         ))}
       </div>

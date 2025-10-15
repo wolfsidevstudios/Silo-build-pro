@@ -2,12 +2,12 @@
 import React from 'react';
 
 export const AuthorizedPage: React.FC = () => {
-  const projectId = sessionStorage.getItem('silo_authorized_project_id');
+  const returnPath = sessionStorage.getItem('silo_authorized_return_path');
 
   const handleReturn = () => {
-    sessionStorage.removeItem('silo_authorized_project_id'); // Clean up
-    if (projectId) {
-      window.location.hash = `/project/${projectId}`;
+    sessionStorage.removeItem('silo_authorized_return_path'); // Clean up
+    if (returnPath) {
+      window.location.hash = returnPath;
     } else {
       window.location.hash = '/projects'; // Fallback to projects list
     }
@@ -20,7 +20,7 @@ export const AuthorizedPage: React.FC = () => {
         onClick={handleReturn}
         className="px-8 py-3 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors"
       >
-        Return to Project
+        Return to Settings
       </button>
     </div>
   );

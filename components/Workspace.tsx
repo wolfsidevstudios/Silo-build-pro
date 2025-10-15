@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -16,7 +15,6 @@ interface WorkspaceProps {
   files: ProjectFile[];
   onRuntimeError: (message: string) => void;
   isSupabaseConnected: boolean;
-  onOpenSupabaseConnectModal: () => void;
   supabaseSql?: string;
 }
 
@@ -127,7 +125,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, onOpenSupabaseConnectModal, supabaseSql }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   
@@ -198,21 +196,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
                 )}
                 </div>
                 <div className="flex items-center space-x-2">
-                {isSupabaseConnected ? (
+                {isSupabaseConnected && (
                     <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
                     <span className="material-symbols-outlined text-base">cloud_done</span>
                     <span>Supabase Connected</span>
                     </div>
-                ) : (
-                    <button
-                    onClick={onOpenSupabaseConnectModal}
-                    title="Connect to Supabase"
-                    className="flex items-center space-x-2 px-3 py-1.5 rounded-full text-gray-300 bg-zinc-800 hover:bg-zinc-700 transition-colors"
-                    aria-label="Connect to Supabase"
-                    >
-                    <span className="material-symbols-outlined text-base">cloud_upload</span>
-                    <span className="text-sm font-medium">Connect Supabase</span>
-                    </button>
                 )}
 
                 <button

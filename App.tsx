@@ -10,7 +10,6 @@ import { FloatingNav } from './components/FloatingNav';
 import { HomePage } from './components/HomePage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { SettingsPage } from './components/SettingsPage';
-import { SupabaseConnectModal } from './components/SupabaseConnectModal';
 import { AuthorizedPage } from './components/AuthorizedPage';
 
 
@@ -122,11 +121,14 @@ export interface Project {
   name: string;
   files: ProjectFile[];
   messages: Message[];
-  supabaseUrl?: string;
-  supabaseAnonKey?: string;
-  supabaseAccessToken?: string;
-  supabaseProjectRef?: string;
   supabaseSql?: string;
+}
+
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+  projectRef: string;
+  accessToken: string;
 }
 
 const App: React.FC = () => {
@@ -141,9 +143,9 @@ const App: React.FC = () => {
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
   
+  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
-  const [isSupabaseConnectModalOpen, setIsSupabaseConnectModalOpen] = useState(false);
   
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
 
@@ -156,8 +158,12 @@ const App: React.FC = () => {
       if (savedProjects) {
         setProjects(JSON.parse(savedProjects));
       }
+      const savedSupabaseConfig = localStorage.getItem('silo_supabase_config');
+      if (savedSupabaseConfig) {
+        setSupabaseConfig(JSON.parse(savedSupabaseConfig));
+      }
     } catch (e) {
-      console.error("Failed to load projects from local storage", e);
+      console.error("Failed to load data from local storage", e);
     }
   }, []);
 
@@ -165,6 +171,14 @@ const App: React.FC = () => {
     localStorage.setItem('silo_projects', JSON.stringify(projects));
   }, [projects]);
   
+  useEffect(() => {
+    if (supabaseConfig) {
+      localStorage.setItem('silo_supabase_config', JSON.stringify(supabaseConfig));
+    } else {
+      localStorage.removeItem('silo_supabase_config');
+    }
+  }, [supabaseConfig]);
+
   useEffect(() => {
     const handleHashChange = () => {
       setLocation(window.location.hash.replace(/^#/, '') || '/home');
@@ -231,12 +245,6 @@ const App: React.FC = () => {
         const { access_token } = await response.json();
 
         if (access_token) {
-          const lastActiveId = localStorage.getItem('silo_last_active_project');
-          if (!lastActiveId) {
-            setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
-            return;
-          }
-          setActiveProjectId(lastActiveId);
           setTempSupabaseToken(access_token);
           setIsProjectSelectorOpen(true);
         } else {
@@ -261,12 +269,6 @@ const App: React.FC = () => {
       exchangeCodeForToken(code);
     }
   }, []);
-
-  useEffect(() => {
-    if(activeProjectId) {
-      localStorage.setItem('silo_last_active_project', activeProjectId);
-    }
-  }, [activeProjectId]);
 
   useEffect(() => {
     const savedModel = localStorage.getItem('gemini_model') as GeminiModel;
@@ -312,8 +314,7 @@ const App: React.FC = () => {
 
   const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string}> => {
     const ai = getAiClient();
-    const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
-    const supabaseContext = activeProjectForPrompt?.supabaseUrl ? `The project is connected to Supabase, so for any data persistence requirements, plan to use Supabase client.` : ``;
+    const supabaseContext = supabaseConfig ? `The project is connected to Supabase project "${supabaseConfig.projectRef}", so for any data persistence requirements, plan to use the Supabase client.` : ``;
 
     const planPrompt = `
       You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React application. 
@@ -365,14 +366,13 @@ const App: React.FC = () => {
 
   const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel) => {
     const ai = getAiClient();
-    const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
-    const supabaseIntegrationPrompt = activeProjectForPrompt?.supabaseUrl && activeProjectForPrompt?.supabaseAnonKey ? `
+    const supabaseIntegrationPrompt = supabaseConfig ? `
       **Supabase Integration:**
       - This project is connected to a Supabase backend.
-      - Supabase Project URL: "${activeProjectForPrompt.supabaseUrl}"
-      - Supabase Anon Key: "${activeProjectForPrompt.supabaseAnonKey}"
+      - Supabase Project URL: "${supabaseConfig.url}"
+      - Supabase Anon Key: "${supabaseConfig.anonKey}"
       - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
-      - Initialize the client like this: \`const supabaseClient = supabase.createClient("${activeProjectForPrompt.supabaseUrl}", "${activeProjectForPrompt.supabaseAnonKey}");\`
+      - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
     ` : '';
     
     const fullPrompt = `
@@ -452,6 +452,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
+    addMessageToProject(projectId, { actor: 'user', text: prompt });
     const { plan, sql } = await generatePlan(prompt, model);
     addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
     
@@ -490,12 +491,11 @@ const App: React.FC = () => {
   const createNewProject = (prompt: string) => {
     if (!prompt.trim()) return;
     
-    setIsLoading(true);
     const newProject: Project = {
         id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
         files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
-        messages: [{ actor: 'user', text: prompt }],
+        messages: [],
     };
     
     setProjects(prev => [...prev, newProject]);
@@ -506,11 +506,8 @@ const App: React.FC = () => {
   
   const handleSend = async () => {
     if (!userInput.trim() || isLoading || !activeProject) return;
-
     const currentInput = userInput;
-    addMessageToProject(activeProject.id, { actor: 'user', text: currentInput });
     setUserInput('');
-
     try {
       await runBuildProcess(currentInput, activeProject.files, activeProject.id);
     } catch (err: any) {
@@ -538,9 +535,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleConnectSupabaseClick = async () => {
-    setIsSupabaseConnectModalOpen(false);
-    
+  const handleSupabaseAuthorize = async () => {
     const codeVerifier = generateRandomString(128);
     sessionStorage.setItem('supabase_code_verifier', codeVerifier);
     const codeChallenge = base64urlencode(await sha256(codeVerifier));
@@ -561,9 +556,7 @@ const App: React.FC = () => {
   };
 
   const handleProjectRefSubmit = async (projectRef: string) => {
-    const lastActiveProjectId = activeProjectId || localStorage.getItem('silo_last_active_project');
-
-    if (!tempSupabaseToken || !lastActiveProjectId) {
+    if (!tempSupabaseToken) {
       setError("An authentication error occurred. Please try connecting again.");
       return;
     }
@@ -592,53 +585,51 @@ const App: React.FC = () => {
       
       const projectUrl = `https://${projectRef}.supabase.co`;
       
-      updateProjectState(lastActiveProjectId, { 
-        supabaseAccessToken: tempSupabaseToken,
-        supabaseProjectRef: projectRef,
-        supabaseUrl: projectUrl, 
-        supabaseAnonKey: anonKey 
+      setSupabaseConfig({
+        accessToken: tempSupabaseToken,
+        projectRef: projectRef,
+        url: projectUrl, 
+        anonKey: anonKey 
       });
       
-      addMessageToProject(lastActiveProjectId, { actor: 'system', text: 'Supabase connected successfully! I can now use it for backend features.' });
-      
-      sessionStorage.setItem('silo_authorized_project_id', lastActiveProjectId);
+      sessionStorage.setItem('silo_authorized_return_path', '/settings');
       setIsProjectSelectorOpen(false);
       setTempSupabaseToken(null);
       window.location.hash = '/authorized';
       
     } catch (err: any) {
       setError(`Supabase Connection Error: ${err.message}`);
-      if (lastActiveProjectId) {
-         addMessageToProject(lastActiveProjectId, { actor: 'system', text: `Failed to connect Supabase. ${err.message}`});
-      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleManualSupabaseConnect = (url: string, anonKey: string) => {
-    if (!activeProjectId) {
-      setError("Cannot connect manually without an active project.");
-      return;
-    }
-
     try {
-      new URL(url);
+      const parsedUrl = new URL(url);
       if (!anonKey.startsWith('ey')) {
           throw new Error("Invalid Anon Key format. It should start with 'ey'.");
       }
+      const projectRefMatch = parsedUrl.hostname.match(/^([\w-]+)\.supabase\.co$/);
+      if (!projectRefMatch) {
+        throw new Error("Invalid Supabase URL format. Hostname should be '<project-ref>.supabase.co'.");
+      }
+      const projectRef = projectRefMatch[1];
+      
+      setSupabaseConfig({
+        url,
+        anonKey,
+        projectRef,
+        accessToken: '', // No access token for manual connection
+      });
+
     } catch (err: any) {
       setError(`Invalid Supabase details: ${err.message}`);
-      return;
     }
-
-    updateProjectState(activeProjectId, { 
-      supabaseUrl: url, 
-      supabaseAnonKey: anonKey 
-    });
-    
-    addMessageToProject(activeProjectId, { actor: 'system', text: 'Supabase connected manually! I can now use it for backend features.' });
-    setIsSupabaseConnectModalOpen(false);
+  };
+  
+  const handleSupabaseDisconnect = () => {
+    setSupabaseConfig(null);
   };
 
   const renderContent = () => {
@@ -651,7 +642,17 @@ const App: React.FC = () => {
       return <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />;
     }
     if (path === '/settings') {
-      return <SettingsPage selectedModel={model} onModelChange={handleModelChange} />;
+      return (
+        <SettingsPage 
+          selectedModel={model} 
+          onModelChange={handleModelChange}
+          supabaseConfig={supabaseConfig}
+          onSupabaseAuthorize={handleSupabaseAuthorize}
+          onSupabaseManualConnect={handleManualSupabaseConnect}
+          onSupabaseDisconnect={handleSupabaseDisconnect}
+          isLoading={isLoading}
+        />
+      );
     }
      if (path === '/authorized') {
       return <AuthorizedPage />;
@@ -676,8 +677,7 @@ const App: React.FC = () => {
               <Workspace
                 files={activeProject.files}
                 onRuntimeError={handleRuntimeError}
-                isSupabaseConnected={!!activeProject.supabaseUrl}
-                onOpenSupabaseConnectModal={() => setIsSupabaseConnectModalOpen(true)}
+                isSupabaseConnected={!!supabaseConfig}
                 supabaseSql={activeProject.supabaseSql}
               />
             </div>
@@ -709,13 +709,6 @@ const App: React.FC = () => {
         isOpen={isProjectSelectorOpen}
         onClose={() => setIsProjectSelectorOpen(false)}
         onConnect={handleProjectRefSubmit}
-        isLoading={isLoading}
-      />
-      <SupabaseConnectModal
-        isOpen={isSupabaseConnectModalOpen}
-        onClose={() => setIsSupabaseConnectModalOpen(false)}
-        onAuthorize={handleConnectSupabaseClick}
-        onManualConnect={handleManualSupabaseConnect}
         isLoading={isLoading}
       />
     </div>
