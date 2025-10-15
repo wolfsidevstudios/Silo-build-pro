@@ -42,9 +42,7 @@ export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPage, onNavigat
         </h1>
       </div>
 
-      <div className="flex-grow" />
-
-      <div className="flex flex-col space-y-4 flex-shrink-0">
+      <div className="flex flex-col space-y-4 flex-shrink-0 mt-20">
         <NavButton
           icon="home"
           label="Home"
@@ -64,6 +62,8 @@ export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPage, onNavigat
           onClick={() => onNavigate('settings')}
         />
       </div>
+
+      <div className="flex-grow" />
     </nav>
   );
 };
