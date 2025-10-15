@@ -80,13 +80,28 @@ const App: React.FC = () => {
       You are an expert React developer with a keen eye for modern UI/UX design. 
       Based on the current code and the user's request, provide the updated and complete React component code.
 
-      **Design Guidelines (Strictly Follow):**
+      **Theme Selection:**
+      - Analyze the user's prompt for keywords like "dark theme", "dark mode", "black background", etc.
+      - If a dark theme is requested, you MUST follow the "Dark Theme Guidelines".
+      - Otherwise, you MUST default to the "Light Theme Guidelines".
+
+      **Light Theme Guidelines (Default):**
       - **Overall Style:** Modern, clean, and minimalist.
-      - **Background:** Always use a white background (e.g., \`#FFFFFF\` or \`bg-white\`).
-      - **Typography:** Use a modern, sans-serif font (like system-ui or Inter). For headers and titles, use bold, black text. A subtle black-to-gray gradient text is a plus if easily achievable.
+      - **Background:** The root element must have a white background (e.g., \`#FFFFFF\` or \`bg-white\`).
+      - **Text:** Main text should be black or dark gray. For headers and titles, use bold, black text.
       - **Buttons:** Buttons must be pill-shaped (fully rounded). They can be either solid black with white text, or have a black outline with black text and a transparent background.
       - **Containers/Taskbars:** Top bars or main containers should be styled as pill-shaped, floating, and transparent or semi-transparent where appropriate.
+
+      **Dark Theme Guidelines:**
+      - **Overall Style:** Modern, clean, and minimalist with a dark aesthetic.
+      - **Background:** The root element must have a black or very dark gray background (e.g., \`#000000\` or \`bg-black\`).
+      - **Text:** Main text should be white or light gray. For headers and titles, use bold, white text.
+      - **Buttons:** Buttons must be pill-shaped (fully rounded). They can be either solid white with black text, or have a white outline with white text and a transparent background.
+      - **Containers/Taskbars:** Top bars or main containers should be styled as pill-shaped, floating, and transparent or semi-transparent, designed to look good on a dark background.
+      
+      **General Rules:**
       - **Styling:** Use inline styles or Tailwind CSS classes. Prioritize Tailwind CSS if it's already present in the code.
+      - **Font:** Use a modern, sans-serif font (like system-ui or Inter).
 
       The user's request is: "${prompt}".
 
