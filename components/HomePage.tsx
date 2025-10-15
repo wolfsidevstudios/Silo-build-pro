@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
+import type { ProjectType } from '../App';
 
 interface HomePageProps {
-  onStartBuild: (prompt: string) => void;
+  onStartBuild: (prompt: string, projectType: ProjectType) => void;
   isLoading: boolean;
 }
 
@@ -14,17 +16,18 @@ const PROMPT_SUGGESTIONS = [
 
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) => {
   const [prompt, setPrompt] = useState('');
+  const [projectType, setProjectType] = useState<ProjectType>('multi');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onStartBuild(prompt);
+      onStartBuild(prompt, projectType);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
-    onStartBuild(suggestion);
+    onStartBuild(suggestion, projectType);
   };
 
   return (
@@ -32,9 +35,32 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
       <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
         Build anything with Silo
       </h1>
-      <p className="text-gray-400 text-lg mb-10 max-w-2xl">
+      <p className="text-gray-400 text-lg mb-8 max-w-2xl">
         Describe the application or component you want to create, and watch it come to life in real-time.
       </p>
+
+      <div className="flex justify-center mb-6">
+        <div className="flex items-center space-x-1 bg-zinc-900 border border-gray-700 rounded-full p-1">
+            <button
+            onClick={() => setProjectType('single')}
+            disabled={isLoading}
+            className={`w-28 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+            }`}
+            >
+            Single File
+            </button>
+            <button
+            onClick={() => setProjectType('multi')}
+            disabled={isLoading}
+            className={`w-28 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+            }`}
+            >
+            Multi-File
+            </button>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
         <div className="relative w-full">

@@ -104,6 +104,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
+export type ProjectType = 'single' | 'multi';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
@@ -122,6 +123,7 @@ export interface Project {
   files: ProjectFile[];
   messages: Message[];
   supabaseSql?: string;
+  projectType: ProjectType;
 }
 
 export interface SupabaseConfig {
@@ -147,7 +149,7 @@ const App: React.FC = () => {
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   
-  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
+  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -156,7 +158,13 @@ const App: React.FC = () => {
     try {
       const savedProjects = localStorage.getItem('silo_projects');
       if (savedProjects) {
-        setProjects(JSON.parse(savedProjects));
+        const parsedProjects: Project[] = JSON.parse(savedProjects);
+        // Add default projectType if missing for backward compatibility
+        const migratedProjects = parsedProjects.map(p => ({
+            ...p,
+            projectType: p.projectType || 'multi' 
+        }));
+        setProjects(migratedProjects);
       }
       const savedSupabaseConfig = localStorage.getItem('silo_supabase_config');
       if (savedSupabaseConfig) {
@@ -280,11 +288,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const build = async () => {
       if (projectToBuild) {
-        const { projectId, prompt } = projectToBuild;
+        const { projectId, prompt, projectType } = projectToBuild;
         setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId);
+          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId, projectType);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setError(errorMessage);
@@ -364,7 +372,7 @@ const App: React.FC = () => {
     }
   };
 
-  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel) => {
+  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
     const ai = getAiClient();
     const supabaseIntegrationPrompt = supabaseConfig ? `
       **Supabase Integration:**
@@ -375,8 +383,20 @@ const App: React.FC = () => {
       - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
     ` : '';
     
+    const projectTypeInstructions = projectType === 'single'
+    ? `
+        **Project Type:** Single File
+        **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file. The final output MUST have only one file object in the "files" array.
+    `
+    : `
+        **Project Type:** Multi-File
+        **Guideline:** You MUST break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure. Do not put everything in a single file unless it is a very simple component.
+    `;
+
     const fullPrompt = `
       You are an expert React developer. Based on the user's request, the plan, and the current file structure, generate the complete code for ALL necessary files.
+
+      ${projectTypeInstructions}
 
       **File Generation Rules:**
       - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
@@ -448,11 +468,15 @@ const App: React.FC = () => {
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string) => {
+  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType) => {
     setIsLoading(true);
     setError(null);
 
     addMessageToProject(projectId, { actor: 'user', text: prompt });
+    
+    const project = projects.find(p => p.id === projectId);
+    const projectType = projectTypeOverride || project?.projectType || 'multi';
+
     const { plan, sql } = await generatePlan(prompt, model);
     addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
     
@@ -461,7 +485,7 @@ const App: React.FC = () => {
     }
 
     setProgress(0);
-    const codePromise = generateCode(prompt, baseFiles, plan, model);
+    const codePromise = generateCode(prompt, baseFiles, plan, model, projectType);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -488,7 +512,7 @@ const App: React.FC = () => {
     }, 500);
   };
 
-  const createNewProject = (prompt: string) => {
+  const createNewProject = (prompt: string, projectType: ProjectType) => {
     if (!prompt.trim()) return;
     
     const newProject: Project = {
@@ -496,11 +520,12 @@ const App: React.FC = () => {
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
         files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
         messages: [],
+        projectType,
     };
     
     setProjects(prev => [...prev, newProject]);
     
-    setProjectToBuild({ projectId: newProject.id, prompt });
+    setProjectToBuild({ projectId: newProject.id, prompt, projectType });
     window.location.hash = `/project/${newProject.id}`;
   };
   
