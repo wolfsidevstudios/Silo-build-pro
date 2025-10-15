@@ -13,6 +13,83 @@ import { SettingsPage } from './components/SettingsPage';
 
 declare const Babel: any;
 
+interface SupabaseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConnect: (url: string, anonKey: string) => void;
+}
+
+const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, onConnect }) => {
+  const [url, setUrl] = useState('');
+  const [anonKey, setAnonKey] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleConnect = () => {
+    if (url.trim() && anonKey.trim()) {
+      onConnect(url, anonKey);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-zinc-900 border border-gray-800 rounded-2xl p-8 w-full max-w-lg relative text-white" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+          <span className="material-symbols-outlined">close</span>
+        </button>
+
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold">Connect to Supabase</h2>
+          <p className="text-gray-400 mt-2">Enter your project details to enable backend features.</p>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="supabase-url" className="block text-sm font-medium text-gray-400 mb-2">
+              Project URL
+            </label>
+            <input
+              id="supabase-url"
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://your-project-ref.supabase.co"
+              className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="supabase-key" className="block text-sm font-medium text-gray-400 mb-2">
+              Anon Public Key
+            </label>
+            <input
+              id="supabase-key"
+              type="password"
+              value={anonKey}
+              onChange={(e) => setAnonKey(e.target.value)}
+              placeholder="ey..."
+              className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              You can find these in your Supabase project's API settings.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <button
+            onClick={handleConnect}
+            disabled={!url.trim() || !anonKey.trim()}
+            className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+          >
+            Connect Project
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 export type Page = 'home' | 'builder' | 'projects' | 'settings';
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 
@@ -27,6 +104,8 @@ export interface Project {
   name: string;
   code: string;
   messages: Message[];
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
 }
 
 const App: React.FC = () => {
@@ -41,6 +120,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   
   // State to trigger the build effect for a new project
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
@@ -137,8 +217,14 @@ const App: React.FC = () => {
 
   const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<string[]> => {
     const ai = getAiClient();
+    const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
+    const supabaseContext = activeProjectForPrompt?.supabaseUrl ? `The project is connected to Supabase, so for any data persistence requirements, plan to use Supabase client.` : ``;
+
     const planPrompt = `
       You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React component. The plan should be a list of key features to be implemented.
+      ${supabaseContext}
+      If you plan to use Supabase for data storage, include a step that describes the necessary SQL table structure. For example: "Create a 'todos' table in Supabase with columns: id (int, primary key), created_at (timestamp), task (text), is_complete (boolean)."
+
       Respond ONLY with a JSON array of strings. Do not include any other text, explanations, or markdown.
       
       User Request: "${prompt}"
@@ -173,10 +259,24 @@ const App: React.FC = () => {
 
   const generateCode = async (prompt: string, codeToUpdate: string, plan: string[], selectedModel: GeminiModel) => {
     const ai = getAiClient();
+    const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
+    const supabaseIntegrationPrompt = activeProjectForPrompt?.supabaseUrl && activeProjectForPrompt?.supabaseAnonKey ? `
+      **Supabase Integration:**
+      - This project is connected to a Supabase backend.
+      - Supabase Project URL: "${activeProjectForPrompt.supabaseUrl}"
+      - Supabase Anon Key: "${activeProjectForPrompt.supabaseAnonKey}"
+      - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
+      - Initialize the client within your component like this: \`const supabaseClient = supabase.createClient("${activeProjectForPrompt.supabaseUrl}", "${activeProjectForPrompt.supabaseAnonKey}");\`
+      - For any features requiring a backend (e.g., data storage, authentication, real-time updates), you MUST use this Supabase client.
+      - If you need to create database tables, you must have included the SQL schema for them in your plan. The user is responsible for running the SQL.
+    ` : '';
+    
     const fullPrompt = `
       You are an expert React developer with a keen eye for modern UI/UX design. 
       Based on the current code, the user's request, and the provided plan, create the updated and complete React component code.
       You MUST follow the plan.
+      
+      ${supabaseIntegrationPrompt}
 
       **Theme Selection:**
       - Analyze the user's prompt for keywords like "dark theme", "dark mode", "black background", etc.
@@ -344,6 +444,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSupabaseConnect = (url: string, anonKey: string) => {
+    if (activeProjectId) {
+      updateProjectState(activeProjectId, { supabaseUrl: url, supabaseAnonKey: anonKey });
+      addMessageToProject(activeProjectId, { actor: 'system', text: 'Supabase connected! I can now use it for backend features.' });
+      setIsSupabaseModalOpen(false);
+    }
+  };
+
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
@@ -370,6 +478,8 @@ const App: React.FC = () => {
                   transpiledCode={transpiledCode}
                   onCodeChange={handleCodeChange}
                   onRuntimeError={handleRuntimeError}
+                  isSupabaseConnected={!!activeProject.supabaseUrl}
+                  onConnectSupabaseClick={() => setIsSupabaseModalOpen(true)}
                 />
               </div>
             </main>
@@ -387,6 +497,11 @@ const App: React.FC = () => {
         {currentPage === 'projects' && <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />}
         {currentPage === 'settings' && <SettingsPage selectedModel={model} onModelChange={handleModelChange} />}
       </div>
+       <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onConnect={handleSupabaseConnect}
+      />
     </div>
   );
 };

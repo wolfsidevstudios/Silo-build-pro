@@ -13,6 +13,7 @@ const createIframeContent = (transpiledCode: string): string => `
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <script src="https://cdn.tailwindcss.com"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
       <style>
         body { background-color: #ffffff; color: #111827; padding: 1rem; font-family: sans-serif; }
       </style>

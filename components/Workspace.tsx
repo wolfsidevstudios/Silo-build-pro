@@ -9,6 +9,8 @@ interface WorkspaceProps {
   transpiledCode: string;
   onCodeChange: (code: string) => void;
   onRuntimeError: (message: string) => void;
+  isSupabaseConnected: boolean;
+  onConnectSupabaseClick: () => void;
 }
 
 const TabButton: React.FC<{
@@ -41,6 +43,7 @@ const createNewTabContent = (transpiledCode: string): string => `
       <script src="https://cdn.tailwindcss.com"></script>
       <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
       <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
       <style>
         body { background-color: #ffffff; color: #111827; padding: 1rem; font-family: sans-serif; }
       </style>
@@ -82,7 +85,7 @@ const createNewTabContent = (transpiledCode: string): string => `
 `;
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCodeChange, onRuntimeError }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCodeChange, onRuntimeError, isSupabaseConnected, onConnectSupabaseClick }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
 
   const handleOpenInNewTab = () => {
@@ -110,14 +113,33 @@ export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCo
             onClick={() => setActiveTab('code')}
           />
         </div>
-        <button
-          onClick={handleOpenInNewTab}
-          title="Open preview in a new tab"
-          className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-          aria-label="Open preview in new tab"
-        >
-          <span className="material-symbols-outlined">open_in_new</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {isSupabaseConnected ? (
+            <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
+              <span className="material-symbols-outlined text-base">cloud_done</span>
+              <span>Supabase Connected</span>
+            </div>
+          ) : (
+            <button
+              onClick={onConnectSupabaseClick}
+              title="Connect to Supabase"
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-full text-gray-300 bg-zinc-800 hover:bg-zinc-700 transition-colors"
+              aria-label="Connect to Supabase"
+            >
+              <span className="material-symbols-outlined text-base">cloud_upload</span>
+              <span className="text-sm font-medium">Connect Supabase</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleOpenInNewTab}
+            title="Open preview in a new tab"
+            className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            aria-label="Open preview in new tab"
+          >
+            <span className="material-symbols-outlined">open_in_new</span>
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-auto p-4">
         {activeTab === 'preview' ? (
