@@ -41,6 +41,10 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
+  
+  // State to trigger the build effect for a new project
+  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
+
 
   const activeProject = projects.find(p => p.id === activeProjectId);
   const debouncedCode = useDebounce(activeProject?.code ?? '', 500);
@@ -88,6 +92,28 @@ const App: React.FC = () => {
       setModel(savedModel);
     }
   }, []);
+  
+  // This effect runs the build process for a new project AFTER the state has been updated.
+  useEffect(() => {
+    const build = async () => {
+      if (projectToBuild) {
+        const { projectId, prompt } = projectToBuild;
+        setProjectToBuild(null); // Reset trigger
+
+        try {
+          await runBuildProcess(prompt, DEFAULT_CODE, projectId);
+        } catch (err: any) {
+          const errorMessage = `AI Error: ${err.message}`;
+          setError(errorMessage);
+          addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` });
+          setIsLoading(false);
+          setProgress(null);
+        }
+      }
+    };
+    build();
+  }, [projectToBuild]);
+
 
   const handleRuntimeError = useCallback((message: string) => {
     setError(`Runtime Error: ${message}`);
@@ -208,14 +234,19 @@ const App: React.FC = () => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   };
   
+  // Safely adds a message to a project using the functional update form of setState
+  const addMessageToProject = (projectId: string, message: Message) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId ? { ...p, messages: [...p.messages, message] } : p
+    ));
+  };
+
   const runBuildProcess = async (prompt: string, baseCode: string, projectId: string) => {
     setIsLoading(true);
     setError(null);
 
     const plan = await generatePlan(prompt, model);
-    updateProjectState(projectId, { 
-      messages: [...(projects.find(p => p.id === projectId)?.messages || []), { actor: 'ai', text: "Here's the plan:", plan }]
-    });
+    addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
 
     setProgress(0);
     const codePromise = generateCode(prompt, baseCode, plan, model);
@@ -236,13 +267,8 @@ const App: React.FC = () => {
     clearInterval(interval);
     setProgress(100);
 
-    const currentProject = projects.find(p => p.id === projectId);
-    if (currentProject) {
-        updateProjectState(projectId, { 
-            code: newCode,
-            messages: [...currentProject.messages, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' }]
-        });
-    }
+    updateProjectState(projectId, { code: newCode });
+    addMessageToProject(projectId, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' });
     
     setTimeout(() => {
       setProgress(null);
@@ -250,7 +276,7 @@ const App: React.FC = () => {
     }, 500);
   };
 
-  const createNewProject = async (prompt: string) => {
+  const createNewProject = (prompt: string) => {
     if (!prompt.trim()) return;
     
     setIsLoading(true);
@@ -265,25 +291,15 @@ const App: React.FC = () => {
     setActiveProjectId(newProject.id);
     setCurrentPage('builder');
     
-    try {
-      await runBuildProcess(prompt, DEFAULT_CODE, newProject.id);
-    } catch (err: any) {
-      const errorMessage = `AI Error: ${err.message}`;
-      setError(errorMessage);
-       updateProjectState(newProject.id, { 
-            messages: [...newProject.messages, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` }]
-        });
-      setIsLoading(false);
-      setProgress(null);
-    }
+    // Trigger the useEffect to run the build process
+    setProjectToBuild({ projectId: newProject.id, prompt });
   };
   
   const handleSend = async () => {
     if (!userInput.trim() || isLoading || !activeProject) return;
 
     const currentInput = userInput;
-    const newMessages: Message[] = [...activeProject.messages, { actor: 'user', text: currentInput }];
-    updateProjectState(activeProject.id, { messages: newMessages });
+    addMessageToProject(activeProject.id, { actor: 'user', text: currentInput });
     setUserInput('');
 
     try {
@@ -291,9 +307,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       const errorMessage = `AI Error: ${err.message}`;
       setError(errorMessage);
-       updateProjectState(activeProject.id, { 
-            messages: [...newMessages, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` }]
-        });
+      addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
       setIsLoading(false);
       setProgress(null);
     }
