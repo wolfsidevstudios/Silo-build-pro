@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
+import { DatabasePanel } from './DatabasePanel';
 
-type ActiveTab = 'preview' | 'code';
+type ActiveTab = 'preview' | 'code' | 'database';
 
 interface WorkspaceProps {
   code: string;
@@ -10,7 +12,8 @@ interface WorkspaceProps {
   onCodeChange: (code: string) => void;
   onRuntimeError: (message: string) => void;
   isSupabaseConnected: boolean;
-  onConnectSupabaseClick: () => void;
+  onOpenSupabaseConnectModal: () => void;
+  supabaseSql?: string;
 }
 
 const TabButton: React.FC<{
@@ -85,7 +88,7 @@ const createNewTabContent = (transpiledCode: string): string => `
 `;
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCodeChange, onRuntimeError, isSupabaseConnected, onConnectSupabaseClick }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCodeChange, onRuntimeError, isSupabaseConnected, onOpenSupabaseConnectModal, supabaseSql }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
 
   const handleOpenInNewTab = () => {
@@ -112,6 +115,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCo
             isActive={activeTab === 'code'}
             onClick={() => setActiveTab('code')}
           />
+          {supabaseSql && (
+            <TabButton
+              title="Database"
+              icon={<span className="material-symbols-outlined">dataset</span>}
+              isActive={activeTab === 'database'}
+              onClick={() => setActiveTab('database')}
+            />
+          )}
         </div>
         <div className="flex items-center space-x-2">
           {isSupabaseConnected ? (
@@ -121,7 +132,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCo
             </div>
           ) : (
             <button
-              onClick={onConnectSupabaseClick}
+              onClick={onOpenSupabaseConnectModal}
               title="Connect to Supabase"
               className="flex items-center space-x-2 px-3 py-1.5 rounded-full text-gray-300 bg-zinc-800 hover:bg-zinc-700 transition-colors"
               aria-label="Connect to Supabase"
@@ -142,13 +153,19 @@ export const Workspace: React.FC<WorkspaceProps> = ({ code, transpiledCode, onCo
         </div>
       </div>
       <div className="flex-1 overflow-auto p-4">
-        {activeTab === 'preview' ? (
+        {activeTab === 'preview' && (
           <div className="w-full h-full rounded-3xl overflow-hidden">
             <Preview code={transpiledCode} onRuntimeError={onRuntimeError} />
           </div>
-        ) : (
+        )}
+        {activeTab === 'code' && (
           <div className="w-full h-full rounded-3xl overflow-hidden">
             <CodeEditor value={code} onChange={onCodeChange} readOnly />
+          </div>
+        )}
+        {activeTab === 'database' && (
+          <div className="w-full h-full">
+            <DatabasePanel sql={supabaseSql || ''} />
           </div>
         )}
       </div>

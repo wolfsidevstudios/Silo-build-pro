@@ -10,6 +10,7 @@ import { FloatingNav } from './components/FloatingNav';
 import { HomePage } from './components/HomePage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { SettingsPage } from './components/SettingsPage';
+import { SupabaseConnectModal } from './components/SupabaseConnectModal';
 
 
 declare const Babel: any;
@@ -77,6 +78,30 @@ const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({ isOpen, onC
   );
 };
 
+// PKCE Helper Functions
+const generateRandomString = (length: number): string => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let result = '';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+};
+
+const sha256 = async (plain: string): Promise<ArrayBuffer> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return window.crypto.subtle.digest('SHA-256', data);
+};
+
+const base64urlencode = (a: ArrayBuffer): string => {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(a) as any))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
 
 export type Page = 'home' | 'builder' | 'projects' | 'settings';
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
@@ -96,6 +121,7 @@ export interface Project {
   supabaseAnonKey?: string;
   supabaseAccessToken?: string;
   supabaseProjectRef?: string;
+  supabaseSql?: string;
 }
 
 const App: React.FC = () => {
@@ -113,6 +139,7 @@ const App: React.FC = () => {
   
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
+  const [isSupabaseConnectModalOpen, setIsSupabaseConnectModalOpen] = useState(false);
   
   // State to trigger the build effect for a new project
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string} | null>(null);
@@ -141,6 +168,13 @@ const App: React.FC = () => {
   // Handle Supabase OAuth redirect
   useEffect(() => {
     const exchangeCodeForToken = async (code: string) => {
+      const codeVerifier = sessionStorage.getItem('supabase_code_verifier');
+      if (!codeVerifier) {
+          setError("Supabase Authentication Error: Could not find code verifier. Please try authenticating again.");
+          return;
+      }
+      sessionStorage.removeItem('supabase_code_verifier'); // Clean up
+
       try {
         setIsLoading(true);
         const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
@@ -156,6 +190,7 @@ const App: React.FC = () => {
             client_id: SUPABASE_CLIENT_ID,
             code: code,
             redirect_uri: redirectUri,
+            code_verifier: codeVerifier,
           }),
         });
 
@@ -190,12 +225,17 @@ const App: React.FC = () => {
 
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    if (code) {
+    const errorParam = params.get('error_description');
+
+    if (errorParam) {
+      setError(`Supabase Auth Error: ${errorParam}`);
+      window.history.replaceState(null, document.title, window.location.pathname);
+    } else if (code) {
       // Clean up the URL so the code isn't exchanged again on refresh.
       window.history.replaceState(null, document.title, window.location.pathname);
       exchangeCodeForToken(code);
     }
-  }, []);
+  }, [activeProjectId]);
 
   useEffect(() => {
     if(activeProjectId) {
@@ -272,22 +312,37 @@ const App: React.FC = () => {
     return new GoogleGenAI({ apiKey });
   }
 
-  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<string[]> => {
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string}> => {
     const ai = getAiClient();
     const activeProjectForPrompt = projects.find(p => p.id === activeProjectId);
     const supabaseContext = activeProjectForPrompt?.supabaseUrl ? `The project is connected to Supabase, so for any data persistence requirements, plan to use Supabase client.` : ``;
 
     const planPrompt = `
-      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React component. The plan should be a list of key features to be implemented.
+      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan and any necessary SQL DDL for building the React component.
       ${supabaseContext}
-      If you plan to use Supabase for data storage, include a step that describes the necessary SQL table structure. For example: "Create a 'todos' table in Supabase with columns: id (int, primary key), created_at (timestamp), task (text), is_complete (boolean)."
+      If you need to use a database table, provide the SQL code to create it. If no database is needed, the "sql" field should be an empty string.
 
-      Respond ONLY with a JSON array of strings. Do not include any other text, explanations, or markdown.
+      Respond ONLY with a JSON object matching this schema:
+      {
+        "plan": ["A list of steps for the implementation."],
+        "sql": "The SQL code to create tables, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax."
+      }
       
       User Request: "${prompt}"
 
-      Example response for "a simple counter app":
-      ["Create a main container div.", "Add a state variable for the count, initialized to 0.", "Display the current count in an h1 tag.", "Add a button to increment the count.", "Add a button to decrement the count."]
+      Example response for "a simple to-do app with a database":
+      {
+        "plan": [
+          "Create a 'todos' table in Supabase using the provided SQL.",
+          "Set up Supabase client in the component.",
+          "Create state for the list of todos and a new todo input.",
+          "Fetch todos from Supabase on component mount.",
+          "Display the list of todos.",
+          "Implement functionality to add a new todo.",
+          "Implement functionality to mark a todo as complete."
+        ],
+        "sql": "CREATE TABLE IF NOT EXISTS todos (\\n  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,\\n  created_at TIMESTAMPTZ DEFAULT NOW(),\\n  task TEXT NOT NULL,\\n  is_complete BOOLEAN DEFAULT FALSE\\n);"
+      }
     `;
     const response = await ai.models.generateContent({
       model: selectedModel,
@@ -295,8 +350,11 @@ const App: React.FC = () => {
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
+          type: Type.OBJECT,
+          properties: {
+            plan: { type: Type.ARRAY, items: { type: Type.STRING } },
+            sql: { type: Type.STRING }
+          }
         }
       }
     });
@@ -306,11 +364,17 @@ const App: React.FC = () => {
     }
 
     try {
-      return JSON.parse(response.text);
+      const parsed = JSON.parse(response.text);
+      return {
+          plan: parsed.plan || [],
+          sql: parsed.sql || ''
+      };
     } catch (e) {
-      console.error("Failed to parse plan:", e);
-      // Fallback if the AI doesn't return perfect JSON
-      return ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."];
+      console.error("Failed to parse plan and SQL:", e);
+      return {
+          plan: ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."],
+          sql: ""
+      };
     }
   };
 
@@ -402,8 +466,12 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    const plan = await generatePlan(prompt, model);
+    const { plan, sql } = await generatePlan(prompt, model);
     addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
+    
+    if (sql) {
+      updateProjectState(projectId, { supabaseSql: sql });
+    }
 
     setProgress(0);
     const codePromise = generateCode(prompt, baseCode, plan, model);
@@ -501,14 +569,26 @@ const App: React.FC = () => {
     }
   };
 
-  const handleConnectSupabaseClick = () => {
+  const handleConnectSupabaseClick = async () => {
+    setIsSupabaseConnectModalOpen(false); // Close modal before redirecting
+    
+    const codeVerifier = generateRandomString(128);
+    sessionStorage.setItem('supabase_code_verifier', codeVerifier);
+    const codeChallenge = base64urlencode(await sha256(codeVerifier));
+
     const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
-    // The redirect URI must be whitelisted in your Supabase OAuth App settings.
     const redirectUri = window.location.origin;
-    // We request the 'project:read' scope to be able to fetch API keys after authentication.
     const scopes = 'project:read';
-    const authUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${SUPABASE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}`;
-    window.location.href = authUrl;
+    
+    const authUrl = new URL('https://api.supabase.com/v1/oauth/authorize');
+    authUrl.searchParams.set('client_id', SUPABASE_CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', scopes);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    window.location.href = authUrl.toString();
   };
 
   const handleProjectRefSubmit = async (projectRef: string) => {
@@ -535,8 +615,7 @@ const App: React.FC = () => {
       }
       
       const apiKeys = await response.json();
-      // The official name for the anon key in the management API response.
-      const anonKey = apiKeys[0]?.api_key;
+      const anonKey = apiKeys.find((k: any) => k.name === 'anon')?.api_key;
       
       if (!anonKey) {
         throw new Error("Could not find the public anon key for your project. Please ensure you have the correct Project Reference ID and permissions.");
@@ -558,10 +637,37 @@ const App: React.FC = () => {
       
     } catch (err: any) {
       setError(`Supabase Connection Error: ${err.message}`);
-      addMessageToProject(lastActiveProjectId, { actor: 'system', text: `Failed to connect Supabase. ${err.message}`});
+      if (lastActiveProjectId) {
+         addMessageToProject(lastActiveProjectId, { actor: 'system', text: `Failed to connect Supabase. ${err.message}`});
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleManualSupabaseConnect = (url: string, anonKey: string) => {
+    if (!activeProjectId) {
+      setError("Cannot connect manually without an active project.");
+      return;
+    }
+
+    try {
+      new URL(url); // will throw an error if URL is invalid
+      if (!anonKey.startsWith('ey')) {
+          throw new Error("Invalid Anon Key format. It should start with 'ey'.");
+      }
+    } catch (err: any) {
+      setError(`Invalid Supabase details: ${err.message}`);
+      return;
+    }
+
+    updateProjectState(activeProjectId, { 
+      supabaseUrl: url, 
+      supabaseAnonKey: anonKey 
+    });
+    
+    addMessageToProject(activeProjectId, { actor: 'system', text: 'Supabase connected manually! I can now use it for backend features.' });
+    setIsSupabaseConnectModalOpen(false);
   };
 
 
@@ -591,7 +697,8 @@ const App: React.FC = () => {
                   onCodeChange={handleCodeChange}
                   onRuntimeError={handleRuntimeError}
                   isSupabaseConnected={!!activeProject.supabaseUrl}
-                  onConnectSupabaseClick={handleConnectSupabaseClick}
+                  onOpenSupabaseConnectModal={() => setIsSupabaseConnectModalOpen(true)}
+                  supabaseSql={activeProject.supabaseSql}
                 />
               </div>
             </main>
@@ -613,6 +720,13 @@ const App: React.FC = () => {
         isOpen={isProjectSelectorOpen}
         onClose={() => setIsProjectSelectorOpen(false)}
         onConnect={handleProjectRefSubmit}
+        isLoading={isLoading}
+      />
+      <SupabaseConnectModal
+        isOpen={isSupabaseConnectModalOpen}
+        onClose={() => setIsSupabaseConnectModalOpen(false)}
+        onAuthorize={handleConnectSupabaseClick}
+        onManualConnect={handleManualSupabaseConnect}
         isLoading={isLoading}
       />
     </div>
