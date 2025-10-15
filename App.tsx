@@ -93,10 +93,10 @@ const App: React.FC = () => {
     setError(`Runtime Error: ${message}`);
   }, []);
 
-  const extractCode = (responseText: string): string => {
-    const codeBlockRegex = /```(?:tsx|typescript|javascript)\n([\s\S]*?)\n```/;
+  const extractCode = (responseText: string): string | null => {
+    const codeBlockRegex = /```(?:tsx|typescript|javascript|jsx)\n([\s\S]*?)\n```/;
     const match = responseText.match(codeBlockRegex);
-    return match ? match[1].trim() : responseText;
+    return match ? match[1].trim() : null;
   };
   
   const getAiClient = () => {
@@ -131,6 +131,10 @@ const App: React.FC = () => {
         }
       }
     });
+
+    if (!response.text || response.promptFeedback?.blockReason) {
+        throw new Error(`The AI response for planning was blocked. Reason: ${response.promptFeedback?.blockReason || 'No content returned'}. Please modify your prompt.`);
+    }
 
     try {
       return JSON.parse(response.text);
@@ -187,7 +191,17 @@ const App: React.FC = () => {
       contents: fullPrompt
     });
 
-    return extractCode(response.text);
+    if (!response.text || response.promptFeedback?.blockReason) {
+        throw new Error(`The AI response was blocked. Reason: ${response.promptFeedback?.blockReason || 'No content returned'}. Please modify your prompt and try again.`);
+    }
+
+    const newCode = extractCode(response.text);
+
+    if (newCode === null) {
+        throw new Error("The AI did not return a valid code block. It might be helpful to ask it to provide the code again.");
+    }
+
+    return newCode;
   };
   
   const updateProjectState = (projectId: string, updates: Partial<Project>) => {
