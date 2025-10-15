@@ -1,5 +1,6 @@
 
 
+
 import React, { useState } from 'react';
 import type { ProjectFile } from '../App';
 
@@ -95,6 +96,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ files, activeFilePat
       </div>
       <div className="flex-1 mt-2 space-y-1 pr-1">
         {/* Fix: Explicitly type the `node` parameter as `TreeNode` to resolve TypeScript error. */}
+        {/* FIX: Explicitly type `node` as `TreeNode` to resolve 'property does not exist on type unknown' error. */}
         {Object.values(fileTree.children ?? {}).map((node: TreeNode) => (
           <FileNode key={node.path} node={node} activeFilePath={activeFilePath} onFileSelect={onFileSelect} level={0} />
         ))}

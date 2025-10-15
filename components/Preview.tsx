@@ -9,7 +9,7 @@ interface PreviewProps {
   onRuntimeError: (message: string) => void;
 }
 
-const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeError: (message: string) => void): string => {
+const createIframeContent = (transpiledFiles: Record<string, string>): string => {
     const iframeLogic = `
         const transpiledModules = ${JSON.stringify(transpiledFiles)};
         const moduleCache = {};
@@ -24,9 +24,7 @@ const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeE
             for (const part of requiredParts) {
                 if (part === '.') continue;
                 if (part === '..') {
-                    if (pathParts.length === 0) {
-                        // Can't go above root
-                    } else {
+                    if (pathParts.length > 0) { // prevent popping from empty array
                        pathParts.pop();
                     }
                 }
@@ -37,8 +35,8 @@ const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeE
 
         const customRequire = (path, currentPath) => {
             // Handle external packages
-            if (path === 'react') return window.parent.React;
-            if (path === 'react-dom/client') return window.parent.ReactDOM;
+            if (path === 'react') return window.React;
+            if (path === 'react-dom/client') return window.ReactDOM;
 
             const resolvedPath = currentPath ? resolvePath(currentPath, path) : path;
             
@@ -73,8 +71,8 @@ const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeE
                 throw new Error('The entry point "src/App.tsx" must have a default export of a React component.');
             }
             const rootElement = document.getElementById('preview-root');
-            const root = window.parent.ReactDOM.createRoot(rootElement);
-            root.render(window.parent.React.createElement(App));
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(React.createElement(App));
         } catch (err) {
             handleError(err);
         }
@@ -86,16 +84,14 @@ const createIframeContent = (transpiledFiles: Record<string, string>, onRuntimeE
         <head>
           <meta charset="UTF-8" />
           <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
           <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
         </head>
         <body>
           <div id="preview-root"></div>
           <script type="module">
-            // Expose React and ReactDOM to the iframe's window for our module system
-            window.parent.React = window.React;
-            window.parent.ReactDOM = window.ReactDOM;
-
             const handleError = (err) => {
                const root = document.getElementById('preview-root');
                root.innerHTML = \`<div style="color: red; padding: 1rem; font-family: monospace;"><h4>Runtime Error</h4><pre>\${err.stack || err.message}</pre></div>\`;
@@ -141,7 +137,7 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError }) => {
                 transpiledFiles[file.path] = transformedCode;
              }
         });
-        const content = createIframeContent(transpiledFiles, onRuntimeError);
+        const content = createIframeContent(transpiledFiles);
         setIframeContent(content);
     } catch (e: any) {
         onRuntimeError(`Babel Transpilation Error: ${e.message}`);

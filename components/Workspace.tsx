@@ -42,23 +42,32 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
     const iframeLogic = `
         const transpiledModules = ${JSON.stringify(transpiledFiles)};
         const moduleCache = {};
+        
+        const resolvePath = (currentPath, requiredPath) => {
+            if (!requiredPath.startsWith('.')) {
+                return requiredPath; // Is a package or absolute path
+            }
+            const pathParts = currentPath.split('/');
+            pathParts.pop(); // remove filename -> directory
+            const requiredParts = requiredPath.split('/');
+            for (const part of requiredParts) {
+                if (part === '.') continue;
+                if (part === '..') {
+                    if (pathParts.length > 0) { // prevent popping from empty array
+                       pathParts.pop();
+                    }
+                }
+                else pathParts.push(part);
+            }
+            return pathParts.join('/');
+        }
 
         const customRequire = (path, currentPath) => {
             if (path === 'react') return window.React;
             if (path === 'react-dom/client') return window.ReactDOM;
-
-            // Basic relative path resolution
-            let resolvedPath = path;
-            if (path.startsWith('./') && currentPath) {
-                const dirname = currentPath.substring(0, currentPath.lastIndexOf('/'));
-                resolvedPath = dirname + '/' + path.substring(2);
-            } else if (path.startsWith('../') && currentPath) {
-                 const dirname = currentPath.substring(0, currentPath.lastIndexOf('/'));
-                 const parts = dirname.split('/');
-                 parts.pop();
-                 resolvedPath = parts.join('/') + '/' + path.substring(3);
-            }
-
+            
+            const resolvedPath = currentPath ? resolvePath(currentPath, path) : path;
+            
             if (moduleCache[resolvedPath]) {
                 return moduleCache[resolvedPath].exports;
             }
