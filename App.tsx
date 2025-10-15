@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -139,26 +140,60 @@ const App: React.FC = () => {
   
   // Handle Supabase OAuth redirect
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      if (accessToken) {
-        if (!activeProjectId) {
+    const exchangeCodeForToken = async (code: string) => {
+      try {
+        setIsLoading(true);
+        const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
+        const redirectUri = window.location.origin;
+
+        const response = await fetch('https://api.supabase.com/v1/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: SUPABASE_CLIENT_ID,
+            code: code,
+            redirect_uri: redirectUri,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error_description || 'Failed to exchange authorization code for token.');
+        }
+
+        const { access_token } = await response.json();
+
+        if (access_token) {
+          if (!activeProjectId) {
              const lastActiveId = localStorage.getItem('silo_last_active_project');
              if (lastActiveId) {
                 setActiveProjectId(lastActiveId);
              } else {
-                // Cannot proceed without knowing which project to connect to.
-                // Ideally, we'd store the project ID in the OAuth state parameter.
                 setError("Could not determine the active project after Supabase redirect. Please try connecting again from the project workspace.");
+                return;
              }
+          }
+          setTempSupabaseToken(access_token);
+          setIsProjectSelectorOpen(true);
+        } else {
+          throw new Error('Access token not found in response.');
         }
-        setTempSupabaseToken(accessToken);
-        setIsProjectSelectorOpen(true);
-        // Clean up the URL
-        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      } catch (err: any) {
+        setError(`Supabase Authentication Error: ${err.message}`);
+      } finally {
+        setIsLoading(false);
       }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      // Clean up the URL so the code isn't exchanged again on refresh.
+      window.history.replaceState(null, document.title, window.location.pathname);
+      exchangeCodeForToken(code);
     }
   }, []);
 
@@ -472,7 +507,7 @@ const App: React.FC = () => {
     const redirectUri = window.location.origin;
     // We request the 'project:read' scope to be able to fetch API keys after authentication.
     const scopes = 'project:read';
-    const authUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${SUPABASE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scopes}`;
+    const authUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${SUPABASE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}`;
     window.location.href = authUrl;
   };
 
