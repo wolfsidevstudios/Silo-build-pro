@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState } from 'react';
 import type { ProjectFile } from '../App';
 
@@ -69,7 +70,6 @@ const FileNode: React.FC<{ node: TreeNode; activeFilePath: string; onFileSelect:
       </div>
       {isDirectory && isOpen && (
         <div>
-          {/* Fix: Explicitly type sort parameters to resolve 'property does not exist on type unknown' errors. */}
           {Object.values(node.children ?? {}).sort((a: TreeNode, b: TreeNode) => {
             // directories first, then files, then alphabetically
             const aIsDir = !!a.children;
@@ -77,7 +77,8 @@ const FileNode: React.FC<{ node: TreeNode; activeFilePath: string; onFileSelect:
             if (aIsDir && !bIsDir) return -1;
             if (!aIsDir && bIsDir) return 1;
             return a.name.localeCompare(b.name);
-          }).map(child => (
+// Fix: Explicitly type the 'child' parameter as 'TreeNode' to resolve TypeScript error.
+          }).map((child: TreeNode) => (
             <FileNode key={child.path} node={child} activeFilePath={activeFilePath} onFileSelect={onFileSelect} level={level + 1} />
           ))}
         </div>

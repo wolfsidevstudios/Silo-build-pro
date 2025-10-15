@@ -14,31 +14,58 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
         const transpiledModules = ${JSON.stringify(transpiledFiles)};
         const moduleCache = {};
 
-        const resolvePath = (currentPath, requiredPath) => {
+        const resolveModulePath = (currentPath, requiredPath) => {
             if (!requiredPath.startsWith('.')) {
-                return requiredPath; // Is a package or absolute path
+                return requiredPath; // Not a relative path, assume it's a package.
             }
+            
             const pathParts = currentPath.split('/');
-            pathParts.pop(); // remove filename -> directory
+            pathParts.pop(); // Go from file path to directory path.
             const requiredParts = requiredPath.split('/');
+            
             for (const part of requiredParts) {
                 if (part === '.') continue;
                 if (part === '..') {
-                    if (pathParts.length > 0) { // prevent popping from empty array
-                       pathParts.pop();
-                    }
+                    if (pathParts.length > 0) pathParts.pop();
+                } else {
+                    pathParts.push(part);
                 }
-                else pathParts.push(part);
             }
-            return pathParts.join('/');
-        }
+            
+            const basePath = pathParts.join('/');
+
+            // 1. Direct match
+            if (transpiledModules.hasOwnProperty(basePath)) {
+                return basePath;
+            }
+
+            // 2. Try with extensions
+            const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+            for (const ext of extensions) {
+                const pathWithExt = basePath + ext;
+                if (transpiledModules.hasOwnProperty(pathWithExt)) {
+                    return pathWithExt;
+                }
+            }
+
+            // 3. Try as a directory with index file
+            for (const ext of extensions) {
+                const indexPath = basePath + '/index' + ext;
+                if (transpiledModules.hasOwnProperty(indexPath)) {
+                    return indexPath;
+                }
+            }
+            
+            // If nothing is found, return the originally resolved path to let the caller handle the error.
+            return basePath;
+        };
 
         const customRequire = (path, currentPath) => {
             // Handle external packages
             if (path === 'react') return window.React;
             if (path === 'react-dom/client') return window.ReactDOM;
 
-            const resolvedPath = currentPath ? resolvePath(currentPath, path) : path;
+            const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
             
             if (moduleCache[resolvedPath]) {
                 return moduleCache[resolvedPath].exports;
@@ -46,7 +73,7 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
 
             const code = transpiledModules[resolvedPath];
             if (code === undefined) {
-                throw new Error(\`Module not found: "\${resolvedPath}" (required from "\${currentPath}"). Available: \${Object.keys(transpiledModules).join(', ')}\`);
+                 throw new Error(\`Module not found: Could not resolve "\${path}" from "\${currentPath || 'entry point'}". Attempted to load "\${resolvedPath}". Available modules: [\${Object.keys(transpiledModules).join(', ')}]\`);
             }
 
             const exports = {};
