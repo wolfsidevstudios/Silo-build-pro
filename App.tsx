@@ -129,6 +129,7 @@ export interface Project {
   supabaseSql?: string;
   projectType: ProjectType;
   netlifySiteId?: string;
+  netlifyUrl?: string;
 }
 
 export interface SupabaseConfig {
@@ -763,9 +764,6 @@ const App: React.FC = () => {
   const handlePublish = async () => {
     if (!activeProject) return;
 
-    setIsPublishModalOpen(true);
-    setPublishState({ status: 'idle' });
-
     const token = localStorage.getItem('silo_netlify_token');
     if (!token) {
       setPublishState({ status: 'error', error: 'Netlify token not found. Please add it on the Settings page.' });
@@ -826,6 +824,7 @@ const App: React.FC = () => {
 
       const finalUrl = await pollDeploy();
       setPublishState({ status: 'success', url: finalUrl });
+      updateProjectState(activeProject.id, { netlifyUrl: finalUrl });
     } catch (err: any) {
       console.error("Publishing error:", err);
       setPublishState({ status: 'error', error: err.message });
@@ -882,7 +881,10 @@ const App: React.FC = () => {
                 isSupabaseConnected={!!supabaseConfig}
                 supabaseSql={activeProject.supabaseSql}
                 previewMode={previewMode}
-                onPublish={() => setIsPublishModalOpen(true)}
+                onPublish={() => {
+                    setPublishState({ status: 'idle' });
+                    setIsPublishModalOpen(true)
+                }}
               />
             </div>
           </main>
@@ -944,6 +946,8 @@ const App: React.FC = () => {
         onPublish={handlePublish}
         publishState={publishState}
         projectName={activeProject?.name || ''}
+        isRedeploy={!!activeProject?.netlifySiteId}
+        existingUrl={activeProject?.netlifyUrl}
       />
     </div>
   );

@@ -13,6 +13,8 @@ interface PublishModalProps {
   onPublish: () => void;
   publishState: PublishState;
   projectName: string;
+  isRedeploy?: boolean;
+  existingUrl?: string;
 }
 
 const statusMessages: Record<PublishState['status'], string> = {
@@ -29,7 +31,7 @@ const Spinner: React.FC = () => (
     <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
 );
 
-export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish, publishState, projectName }) => {
+export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish, publishState, projectName, isRedeploy, existingUrl }) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
@@ -105,6 +107,34 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
           </>
         );
       case 'idle':
+        if (isRedeploy) {
+            return (
+                <>
+                    <div className="text-center">
+                        <span className="material-symbols-outlined text-6xl text-blue-400">upload</span>
+                        <h2 className="text-2xl font-bold mt-4">Redeploy Project</h2>
+                        <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
+                    </div>
+                    {existingUrl && (
+                        <div className="mt-4 w-full text-center">
+                            <label className="text-xs text-gray-500">Live URL:</label>
+                            <a href={existingUrl} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-400 hover:underline truncate mt-1">
+                                {existingUrl}
+                            </a>
+                        </div>
+                    )}
+                    <p className="text-sm text-gray-500 mt-4 text-center">This will update your existing Netlify site with the latest changes.</p>
+                    <div className="mt-8 flex space-x-4 w-full">
+                        <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
+                            Cancel
+                        </button>
+                        <button onClick={onPublish} className="w-full py-3 text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            Update Site
+                        </button>
+                    </div>
+                </>
+            );
+        }
          return (
           <>
             <div className="text-center">
