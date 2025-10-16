@@ -1,3 +1,4 @@
+
 let files = {};
 
 self.addEventListener('install', () => {
@@ -19,10 +20,18 @@ self.addEventListener('fetch', (event) => {
   const path = url.pathname;
   const filePath = path.startsWith('/') ? path.substring(1) : path;
   
+  const getContentType = (filePath) => {
+    if (filePath.endsWith('.css')) return 'text/css; charset=utf-8';
+    if (filePath.endsWith('.js')) return 'application/javascript; charset=utf-8';
+    if (filePath.endsWith('.html')) return 'text/html; charset=utf-8';
+    // Default for React modules
+    return 'application/javascript; charset=utf-8';
+  };
+
   if (files[filePath]) {
     event.respondWith(
       new Response(files[filePath], {
-        headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+        headers: { 'Content-Type': getContentType(filePath) },
       })
     );
     return;

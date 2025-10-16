@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useState, useRef } from 'react';
-import type { ProjectFile, PreviewMode } from '../App';
+import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
 declare const Babel: any;
 
@@ -9,6 +9,7 @@ interface PreviewProps {
   files: ProjectFile[];
   onRuntimeError: (message: string) => void;
   previewMode: PreviewMode;
+  projectType: ProjectType;
 }
 
 const createIframeContent = (transpiledFiles: Record<string, string>): string => {
@@ -123,7 +124,7 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
     `;
 };
 
-export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode }) => {
+export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType }) => {
   const [iframeContent, setIframeContent] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -155,6 +156,53 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
   useEffect(() => {
     let isMounted = true;
     const transpileAndLoad = async () => {
+      if (projectType === 'html') {
+          if (previewMode === 'service-worker') {
+              const projectFiles: Record<string, string> = {};
+              files.forEach(file => {
+                  projectFiles[file.path] = file.code;
+              });
+
+              await navigator.serviceWorker.ready;
+              if (navigator.serviceWorker.controller) {
+                  navigator.serviceWorker.controller.postMessage({
+                      type: 'UPDATE_FILES',
+                      files: projectFiles,
+                  });
+                  if (iframeRef.current) {
+                      const newSrc = '/index.html';
+                      if (iframeRef.current.getAttribute('src') !== newSrc) {
+                          iframeRef.current.src = newSrc;
+                      } else {
+                          iframeRef.current.contentWindow?.location.reload();
+                      }
+                  }
+              } else {
+                  onRuntimeError("Service Worker is not active. Please reload the page to activate the preview.");
+              }
+          } else { // Iframe mode for HTML
+              const htmlFile = files.find(f => f.path === 'index.html');
+              const cssFile = files.find(f => f.path === 'style.css');
+              const jsFile = files.find(f => f.path === 'script.js');
+
+              if (!htmlFile) {
+                  setIframeContent('<h1>index.html not found</h1>');
+                  return;
+              }
+              
+              let content = htmlFile.code;
+              if (cssFile) {
+                  content = content.replace('</head>', `<style>${cssFile.code}</style></head>`);
+              }
+              if (jsFile) {
+                  content = content.replace('</body>', `<script>${jsFile.code}</script></body>`);
+              }
+              setIframeContent(content);
+          }
+          return;
+      }
+
+      // Existing React project logic
       try {
         const isServiceWorkerMode = previewMode === 'service-worker';
         const plugins = isServiceWorkerMode ? [] : ['transform-modules-commonjs'];
@@ -168,8 +216,6 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
                     filename: file.path,
                 }).code;
                 
-                // Robustness: Strip out any CSS imports to prevent crashing the preview.
-                // FIX: Corrected the regular expression to properly strip CSS imports by removing unnecessary backslashes.
                 transformedCode = transformedCode.replace(/import\s+['"]\.\/.*\.css['"];?/g, '');
                 
                 transpiledFiles[file.path] = transformedCode;
@@ -205,14 +251,15 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
     
     return () => { isMounted = false; };
 
-  }, [files, onRuntimeError, previewMode]);
+  }, [files, onRuntimeError, previewMode, projectType]);
 
   if (previewMode === 'service-worker') {
+    const initialSrc = projectType === 'html' ? '/index.html' : '/preview.html';
     return (
         <div className="w-full h-full bg-white">
           <iframe
             ref={iframeRef}
-            src="/preview.html"
+            src={initialSrc}
             title="Live Preview (Service Worker)"
             className="w-full h-full border-none"
             sandbox="allow-scripts allow-same-origin"

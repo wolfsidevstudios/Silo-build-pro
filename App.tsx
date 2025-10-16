@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { useDebounce } from './hooks/useDebounce';
-import { DEFAULT_CODE } from './constants';
+import { DEFAULT_CODE, DEFAULT_HTML_FILES } from './constants';
 import { ChatPanel } from './components/ChatPanel';
 import { Workspace } from './components/Workspace';
 import { FloatingNav } from './components/FloatingNav';
@@ -109,7 +109,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
-export type ProjectType = 'single' | 'multi';
+export type ProjectType = 'single' | 'multi' | 'html';
 export type PreviewMode = 'iframe' | 'service-worker';
 
 export interface Message {
@@ -364,7 +364,7 @@ const App: React.FC = () => {
         setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId, projectType, true);
+          await runBuildProcess(prompt, [], projectId, projectType, true);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setErrors(prev => [errorMessage, ...prev]);
@@ -399,20 +399,23 @@ const App: React.FC = () => {
   const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
     const ai = getAiClient();
 
-    const singleFileConstraint = projectType === 'single'
-      ? `\n**CRITICAL CONSTRAINT:** This is a single-file project. You MUST only generate one file: 'src/App.tsx'. The "files_to_generate" array in your response MUST contain only this single path.`
-      : '';
+    let projectConstraints = '';
+    if (projectType === 'single') {
+        projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a single-file React project. You MUST only generate one file: 'src/App.tsx'. The "files_to_generate" array in your response MUST contain only this single path.`;
+    } else if (projectType === 'html') {
+        projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a vanilla HTML/CSS/JS project. You MUST generate three files: 'index.html', 'style.css', and 'script.js'. The "files_to_generate" array in your response MUST contain exactly these three paths. Do not generate any other files. No SQL database is needed.`;
+    }
 
     const planPrompt = `
-      You are a senior software architect. Your task is to create a plan to build a React application based on the user's request.
+      You are a senior software architect. Your task is to create a plan to build a web application based on the user's request.
 
       **Instructions:**
       1.  Create a concise, step-by-step plan for the implementation.
       2.  List all the file paths you intend to create or modify. This list should be comprehensive.
-      3.  If the application requires data persistence, you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
+      3.  If the application requires data persistence (and is a React project), you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
       4.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
       5.  If no database is needed, the "sql" field in your response must be an empty string.
-      ${singleFileConstraint}
+      ${projectConstraints}
 
       **Output Format:**
       You MUST respond with ONLY a JSON object that matches this exact schema. Do not include any other text or markdown.
@@ -448,9 +451,11 @@ const App: React.FC = () => {
     try {
       const parsed = JSON.parse(response.text);
 
-      // Hard override for single file mode to ensure compliance.
       if (projectType === 'single') {
         parsed.files_to_generate = ['src/App.tsx'];
+      } else if (projectType === 'html') {
+          parsed.files_to_generate = ['index.html', 'style.css', 'script.js'];
+          parsed.sql = ''; // Force no SQL for HTML projects
       }
 
       return {
@@ -463,7 +468,7 @@ const App: React.FC = () => {
       return {
           plan: ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."],
           sql: "",
-          files_to_generate: projectType === 'single' ? ['src/App.tsx'] : []
+          files_to_generate: projectType === 'single' ? ['src/App.tsx'] : (projectType === 'html' ? ['index.html', 'style.css', 'script.js'] : [])
       };
     }
   };
@@ -495,18 +500,55 @@ const App: React.FC = () => {
 ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     ` : '';
     
-    const projectTypeInstructions = projectType === 'single'
-    ? `
-        **Project Type:** Single File
-        **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file. The final output MUST have only one file object in the "files" array.
-    `
-    : `
-        **Project Type:** Multi-File
-        **Guideline:** You MUST break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure. Do not put everything in a single file unless it is a very simple component.
+    let projectTypeInstructions = '';
+    switch (projectType) {
+        case 'single':
+            projectTypeInstructions = `
+                **Project Type:** Single File (React)
+                **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file. The final output MUST have only one file object in the "files" array.
+            `;
+            break;
+        case 'multi':
+            projectTypeInstructions = `
+                **Project Type:** Multi-File (React)
+                **Guideline:** You MUST break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure. Do not put everything in a single file unless it is a very simple component.
+            `;
+            break;
+        case 'html':
+            projectTypeInstructions = `
+                **Project Type:** Vanilla HTML/CSS/JS
+                **Constraint:** You MUST generate a standard, static web project with three files: 'index.html', 'style.css', and 'script.js'.
+                - **index.html:** Must contain the full HTML structure. It MUST link to the other two files correctly, like this: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
+                - **style.css:** Must contain all the CSS styles.
+                - **script.js:** Must contain all the JavaScript logic.
+                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. Write plain HTML, CSS, and JavaScript. DO NOT use Tailwind CSS; write standard CSS rules. The final output MUST have exactly three file objects in the "files" array for these files.
+            `;
+            break;
+    }
+
+    const reactStylingGuidelines = `
+      **Design System & UI Guidelines (for React Projects):**
+      - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
+      - **Background:** The main application background MUST be white.
+      - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin border.
+      - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The library is already available. Example: \`<span className="material-symbols-outlined">icon_name</span>\`.
+      - **Navigation Bars:** If a navigation bar or header is requested or necessary for the application's functionality, it should be pill-shaped, floating, and have a frosted glass effect (using Tailwind CSS for backdrop blur and semi-transparent backgrounds, e.g., \`bg-white/50 backdrop-blur-md\`). Do not add a navigation bar unless it is explicitly requested or is essential for the app's core features.
+      - **Styling:** You MUST use Tailwind CSS for all styling. Do not generate a \`tailwind.config.js\` file; all necessary classes are available via the CDN.
+      - **CRITICAL STYLING RULE:** You MUST NOT generate any CSS files (e.g., 'App.css', 'index.css'). You MUST NOT include any CSS import statements in your TSX/JS files (e.g., \`import './App.css'\`). All styling MUST be done exclusively with Tailwind CSS classes applied directly to the JSX elements.
     `;
 
+     const reactFileRules = `
+      **File Generation Rules (for React Projects):**
+      - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
+      - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
+      - You MUST provide the full code for ALL files specified in the "Files to Generate" section above. Do not omit files.
+      - The main application component that should be rendered MUST be the default export of "src/App.tsx".
+      - Do NOT generate an \`index.html\`, \`public/index.html\`, \`main.tsx\`, or any other entry-point HTML or JS file. The preview environment handles this automatically. Focus only on creating React components and related modules inside the \`src/\` directory.
+      - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
+     `;
+
     const fullPrompt = `
-      You are an expert React developer. Your task is to generate the complete code for a set of specified files based on the user's request, a plan, and the current file structure.
+      You are an expert web developer. Your task is to generate the complete code for a set of specified files based on the user's request, a plan, and the current file structure.
 
       **CRITICAL INSTRUCTION:** You MUST generate code for EVERY file listed below. Do not add, omit, or rename any files from this list. The "files" array in your JSON response must contain an entry for each and every one of these paths.
       
@@ -515,22 +557,9 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
       ${projectTypeInstructions}
 
-      **Design System & UI Guidelines:**
-      - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
-      - **Background:** The main application background MUST be white.
-      - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin border.
-      - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The library is already available. Example: \`<span className="material-symbols-outlined">icon_name</span>\`.
-      - **Navigation Bars:** If a navigation bar or header is requested or necessary for the application's functionality, it should be pill-shaped, floating, and have a frosted glass effect (using Tailwind CSS for backdrop blur and semi-transparent backgrounds, e.g., \`bg-white/50 backdrop-blur-md\`). Do not add a navigation bar unless it is explicitly requested or is essential for the app's core features.
-      - **Styling:** You MUST use Tailwind CSS for all styling. Do not generate a \`tailwind.config.js\` file; all necessary classes are available via the CDN.
-      - **CRITICAL STYLING RULE:** You MUST NOT generate any CSS files (e.g., 'App.css', 'index.css'). You MUST NOT include any CSS import statements in your TSX/JS files (e.g., \`import './App.css'\`). All styling MUST be done exclusively with Tailwind CSS classes applied directly to the JSX elements.
-
-      **File Generation Rules:**
-      - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
-      - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
-      - You MUST provide the full code for ALL files specified in the "Files to Generate" section above. Do not omit files.
-      - The main application component that should be rendered MUST be the default export of "src/App.tsx".
-      - Do NOT generate an \`index.html\`, \`public/index.html\`, \`main.tsx\`, or any other entry-point HTML or JS file. The preview environment handles this automatically. Focus only on creating React components and related modules inside the \`src/\` directory.
-      - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
+      ${projectType !== 'html' ? reactStylingGuidelines : ''}
+      
+      ${projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
       ${customSqlPrompt}
@@ -607,9 +636,8 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
     const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType);
     
-    // FIX: Ensure src/App.tsx is always in the list of files to generate.
-    // This prevents an error where the AI planning step might forget to include the main entry file.
-    if (!files_to_generate.some(f => f === 'src/App.tsx')) {
+    // FIX: Ensure src/App.tsx is always in the list for React projects.
+    if (projectType !== 'html' && !files_to_generate.some(f => f === 'src/App.tsx')) {
         files_to_generate.unshift('src/App.tsx');
     }
 
@@ -655,9 +683,16 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     clearInterval(interval);
     setProgress(null); // Hide progress bar; checklist will show progress now.
 
+    if (projectType === 'html') {
+        const expectedFiles = ['index.html', 'style.css', 'script.js'];
+        const receivedFiles = newFiles.map(f => f.path);
+        if (expectedFiles.some(f => !receivedFiles.includes(f)) || receivedFiles.length !== expectedFiles.length) {
+            throw new Error(`The AI failed to generate the required HTML/CSS/JS files. Expected: ${expectedFiles.join(', ')}. Received: ${receivedFiles.join(', ')}. Please try again.`);
+        }
+    }
+
     if (isInitialBuild) {
-        // Add validation to ensure the AI returns the main App.tsx file before clearing existing files.
-        if (!newFiles || !newFiles.some(f => f.path === 'src/App.tsx')) {
+        if (projectType !== 'html' && (!newFiles || !newFiles.some(f => f.path === 'src/App.tsx'))) {
             throw new Error("The AI failed to generate the main 'src/App.tsx' file. The project build has been cancelled to prevent errors. Please try rephrasing your request.");
         }
 
@@ -725,10 +760,14 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
   const createNewProject = (prompt: string, projectType: ProjectType) => {
     if (!prompt.trim()) return;
     
+    const initialFiles = projectType === 'html'
+      ? DEFAULT_HTML_FILES
+      : [{ path: 'src/App.tsx', code: DEFAULT_CODE }];
+    
     const newProject: Project = {
         id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
-        files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
+        files: initialFiles,
         messages: [],
         projectType,
         commits: [],

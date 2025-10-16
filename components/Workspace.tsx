@@ -161,21 +161,55 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 
 export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
-  const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
+  const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
   const { files } = project;
   const sqlFile = files.find(f => f.path === 'app.sql');
   const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
   
   useEffect(() => {
-    // If the active file is deleted, reset to the entry point
+    const defaultFile = project.projectType === 'html' ? 'index.html' : 'src/App.tsx';
     if (!files.find(f => f.path === activeFilePath)) {
-        setActiveFilePath('src/App.tsx');
+        setActiveFilePath(defaultFile);
     }
-  }, [files, activeFilePath]);
+    // Reset to preview tab when project changes
+    setActiveTab('preview');
+  }, [project.id]);
+
+  useEffect(() => {
+    // If the active file is deleted, reset to the entry point
+    const defaultFile = project.projectType === 'html' ? 'index.html' : 'src/App.tsx';
+    if (!files.find(f => f.path === activeFilePath)) {
+        setActiveFilePath(defaultFile);
+    }
+  }, [files, activeFilePath, project.projectType]);
 
   const activeFile = files.find(f => f.path === activeFilePath);
 
   const handleOpenInNewTab = () => {
+    if (project.projectType === 'html') {
+        const htmlFile = files.find(f => f.path === 'index.html');
+        const cssFile = files.find(f => f.path === 'style.css');
+        const jsFile = files.find(f => f.path === 'script.js');
+
+        if (!htmlFile) {
+            onRuntimeError("Cannot open in new tab: index.html not found.");
+            return;
+        }
+
+        let htmlContent = htmlFile.code;
+        if (cssFile) {
+            htmlContent = htmlContent.replace('</head>', `<style>${cssFile.code}</style></head>`);
+        }
+        if (jsFile) {
+            htmlContent = htmlContent.replace('</body>', `<script>${jsFile.code}</script></body>`);
+        }
+        
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        return;
+    }
+
     try {
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
@@ -262,7 +296,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         {activeTab === 'preview' && (
           <div className="flex-1 overflow-auto p-4 pt-0">
             <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
-              <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} />
+              <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
             </div>
           </div>
         )}

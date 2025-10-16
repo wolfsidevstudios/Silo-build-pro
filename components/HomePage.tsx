@@ -56,23 +56,32 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
 
         <div className="flex justify-center mb-6">
           <div className="flex items-center space-x-1 bg-zinc-900 border border-gray-700 rounded-full p-1">
+               <button
+                onClick={() => setProjectType('html')}
+                disabled={isLoading}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    projectType === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+                }`}
+                >
+                HTML/CSS/JS
+              </button>
               <button
               onClick={() => setProjectType('single')}
               disabled={isLoading}
-              className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
               }`}
               >
-              Single File
+              React (Single File)
               </button>
               <button
               onClick={() => setProjectType('multi')}
               disabled={isLoading}
-              className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
                   projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
               }`}
               >
-              Multi-File
+              React (Multi-File)
               <span className="ml-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">
                 Beta
               </span>
