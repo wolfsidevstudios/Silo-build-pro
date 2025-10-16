@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 
 export type PublishState = {
@@ -18,6 +17,10 @@ interface PublishModalProps {
   isRedeploy: boolean;
   isNetlifyConfigured: boolean;
   isVercelConfigured: boolean;
+  projectUrls?: {
+    netlify?: string;
+    vercel?: string;
+  };
 }
 
 const getStatusMessage = (status: PublishState['status'], platform?: 'netlify' | 'vercel'): string => {
@@ -46,7 +49,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   projectName,
   isRedeploy,
   isNetlifyConfigured,
-  isVercelConfigured
+  isVercelConfigured,
+  projectUrls,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -142,6 +146,84 @@ export const PublishModal: React.FC<PublishModalProps> = ({
              </>
           );
         }
+
+        if (isRedeploy && (projectUrls?.netlify || projectUrls?.vercel)) {
+          return (
+            <>
+              <div className="text-center">
+                <span className="material-symbols-outlined text-6xl text-green-400">dns</span>
+                <h2 className="text-2xl font-bold mt-4">Deployment Settings</h2>
+                <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
+              </div>
+
+              {projectUrls.netlify && (
+                <div className="mt-6 w-full">
+                  <label className="text-xs text-gray-500">Netlify URL:</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <input
+                      type="text"
+                      readOnly
+                      value={projectUrls.netlify}
+                      className="w-full p-2 bg-zinc-800 border border-gray-700 rounded-lg text-sm truncate"
+                    />
+                    <a
+                      href={projectUrls.netlify}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
+                    >
+                      <span className="material-symbols-outlined">open_in_new</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {projectUrls.vercel && (
+                <div className="mt-6 w-full">
+                  <label className="text-xs text-gray-500">Vercel URL:</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <input
+                      type="text"
+                      readOnly
+                      value={projectUrls.vercel}
+                      className="w-full p-2 bg-zinc-800 border border-gray-700 rounded-lg text-sm truncate"
+                    />
+                     <a
+                      href={projectUrls.vercel}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
+                    >
+                      <span className="material-symbols-outlined">open_in_new</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-500 mt-6 text-center">Update your live site with the latest changes.</p>
+              
+              <div className="mt-4 flex flex-col space-y-3 w-full">
+                {isNetlifyConfigured && (
+                  <button onClick={() => onPublish('netlify')} className="w-full py-3 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors">
+                    Redeploy to Netlify
+                  </button>
+                )}
+                {isVercelConfigured && (
+                  <button onClick={() => onPublish('vercel')} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                    Redeploy to Vercel
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-4 w-full">
+                <button onClick={onClose} className="w-full py-2 text-center text-gray-400 rounded-lg font-semibold hover:bg-zinc-800 transition-colors">
+                  Close
+                </button>
+              </div>
+            </>
+          );
+        }
+
         return (
           <>
             <div className="text-center">

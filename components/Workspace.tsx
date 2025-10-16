@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -159,6 +158,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   const { files, supabaseSql } = project;
+  const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
   
   useEffect(() => {
     // If the active file is deleted, reset to the entry point
@@ -232,11 +232,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           )}
            <button
             onClick={onPublish}
-            title="Publish to Netlify"
-            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+            title={isDeployed ? "Deployment Settings" : "Publish Project"}
+            className={`flex items-center space-x-2 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              isDeployed 
+              ? 'bg-zinc-800 text-gray-200 hover:bg-zinc-700' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
-            <span className="material-symbols-outlined text-base">publish</span>
-            <span>Publish</span>
+            <span className="material-symbols-outlined text-base">{isDeployed ? 'dns' : 'publish'}</span>
+            <span>{isDeployed ? 'Deployment' : 'Publish'}</span>
           </button>
           <button
             onClick={handleOpenInNewTab}

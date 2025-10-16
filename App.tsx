@@ -1176,6 +1176,10 @@ const App: React.FC = () => {
         isRedeploy={!!activeProject?.netlifySiteId || !!activeProject?.vercelProjectId}
         isNetlifyConfigured={isNetlifyConfigured}
         isVercelConfigured={isVercelConfigured}
+        projectUrls={{
+            netlify: activeProject?.netlifyUrl,
+            vercel: activeProject?.vercelUrl,
+        }}
       />
     </div>
   );
