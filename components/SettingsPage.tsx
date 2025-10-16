@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
 
@@ -71,7 +70,8 @@ const TokenInput: React.FC<{
     placeholder: string;
     storageKey: string;
     helpText: string;
-}> = ({ id, label, placeholder, storageKey, helpText }) => {
+    helpLink?: { href: string; text: string };
+}> = ({ id, label, placeholder, storageKey, helpText, helpLink }) => {
     const [token, setToken] = useState('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
 
@@ -113,7 +113,14 @@ const TokenInput: React.FC<{
                 </button>
             </div>
             {saveStatus === 'error' && <p className="text-red-400 text-sm mt-2 text-center">Failed to save token.</p>}
-            <p className="text-xs text-gray-500 mt-3">{helpText}</p>
+            <p className="text-xs text-gray-500 mt-3">
+                {helpText}
+                {helpLink && (
+                    <a href={helpLink.href} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-400 hover:text-blue-300 hover:underline">
+                        {helpLink.text}
+                    </a>
+                )}
+            </p>
         </div>
     );
 };
@@ -238,7 +245,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 label=""
                                 placeholder="Enter your Gemini API Key"
                                 storageKey={API_KEY_STORAGE_KEY}
-                                helpText=""
+                                helpText="Required for all AI code generation features."
+                                helpLink={{ href: 'https://aistudio.google.com/app/apikey', text: 'Get your key' }}
                             />
                         </SettingSection>
                         <SettingSection title="Model Selection" description="Flash is faster and great for simple tasks. Pro is more powerful for complex requests.">
@@ -277,18 +285,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 )}
                 {activeTab === 'deployments' && (
                     <>
-                        <SettingSection title="Netlify" description="Required for publishing your projects to Netlify. Your token is stored in local storage.">
-                           <TokenInput id="netlify-token" label="Netlify Personal Access Token" placeholder="Enter your Netlify token" storageKey={NETLIFY_TOKEN_STORAGE_KEY} helpText="" />
+                        <SettingSection title="Netlify" description="Publish your projects to Netlify. Your token is stored in local storage.">
+                           <TokenInput 
+                                id="netlify-token" 
+                                label="Netlify Personal Access Token" 
+                                placeholder="Enter your Netlify token" 
+                                storageKey={NETLIFY_TOKEN_STORAGE_KEY} 
+                                helpText=""
+                                helpLink={{ href: 'https://app.netlify.com/user/applications#personal-access-tokens', text: 'Create a token' }}
+                           />
                         </SettingSection>
-                        <SettingSection title="Vercel" description="Required for publishing your projects to Vercel. Your token is stored in local storage.">
-                            <TokenInput id="vercel-token" label="Vercel Access Token" placeholder="Enter your Vercel token" storageKey={VERCEL_TOKEN_STORAGE_KEY} helpText="" />
+                        <SettingSection title="Vercel" description="Publish your projects to Vercel. Your token is stored in local storage.">
+                            <TokenInput 
+                                id="vercel-token" 
+                                label="Vercel Access Token" 
+                                placeholder="Enter your Vercel token" 
+                                storageKey={VERCEL_TOKEN_STORAGE_KEY} 
+                                helpText="" 
+                                helpLink={{ href: 'https://vercel.com/account/tokens', text: 'Create a token' }}
+                            />
                         </SettingSection>
                     </>
                 )}
                  {activeTab === 'integrations' && (
                     <>
-                        <SettingSection title="GitHub" description="Required to save projects to GitHub. Create a token with `repo` scope. Your token is stored in local storage.">
-                           <TokenInput id="github-token" label="GitHub Personal Access Token" placeholder="Enter your GitHub PAT" storageKey={GITHUB_TOKEN_STORAGE_KEY} helpText="" />
+                        <SettingSection title="GitHub" description="Save projects to GitHub. Create a classic token with `repo` scope.">
+                           <TokenInput 
+                                id="github-token" 
+                                label="GitHub Personal Access Token" 
+                                placeholder="Enter your GitHub PAT" 
+                                storageKey={GITHUB_TOKEN_STORAGE_KEY} 
+                                helpText=""
+                                helpLink={{ href: 'https://github.com/settings/tokens/new?scopes=repo&description=Silo%20Build%20Access', text: 'Create a token' }}
+                           />
                         </SettingSection>
                          <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
                             <SupabaseSettings {...props} />
@@ -303,7 +332,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 label="Expo Access Token" 
                                 placeholder="Enter your Expo token" 
                                 storageKey={EXPO_TOKEN_STORAGE_KEY}
-                                helpText="This token is used by the Expo Application Services (EAS) CLI to authenticate you."
+                                helpText="This token authenticates you with Expo Application Services (EAS)."
+                                helpLink={{ href: 'https://expo.dev/settings/access-tokens', text: 'Create a token' }}
                             />
                         </SettingSection>
                     </>

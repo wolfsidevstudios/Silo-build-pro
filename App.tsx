@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -1239,19 +1238,25 @@ const App: React.FC = () => {
     if (!activeProject) return;
     console.log("Simulating App Store Submission with data:", data);
 
-    setAppStorePublishState({ status: 'submitting' });
+    setAppStorePublishState({ status: 'building' });
 
-    // Simulate network delay and submission process
+    // Simulate a more realistic, multi-step process
     setTimeout(() => {
-        const newSubmission: AppStoreSubmission = {
+      setAppStorePublishState({ status: 'uploading' });
+      setTimeout(() => {
+        setAppStorePublishState({ status: 'submitting' });
+        setTimeout(() => {
+          const newSubmission: AppStoreSubmission = {
             status: 'Submitted',
             version: data.version,
             submissionDate: Date.now(),
             url: 'https://appstoreconnect.apple.com/apps' // Dummy URL
-        };
-        updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
-        setAppStorePublishState({ status: 'success', url: newSubmission.url });
-    }, 3000);
+          };
+          updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
+          setAppStorePublishState({ status: 'success', url: newSubmission.url });
+        }, 2500);
+      }, 2500);
+    }, 2500);
   };
 
 

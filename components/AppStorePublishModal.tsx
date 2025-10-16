@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 
 export type AppStorePublishState = {
-  status: 'idle' | 'submitting' | 'success' | 'error';
+  status: 'idle' | 'building' | 'uploading' | 'submitting' | 'success' | 'error';
   url?: string;
   error?: string;
 };
@@ -54,7 +53,7 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
     }, [isOpen, projectName]);
 
     useEffect(() => {
-        if (publishState.status === 'success' || publishState.status === 'error') {
+        if (['building', 'uploading', 'submitting', 'success', 'error'].includes(publishState.status)) {
             setCurrentStep(4); // Move to the final status step
         }
     }, [publishState.status]);
@@ -88,12 +87,18 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
     const renderContent = () => {
         if (currentStep === 4) { // Status page
              switch (publishState.status) {
+                case 'building':
+                case 'uploading':
                 case 'submitting':
+                    let message = 'Preparing submission...';
+                    if (publishState.status === 'building') message = 'Generating build with EAS...';
+                    if (publishState.status === 'uploading') message = 'Uploading build to Expo...';
+                    if (publishState.status === 'submitting') message = 'Submitting to App Store Connect...';
                     return (
                         <div className="text-center">
                             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                            <h2 className="text-2xl font-bold mt-4">Submitting to App Store...</h2>
-                            <p className="text-gray-400 mt-2">This may take a few moments. Please don't close this window.</p>
+                            <h2 className="text-2xl font-bold mt-4">Submission in Progress</h2>
+                            <p className="text-gray-400 mt-2">{message}</p>
                         </div>
                     );
                 case 'success':
