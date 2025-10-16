@@ -41,91 +41,97 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-      <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
-        Build anything with Silo
-      </h1>
-      <p className="text-gray-400 text-lg mb-8 max-w-2xl">
-        Describe the application or component you want to create, and watch it come to life in real-time.
-      </p>
+    <div className="relative flex flex-col items-center justify-center h-full p-8 text-center bg-black overflow-hidden">
+      {/* Glossy light blue gradients */}
+      <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/20 rounded-full blur-[200px] opacity-50" />
+      <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-[600px] h-[600px] bg-blue-700/20 rounded-full blur-[150px] opacity-60" />
 
-      <div className="flex justify-center mb-6">
-        <div className="flex items-center space-x-1 bg-zinc-900 border border-gray-700 rounded-full p-1">
-            <button
-            onClick={() => setProjectType('single')}
-            disabled={isLoading}
-            className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors ${
-                projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
-            }`}
-            >
-            Single File
-            </button>
-            <button
-            onClick={() => setProjectType('multi')}
-            disabled={isLoading}
-            className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
-                projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
-            }`}
-            >
-            Multi-File
-            <span className="ml-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">
-              Beta
-            </span>
-            </button>
+      <div className="relative z-10 flex flex-col items-center justify-center w-full">
+        <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
+          Build anything with Silo
+        </h1>
+        <p className="text-gray-400 text-lg mb-8 max-w-2xl">
+          Describe the application or component you want to create, and watch it come to life in real-time.
+        </p>
+
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center space-x-1 bg-zinc-900 border border-gray-700 rounded-full p-1">
+              <button
+              onClick={() => setProjectType('single')}
+              disabled={isLoading}
+              className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+              }`}
+              >
+              Single File
+              </button>
+              <button
+              onClick={() => setProjectType('multi')}
+              disabled={isLoading}
+              className={`w-28 py-1 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
+                  projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+              }`}
+              >
+              Multi-File
+              <span className="ml-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">
+                Beta
+              </span>
+              </button>
+          </div>
         </div>
-      </div>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
-        <div className="relative w-full">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., a real-time crypto price tracker with a dark theme"
-            className="w-full p-5 pr-40 bg-zinc-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none"
-            rows={3}
-            disabled={isLoading}
-          />
+        <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
+          <div className="relative w-full">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g., a real-time crypto price tracker with a dark theme"
+              className="w-full p-5 pr-40 bg-zinc-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none"
+              rows={3}
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !prompt.trim()}
+              className="absolute bottom-4 right-4 px-6 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Building...' : 'Start Building'}
+            </button>
+          </div>
+        </form>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {BASIC_PROMPTS.map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => handleSuggestionClick(suggestion)}
+              disabled={isLoading}
+              className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
+            >
+              {suggestion}
+            </button>
+          ))}
+          {showAdvanced && ADVANCED_PROMPTS.map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => handleSuggestionClick(suggestion)}
+              disabled={isLoading}
+              className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
+            >
+              {suggestion}
+            </button>
+          ))}
           <button
-            type="submit"
-            disabled={isLoading || !prompt.trim()}
-            className="absolute bottom-4 right-4 px-6 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Building...' : 'Start Building'}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              disabled={isLoading}
+              className="px-4 py-2 bg-transparent border border-gray-700 rounded-full text-gray-400 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
+            >
+              <span className="material-symbols-outlined text-base">
+                {showAdvanced ? 'remove' : 'add'}
+              </span>
+              <span>{showAdvanced ? 'Show less' : 'More examples'}</span>
           </button>
         </div>
-      </form>
-
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        {BASIC_PROMPTS.map((suggestion) => (
-          <button
-            key={suggestion}
-            onClick={() => handleSuggestionClick(suggestion)}
-            disabled={isLoading}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
-          >
-            {suggestion}
-          </button>
-        ))}
-        {showAdvanced && ADVANCED_PROMPTS.map((suggestion) => (
-           <button
-            key={suggestion}
-            onClick={() => handleSuggestionClick(suggestion)}
-            disabled={isLoading}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
-          >
-            {suggestion}
-          </button>
-        ))}
-         <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            disabled={isLoading}
-            className="px-4 py-2 bg-transparent border border-gray-700 rounded-full text-gray-400 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
-          >
-            <span className="material-symbols-outlined text-base">
-              {showAdvanced ? 'remove' : 'add'}
-            </span>
-            <span>{showAdvanced ? 'Show less' : 'More examples'}</span>
-        </button>
       </div>
     </div>
   );

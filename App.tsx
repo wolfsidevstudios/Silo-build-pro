@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -177,7 +178,8 @@ const App: React.FC = () => {
   const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [progress, setProgress] = useState<number | null>(null);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('iframe');
+  // Default to service-worker mode for better reliability and performance.
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
@@ -395,8 +397,12 @@ const App: React.FC = () => {
     return new GoogleGenAI({ apiKey });
   }
 
-  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
     const ai = getAiClient();
+
+    const singleFileConstraint = projectType === 'single'
+      ? `\n**CRITICAL CONSTRAINT:** This is a single-file project. You MUST only generate one file: 'src/App.tsx'. The "files_to_generate" array in your response MUST contain only this single path.`
+      : '';
 
     const planPrompt = `
       You are a senior software architect. Your task is to create a plan to build a React application based on the user's request.
@@ -407,6 +413,7 @@ const App: React.FC = () => {
       3.  If the application requires data persistence, you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
       4.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
       5.  If no database is needed, the "sql" field in your response must be an empty string.
+      ${singleFileConstraint}
 
       **Output Format:**
       You MUST respond with ONLY a JSON object that matches this exact schema. Do not include any other text or markdown.
@@ -441,6 +448,12 @@ const App: React.FC = () => {
 
     try {
       const parsed = JSON.parse(response.text);
+
+      // Hard override for single file mode to ensure compliance.
+      if (projectType === 'single') {
+        parsed.files_to_generate = ['src/App.tsx'];
+      }
+
       return {
           plan: parsed.plan || [],
           sql: parsed.sql || '',
@@ -451,7 +464,7 @@ const App: React.FC = () => {
       return {
           plan: ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."],
           sql: "",
-          files_to_generate: []
+          files_to_generate: projectType === 'single' ? ['src/App.tsx'] : []
       };
     }
   };
@@ -592,7 +605,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const project = projects.find(p => p.id === projectId);
     const projectType = projectTypeOverride || project?.projectType || 'multi';
 
-    const { plan, sql, files_to_generate } = await generatePlan(prompt, model);
+    const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType);
     addMessageToProject(projectId, { 
         actor: 'ai', 
         text: "Here's the plan:", 
