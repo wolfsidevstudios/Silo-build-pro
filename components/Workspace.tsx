@@ -5,20 +5,21 @@ import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
 import { DatabasePanel } from './DatabasePanel';
 import { FileExplorer } from './FileExplorer';
-import type { ProjectFile, PreviewMode } from '../App';
+import { SourceControlPanel } from './SourceControlPanel';
+import type { Project, PreviewMode } from '../App';
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
 declare const Babel: any;
 
-type ActiveTab = 'preview' | 'code' | 'database';
+type ActiveTab = 'preview' | 'code' | 'database' | 'source-control';
 
 interface WorkspaceProps {
-  files: ProjectFile[];
+  project: Project;
   onRuntimeError: (message: string) => void;
   isSupabaseConnected: boolean;
-  supabaseSql?: string;
   previewMode: PreviewMode;
   onPublish: () => void;
+  onCommit: (message: string) => void;
 }
 
 const TabButton: React.FC<{
@@ -154,9 +155,10 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isSupabaseConnected, supabaseSql, previewMode, onPublish }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
+  const { files, supabaseSql } = project;
   
   useEffect(() => {
     // If the active file is deleted, reset to the entry point
@@ -205,6 +207,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
             icon={<span className="material-symbols-outlined">code</span>}
             isActive={activeTab === 'code'}
             onClick={() => setActiveTab('code')}
+          />
+          <TabButton
+            title="Source Control"
+            icon={<span className="material-symbols-outlined">history</span>}
+            isActive={activeTab === 'source-control'}
+            onClick={() => setActiveTab('source-control')}
           />
           {supabaseSql && (
             <TabButton
@@ -263,6 +271,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ files, onRuntimeError, isS
               </div>
             </div>
           </div>
+        )}
+        {activeTab === 'source-control' && (
+            <div className="flex-1 overflow-auto">
+                <SourceControlPanel project={project} onCommit={onCommit} />
+            </div>
         )}
         {activeTab === 'database' && (
           <div className="flex-1 overflow-auto p-4 pt-0">

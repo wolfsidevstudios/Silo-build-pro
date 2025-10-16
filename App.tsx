@@ -121,6 +121,13 @@ export interface ProjectFile {
     code: string;
 }
 
+export interface Commit {
+  id: string;
+  message: string;
+  timestamp: number;
+  files: ProjectFile[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -130,6 +137,7 @@ export interface Project {
   projectType: ProjectType;
   netlifySiteId?: string;
   netlifyUrl?: string;
+  commits?: Commit[];
 }
 
 export interface SupabaseConfig {
@@ -172,7 +180,8 @@ const App: React.FC = () => {
         // Add default projectType if missing for backward compatibility
         const migratedProjects = parsedProjects.map(p => ({
             ...p,
-            projectType: p.projectType || 'multi' 
+            projectType: p.projectType || 'multi',
+            commits: p.commits || [],
         }));
         setProjects(migratedProjects);
       }
@@ -546,6 +555,7 @@ const App: React.FC = () => {
         files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
         messages: [],
         projectType,
+        commits: [],
     };
     
     setProjects(prev => [...prev, newProject]);
@@ -567,6 +577,20 @@ const App: React.FC = () => {
       setIsLoading(false);
       setProgress(null);
     }
+  };
+
+  const handleCommit = async (commitMessage: string) => {
+    if (!activeProject || !commitMessage.trim()) return;
+
+    const newCommit: Commit = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        message: commitMessage.trim(),
+        timestamp: Date.now(),
+        files: JSON.parse(JSON.stringify(activeProject.files)), // Deep copy of files
+    };
+
+    const updatedCommits = [...(activeProject.commits || []), newCommit];
+    updateProjectState(activeProject.id, { commits: updatedCommits });
   };
 
   const handleFixError = async (errorToFix: string) => {
@@ -914,15 +938,15 @@ const App: React.FC = () => {
             </div>
             <div className="flex-1 flex flex-col">
               <Workspace
-                files={activeProject.files}
+                project={activeProject}
                 onRuntimeError={handleRuntimeError}
                 isSupabaseConnected={!!supabaseConfig}
-                supabaseSql={activeProject.supabaseSql}
                 previewMode={previewMode}
                 onPublish={() => {
                     setPublishState({ status: 'idle' });
                     setIsPublishModalOpen(true)
                 }}
+                onCommit={handleCommit}
               />
             </div>
           </main>
