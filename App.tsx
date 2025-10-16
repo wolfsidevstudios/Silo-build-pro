@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { useDebounce } from './hooks/useDebounce';
@@ -14,7 +14,6 @@ import DebugAssistPanel from './components/DebugAssistPanel';
 import { PublishModal, PublishState } from './components/PublishModal';
 import { GitHubSaveModal } from './components/GitHubSaveModal';
 import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } from './components/AppStorePublishModal';
-import { initializeFirebase, getFirestore, getFunctions } from './firebase';
 
 
 declare const Babel: any;
@@ -131,12 +130,10 @@ export interface Commit {
 }
 
 export interface AppStoreSubmission {
-  status: 'Not Submitted' | 'Queued' | 'Building' | 'Uploading' | 'Submitted' | 'In Review' | 'Approved' | 'Rejected' | 'Error';
+  status: 'Not Submitted' | 'Submitted' | 'In Review' | 'Approved' | 'Rejected';
   version: string;
   submissionDate?: number;
   url?: string;
-  error?: string;
-  jobId?: string;
 }
 
 export interface Project {
@@ -186,16 +183,12 @@ const App: React.FC = () => {
   const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
   const [isAppStorePublishModalOpen, setIsAppStorePublishModalOpen] = useState(false);
   const [appStorePublishState, setAppStorePublishState] = useState<AppStorePublishState>({ status: 'idle' });
-  const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
-  
-  const firestoreUnsubscribe = useRef<() => void | null>(null);
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
   useEffect(() => {
     try {
-      setIsFirebaseInitialized(initializeFirebase());
       const savedProjects = localStorage.getItem('silo_projects');
       if (savedProjects) {
         const parsedProjects: Project[] = JSON.parse(savedProjects);
@@ -353,15 +346,6 @@ const App: React.FC = () => {
     };
     build();
   }, [projectToBuild]);
-
-  // Cleanup Firestore listener on component unmount
-  useEffect(() => {
-    return () => {
-        if (firestoreUnsubscribe.current) {
-            firestoreUnsubscribe.current();
-        }
-    };
-  }, []);
 
 
   const handleRuntimeError = useCallback((message: string) => {
@@ -1250,104 +1234,30 @@ const App: React.FC = () => {
       }
   };
 
-  const handleAppStoreSubmit = async (data: AppStoreSubmissionData) => {
-    if (!activeProject || !isFirebaseInitialized) {
-        setAppStorePublishState({ status: 'error', error: 'Firebase is not configured. Please add your Firebase project details in Settings.' });
-        return;
-    }
+  const handleAppStoreSubmit = (data: AppStoreSubmissionData) => {
+    if (!activeProject) return;
+    console.log("Simulating App Store Submission with data:", data);
 
-    setAppStorePublishState({ status: 'queued' });
+    setAppStorePublishState({ status: 'building' });
 
-    try {
-        const firestore = getFirestore();
-        const functions = getFunctions();
-        
-        if (!firestore || !functions) {
-            throw new Error("Firebase services are not available.");
-        }
-
-        // 1. Create a job document in Firestore to track status
-        const submissionJobRef = await firestore.collection('submissions').add({
-            projectId: activeProject.id,
-            projectName: activeProject.name,
-            status: 'queued',
-            createdAt: new Date(),
-            version: data.version,
-        });
-
-        const jobId = submissionJobRef.id;
-
-        // 2. Update local project state with job ID
-        const newSubmission: AppStoreSubmission = {
-            status: 'Queued',
+    // Simulate a more realistic, multi-step process
+    setTimeout(() => {
+      setAppStorePublishState({ status: 'uploading' });
+      setTimeout(() => {
+        setAppStorePublishState({ status: 'submitting' });
+        setTimeout(() => {
+          const newSubmission: AppStoreSubmission = {
+            status: 'Submitted',
             version: data.version,
             submissionDate: Date.now(),
-            jobId: jobId,
-        };
-        updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
-
-        // 3. Listen for real-time updates on the job document
-        if (firestoreUnsubscribe.current) {
-            firestoreUnsubscribe.current(); // Unsubscribe from previous listener if any
-        }
-        firestoreUnsubscribe.current = submissionJobRef.onSnapshot((doc: any) => {
-            const jobData = doc.data();
-            if (jobData) {
-                // Map Firestore status to UI state
-                const statusMap: { [key: string]: AppStorePublishState['status'] } = {
-                    queued: 'queued',
-                    building: 'building',
-                    uploading: 'uploading',
-                    submitting: 'submitting',
-                    success: 'success',
-                    error: 'error',
-                };
-                const newStatus = statusMap[jobData.status] || 'error';
-                
-                setAppStorePublishState({
-                    status: newStatus,
-                    url: jobData.url || undefined,
-                    error: jobData.error || (newStatus === 'error' ? 'An unknown error occurred' : undefined),
-                });
-
-                // If the job is done, update the final project state and stop listening
-                if (['success', 'error'].includes(jobData.status)) {
-                    const finalSubmissionStatus: AppStoreSubmission = {
-                        ...newSubmission,
-                        status: jobData.status === 'success' ? 'Submitted' : 'Error',
-                        url: jobData.url || undefined,
-                        error: jobData.error || undefined,
-                    };
-                    updateProjectState(activeProject.id, { appStoreSubmission: finalSubmissionStatus });
-                    if(firestoreUnsubscribe.current) {
-                        firestoreUnsubscribe.current();
-                        firestoreUnsubscribe.current = null;
-                    }
-                }
-            }
-        });
-
-        // 4. Trigger the Firebase Cloud Function
-        const submitToEAS = functions.httpsCallable('submitAppToEAS');
-        await submitToEAS({
-            jobId: jobId,
-            projectFiles: activeProject.files,
-            submissionData: {
-                ...data,
-                appIcon: null // Don't send file object to function
-            },
-            expoToken: localStorage.getItem('silo_expo_token'),
-        });
-
-    } catch (err: any) {
-        console.error("Error submitting to App Store:", err);
-        setAppStorePublishState({ status: 'error', error: `Failed to trigger submission: ${err.message}` });
-        if (firestoreUnsubscribe.current) {
-            firestoreUnsubscribe.current();
-        }
-    }
+            url: 'https://appstoreconnect.apple.com/apps' // Dummy URL
+          };
+          updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
+          setAppStorePublishState({ status: 'success', url: newSubmission.url });
+        }, 2500);
+      }, 2500);
+    }, 2500);
   };
-
 
   const handleExportProject = async () => {
     if (!activeProject) return;
@@ -1486,9 +1396,6 @@ Good luck!
     }
   };
 
-  const handleFirebaseConfigChange = () => {
-    setIsFirebaseInitialized(initializeFirebase());
-  };
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -1511,8 +1418,6 @@ Good luck!
           isLoading={isLoading}
           previewMode={previewMode}
           onPreviewModeChange={handlePreviewModeChange}
-          isFirebaseInitialized={isFirebaseInitialized}
-          onFirebaseConfigChange={handleFirebaseConfigChange}
         />
       );
     }
@@ -1636,13 +1541,7 @@ Good luck!
       {activeProject && (
         <AppStorePublishModal
             isOpen={isAppStorePublishModalOpen}
-            onClose={() => {
-                setIsAppStorePublishModalOpen(false);
-                 if (firestoreUnsubscribe.current) {
-                    firestoreUnsubscribe.current();
-                    firestoreUnsubscribe.current = null;
-                }
-            }}
+            onClose={() => setIsAppStorePublishModalOpen(false)}
             onSubmit={handleAppStoreSubmit}
             publishState={appStorePublishState}
             projectName={activeProject.name}
