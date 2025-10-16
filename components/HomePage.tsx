@@ -7,16 +7,26 @@ interface HomePageProps {
   isLoading: boolean;
 }
 
-const PROMPT_SUGGESTIONS = [
+const BASIC_PROMPTS = [
   'A modern to-do list app',
   'A simple weather dashboard',
   'A pomodoro timer component',
   'A minimalist portfolio page',
 ];
 
+const ADVANCED_PROMPTS = [
+  'A real-time markdown editor with preview',
+  'A simple blog with Supabase integration for posts',
+  'A Trello-like board with draggable cards',
+  'An e-commerce product page with a shopping cart',
+  'A data dashboard visualizing sales with charts',
+  'A recipe finder that uses a public API'
+];
+
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) => {
   const [prompt, setPrompt] = useState('');
   const [projectType, setProjectType] = useState<ProjectType>('multi');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +96,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
       </form>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
-        {PROMPT_SUGGESTIONS.map((suggestion) => (
+        {BASIC_PROMPTS.map((suggestion) => (
           <button
             key={suggestion}
             onClick={() => handleSuggestionClick(suggestion)}
@@ -96,6 +106,26 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
             {suggestion}
           </button>
         ))}
+        {showAdvanced && ADVANCED_PROMPTS.map((suggestion) => (
+           <button
+            key={suggestion}
+            onClick={() => handleSuggestionClick(suggestion)}
+            disabled={isLoading}
+            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
+          >
+            {suggestion}
+          </button>
+        ))}
+         <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            disabled={isLoading}
+            className="px-4 py-2 bg-transparent border border-gray-700 rounded-full text-gray-400 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
+          >
+            <span className="material-symbols-outlined text-base">
+              {showAdvanced ? 'remove' : 'add'}
+            </span>
+            <span>{showAdvanced ? 'Show less' : 'More examples'}</span>
+        </button>
       </div>
     </div>
   );
