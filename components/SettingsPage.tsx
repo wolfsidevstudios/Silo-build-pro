@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
@@ -8,7 +8,7 @@ const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
-type SettingsTab = 'general' | 'deployments' | 'integrations' | 'appstore' | 'about';
+type SettingsTab = 'general' | 'appearance' | 'integrations' | 'deployments' | 'data' | 'appstore' | 'safety' | 'about';
 
 const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8">
@@ -41,9 +41,12 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
             </div>
             <div className="space-y-2">
                 <NavItem tab="general" icon="tune" label="General" />
-                <NavItem tab="deployments" icon="dns" label="Deployments" />
+                <NavItem tab="appearance" icon="palette" label="Appearance" />
                 <NavItem tab="integrations" icon="integration_instructions" label="Integrations" />
+                <NavItem tab="deployments" icon="dns" label="Deployments" />
+                <NavItem tab="data" icon="database" label="Data" />
                 <NavItem tab="appstore" icon="storefront" label="App Store" />
+                <NavItem tab="safety" icon="shield" label="Safety" />
                 <NavItem tab="about" icon="info" label="About" />
             </div>
         </nav>
@@ -321,6 +324,91 @@ const ApiSecretsSettings: React.FC<{
 
 export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+    const [editorFontSize, setEditorFontSize] = useState(() => localStorage.getItem('silo_editor_font_size') || '14');
+    const importFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const size = e.target.value;
+        setEditorFontSize(size);
+        localStorage.setItem('silo_editor_font_size', size);
+        // Note: Applying this would require a way to communicate the change to the CodeEditor instances.
+        // For now, it's saved and will apply on next reload.
+    };
+
+    const handleExportData = () => {
+        try {
+            const keysToBackup = [
+                'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
+                'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
+                'gemini_model', 'silo_preview_mode', 'silo_editor_font_size'
+            ];
+            const backupData: { [key: string]: any } = { version: 1 };
+            keysToBackup.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value !== null) {
+                    try {
+                        backupData[key] = JSON.parse(value);
+                    } catch {
+                        backupData[key] = value;
+                    }
+                }
+            });
+            const jsonString = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().slice(0, 10);
+            a.download = `silo-build-backup-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Failed to export data:", error);
+            alert("An error occurred while exporting your data.");
+        }
+    };
+    
+    const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("File is not readable.");
+                const data = JSON.parse(text);
+
+                if (!data.silo_projects || !Array.isArray(data.silo_projects)) {
+                    throw new Error("Invalid backup file: 'silo_projects' key is missing or not an array.");
+                }
+
+                if (window.confirm("This will overwrite all current projects and settings. Are you sure you want to proceed?")) {
+                    Object.keys(data).forEach(key => {
+                        const value = data[key];
+                        localStorage.setItem(key, typeof value === 'object' ? JSON.stringify(value) : value);
+                    });
+                    alert("Import successful! The application will now reload.");
+                    window.location.reload();
+                }
+            } catch (error: any) {
+                alert(`Import failed: ${error.message}`);
+            } finally {
+                if (event.target) event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleClearData = () => {
+        if (window.confirm("DANGER: This will permanently delete ALL projects, settings, and API keys from your browser. This action cannot be undone. Are you absolutely sure?")) {
+            localStorage.clear();
+            alert("All data has been cleared. The application will now reload.");
+            window.location.reload();
+        }
+    };
 
     return (
         <SettingsCard>
@@ -372,6 +460,63 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                     </>
                 )}
+                {activeTab === 'appearance' && (
+                     <>
+                        <SettingSection title="Theme" description="Choose the look and feel of the interface.">
+                             <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                                <button
+                                    disabled
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors text-gray-500 cursor-not-allowed`}
+                                >
+                                    Light
+                                </button>
+                                <button
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors bg-white text-black`}
+                                >
+                                    Dark
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 text-center">Light theme is coming soon.</p>
+                        </SettingSection>
+                        <SettingSection title="Editor Font Size" description="Customize the font size in the code editor.">
+                             <div className="flex items-center space-x-4">
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="20"
+                                    step="1"
+                                    value={editorFontSize}
+                                    onChange={handleFontSizeChange}
+                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+                                <span className="text-sm font-mono bg-zinc-800 px-3 py-1 rounded-md">{editorFontSize}px</span>
+                            </div>
+                        </SettingSection>
+                    </>
+                )}
+                {activeTab === 'integrations' && (
+                    <>
+                        <SettingSection title="GitHub" description="Save projects to GitHub. Create a classic token with `repo` scope.">
+                           <TokenInput 
+                                id="github-token" 
+                                label="GitHub Personal Access Token" 
+                                placeholder="Enter your GitHub PAT" 
+                                storageKey={GITHUB_TOKEN_STORAGE_KEY} 
+                                helpText=""
+                                helpLink={{ href: 'https://github.com/settings/tokens/new?scopes=repo&description=Silo%20Build%20Access', text: 'Create a token' }}
+                           />
+                        </SettingSection>
+                         <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
+                            <SupabaseSettings {...props} />
+                        </SettingSection>
+                        <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
+                            <ApiSecretsSettings 
+                                apiSecrets={props.apiSecrets}
+                                onApiSecretsChange={props.onApiSecretsChange}
+                            />
+                        </SettingSection>
+                    </>
+                )}
                 {activeTab === 'deployments' && (
                     <>
                         <SettingSection title="Netlify" description="Publish your projects to Netlify. Your token is stored in local storage.">
@@ -396,26 +541,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                     </>
                 )}
-                 {activeTab === 'integrations' && (
+                {activeTab === 'data' && (
                     <>
-                        <SettingSection title="GitHub" description="Save projects to GitHub. Create a classic token with `repo` scope.">
-                           <TokenInput 
-                                id="github-token" 
-                                label="GitHub Personal Access Token" 
-                                placeholder="Enter your GitHub PAT" 
-                                storageKey={GITHUB_TOKEN_STORAGE_KEY} 
-                                helpText=""
-                                helpLink={{ href: 'https://github.com/settings/tokens/new?scopes=repo&description=Silo%20Build%20Access', text: 'Create a token' }}
-                           />
+                        <SettingSection title="Backup & Restore" description="Export all projects and settings to a JSON file, or import from a backup.">
+                            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                                <button onClick={handleExportData} className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm">
+                                    Export Backup
+                                </button>
+                                <input type="file" accept=".json" onChange={handleImportData} ref={importFileInputRef} className="hidden" />
+                                <button onClick={() => importFileInputRef.current?.click()} className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm">
+                                    Import Backup
+                                </button>
+                            </div>
                         </SettingSection>
-                         <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
-                            <SupabaseSettings {...props} />
-                        </SettingSection>
-                        <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
-                            <ApiSecretsSettings 
-                                apiSecrets={props.apiSecrets}
-                                onApiSecretsChange={props.onApiSecretsChange}
-                            />
+                        <SettingSection title="Danger Zone" description="These actions are permanent and cannot be undone. Proceed with caution.">
+                            <button onClick={handleClearData} className="w-full py-2 bg-red-800/80 border border-red-600/50 text-white rounded-lg font-semibold hover:bg-red-800 transition-colors text-sm">
+                                Clear All Local Data
+                            </button>
                         </SettingSection>
                     </>
                 )}
@@ -427,6 +569,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 <p className="text-gray-500 mt-2">
                                     We're working hard to bring you a seamless App Store publishing experience.
                                 </p>
+                            </div>
+                        </SettingSection>
+                    </>
+                )}
+                {activeTab === 'safety' && (
+                    <>
+                        <SettingSection title="Privacy Policy" description="How we handle your data.">
+                            <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                                <p><strong>Last Updated: [Date]</strong></p>
+                                <p>Your privacy is important to us. It is Silo Build's policy to respect your privacy regarding any information we may collect from you across our website, and other sites we own and operate.</p>
+                                <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
+                                <p>We only retain collected information for as long as necessary to provide you with your requested service. What data we store, we’ll protect within commercially acceptable means to prevent loss and theft, as well as unauthorized access, disclosure, copying, use or modification.</p>
+                                <p>We don’t share any personally identifying information publicly or with third-parties, except when required to by law.</p>
+                                <p>Our website may link to external sites that are not operated by us. Please be aware that we have no control over the content and practices of these sites, and cannot accept responsibility or liability for their respective privacy policies.</p>
+                                <p>You are free to refuse our request for your personal information, with the understanding that we may be unable to provide you with some of your desired services.</p>
+                                <p>Your continued use of our website will be regarded as acceptance of our practices around privacy and personal information. If you have any questions about how we handle user data and personal information, feel free to contact us.</p>
+                            </div>
+                        </SettingSection>
+                        <SettingSection title="Terms of Service" description="The rules for using our application.">
+                           <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                                <p><strong>1. Terms</strong></p>
+                                <p>By accessing the website at Silo Build, you are agreeing to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws. If you do not agree with any of these terms, you are prohibited from using or accessing this site. The materials contained in this website are protected by applicable copyright and trademark law.</p>
+                                <p><strong>2. Use License</strong></p>
+                                <p>Permission is granted to temporarily download one copy of the materials (information or software) on Silo Build's website for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not: modify or copy the materials; use the materials for any commercial purpose, or for any public display (commercial or non-commercial); attempt to decompile or reverse engineer any software contained on Silo Build's website; remove any copyright or other proprietary notations from the materials; or transfer the materials to another person or "mirror" the materials on any other server. This license shall automatically terminate if you violate any of these restrictions and may be terminated by Silo Build at any time.</p>
+                                <p><strong>3. Disclaimer</strong></p>
+                                <p>The materials on Silo Build's website are provided on an 'as is' basis. Silo Build makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.</p>
                             </div>
                         </SettingSection>
                     </>
