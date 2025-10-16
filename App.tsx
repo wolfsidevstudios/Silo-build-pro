@@ -1169,7 +1169,7 @@ Good luck!
     }
   };
 
-  const handleSignIn = async () => {
+  const handleGoogleSignIn = async () => {
       const provider = new window.firebase.GoogleAuthProvider();
       try {
           await window.firebase.signInWithPopup(window.firebase.auth, provider);
@@ -1281,30 +1281,117 @@ Good luck!
     return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
   };
 
-  const LoginOverlay = () => (
-    <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center text-center backdrop-blur-sm">
-        <h1 className="text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600" style={{ fontFamily: "'Press Start 2P', system-ui" }}>
-          Silo Build
-        </h1>
-        <p className="text-gray-400 text-lg mb-8">
-          Sign in to build, manage, and deploy your projects.
-        </p>
-        <button
-            onClick={handleSignIn}
-            className="flex items-center space-x-3 px-6 py-3 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-transform hover:scale-105"
-        >
-            <img src="https://www.google.com/favicon.ico" alt="Google icon" className="w-6 h-6"/>
-            <span>Sign in with Google</span>
-        </button>
-    </div>
-  );
+  const LoginOverlay = () => {
+    const [authView, setAuthView] = useState<'options' | 'signup' | 'signin'>('options');
+    const [authForm, setAuthForm] = useState({ email: '', password: '' });
+    const [authError, setAuthError] = useState<string | null>(null);
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAuthForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const handleEmailPasswordSignUp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAuthError(null);
+        if (authForm.password.length < 6) {
+            setAuthError("Password should be at least 6 characters.");
+            return;
+        }
+        try {
+            await window.firebase.createUserWithEmailAndPassword(window.firebase.auth, authForm.email, authForm.password);
+        } catch (error: any) {
+            setAuthError(error.message);
+        }
+    };
+
+    const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAuthError(null);
+        try {
+            await window.firebase.signInWithEmailAndPassword(window.firebase.auth, authForm.email, authForm.password);
+        } catch (error: any) {
+            setAuthError(error.message);
+        }
+    };
+
+
+    return (
+        <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center text-center backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm">
+                <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600" style={{ fontFamily: "'Press Start 2P', system-ui" }}>
+                Silo Build
+                </h1>
+                
+                {authView === 'options' && (
+                    <>
+                        <p className="text-gray-400 text-lg mb-8">
+                            Sign in to build, manage, and deploy your projects.
+                        </p>
+                        <div className="space-y-4">
+                            <button
+                                onClick={handleGoogleSignIn}
+                                className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-transform hover:scale-105"
+                            >
+                                <img src="https://www.google.com/favicon.ico" alt="Google icon" className="w-6 h-6"/>
+                                <span>Sign in with Google</span>
+                            </button>
+                             <button
+                                onClick={() => setAuthView('signin')}
+                                className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-zinc-700 text-white rounded-lg font-semibold hover:bg-zinc-600 transition-transform hover:scale-105"
+                            >
+                                <span className="material-symbols-outlined">mail</span>
+                                <span>Sign in with Email</span>
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {(authView === 'signin' || authView === 'signup') && (
+                     <form onSubmit={authView === 'signin' ? handleEmailPasswordSignIn : handleEmailPasswordSignUp} className="w-full mt-8 space-y-4">
+                        <input
+                            type="email"
+                            name="email"
+                            value={authForm.email}
+                            onChange={handleFormChange}
+                            placeholder="Email Address"
+                            required
+                            className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                            type="password"
+                            name="password"
+                            value={authForm.password}
+                            onChange={handleFormChange}
+                            placeholder="Password"
+                            required
+                            className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {authError && <p className="text-red-400 text-sm">{authError.replace('Firebase: ', '')}</p>}
+                        <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            {authView === 'signin' ? 'Sign In' : 'Create Account'}
+                        </button>
+                        <div className="text-sm text-gray-400">
+                            {authView === 'signin' ? "Don't have an account?" : "Already have an account?"}
+                            <button type="button" onClick={() => setAuthView(authView === 'signin' ? 'signup' : 'signin')} className="ml-1 font-semibold text-blue-400 hover:underline">
+                                {authView === 'signin' ? 'Sign Up' : 'Sign In'}
+                            </button>
+                        </div>
+                         <button type="button" onClick={() => { setAuthView('options'); setAuthError(null); }} className="text-xs text-gray-500 hover:underline">
+                            &larr; Back to all sign-in options
+                        </button>
+                    </form>
+                )}
+            </div>
+        </div>
+    );
+  };
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
-      <FloatingNav currentPath={location} user={currentUser} onSignOut={handleSignOut} onSignIn={handleSignIn} />
+      <FloatingNav currentPath={location} user={currentUser} onSignOut={handleSignOut} onSignIn={handleGoogleSignIn} />
       <div className="flex-1 flex flex-col overflow-hidden ml-20 relative">
         {isAuthLoading ? (
           <div className="flex items-center justify-center h-full text-gray-400">Loading user...</div>
