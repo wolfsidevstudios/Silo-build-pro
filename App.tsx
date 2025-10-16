@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -646,11 +648,16 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       });
     }, 400);
 
-    const newFiles = await codePromise;
+    const newFiles: ProjectFile[] = await codePromise;
     clearInterval(interval);
     setProgress(null); // Hide progress bar; checklist will show progress now.
 
     if (isInitialBuild) {
+        // FIX: Add validation to ensure the AI returns the main App.tsx file before clearing existing files.
+        if (!newFiles || !newFiles.some(f => f.path === 'src/App.tsx')) {
+            throw new Error("The AI failed to generate the main 'src/App.tsx' file. The project build has been cancelled to prevent errors. Please try rephrasing your request.");
+        }
+
         const sqlFile = filesForCodeGeneration.find(f => f.path === 'app.sql');
         
         // Start with a clean slate, keeping only the SQL file if it exists
