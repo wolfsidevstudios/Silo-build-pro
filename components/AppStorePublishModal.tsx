@@ -8,6 +8,7 @@ export type AppStorePublishState = {
 
 export interface AppStoreSubmissionData {
     appleId: string;
+    appSpecificPassword?: string;
     appName: string;
     appIcon: File | null;
     version: string;
@@ -35,6 +36,7 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<AppStoreSubmissionData>({
         appleId: '',
+        appSpecificPassword: '',
         appName: projectName,
         appIcon: null,
         version: '1.0.0',
@@ -137,7 +139,7 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
                         <p className="text-sm text-gray-500 mb-4">Provide your credentials to allow submission via Expo Application Services (EAS).</p>
                         <div className="space-y-4">
                             <input type="email" name="appleId" value={formData.appleId} onChange={handleInputChange} placeholder="Apple ID" className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg" />
-                            <input type="password" placeholder="App-Specific Password" className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg" />
+                            <input type="password" name="appSpecificPassword" value={formData.appSpecificPassword} onChange={handleInputChange} placeholder="App-Specific Password" className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg" />
                         </div>
                         <div className="p-3 bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-yellow-200 text-xs mt-4">
                             <strong>Note:</strong> This is a UI prototype. Credentials are not saved or used. In a real application, these would be securely handled by the EAS build service and not stored on our servers.
