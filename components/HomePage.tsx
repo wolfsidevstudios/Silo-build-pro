@@ -42,9 +42,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
 
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-8 text-center bg-black overflow-hidden">
-      {/* Glossy light blue gradients */}
-      <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/20 rounded-full blur-[200px] opacity-50" />
-      <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-[600px] h-[600px] bg-blue-700/20 rounded-full blur-[150px] opacity-60" />
+      {/* Centered circular gradient blob */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/10 rounded-full blur-[250px]" />
 
       <div className="relative z-10 flex flex-col items-center justify-center w-full">
         <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
@@ -55,12 +54,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
         </p>
 
         <div className="flex justify-center mb-6">
-          <div className="flex items-center space-x-1 bg-zinc-900 border border-gray-700 rounded-full p-1">
+          <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full p-1">
                <button
                 onClick={() => setProjectType('html')}
                 disabled={isLoading}
                 className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    projectType === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+                    projectType === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
                 }`}
                 >
                 HTML/CSS/JS
@@ -69,7 +68,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               onClick={() => setProjectType('single')}
               disabled={isLoading}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+                  projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
               }`}
               >
               React (Single File)
@@ -78,7 +77,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               onClick={() => setProjectType('multi')}
               disabled={isLoading}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
-                  projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+                  projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
               }`}
               >
               React (Multi-File)
@@ -115,7 +114,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               key={suggestion}
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading}
-              className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50"
             >
               {suggestion}
             </button>
@@ -125,7 +124,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               key={suggestion}
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading}
-              className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-full text-gray-300 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50"
             >
               {suggestion}
             </button>
@@ -133,7 +132,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
           <button
               onClick={() => setShowAdvanced(!showAdvanced)}
               disabled={isLoading}
-              className="px-4 py-2 bg-transparent border border-gray-700 rounded-full text-gray-400 hover:bg-gray-800 hover:border-gray-600 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
+              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
             >
               <span className="material-symbols-outlined text-base">
                 {showAdvanced ? 'remove' : 'add'}
