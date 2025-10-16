@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -610,6 +606,13 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const projectType = projectTypeOverride || project?.projectType || 'multi';
 
     const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType);
+    
+    // FIX: Ensure src/App.tsx is always in the list of files to generate.
+    // This prevents an error where the AI planning step might forget to include the main entry file.
+    if (!files_to_generate.some(f => f === 'src/App.tsx')) {
+        files_to_generate.unshift('src/App.tsx');
+    }
+
     addMessageToProject(projectId, { 
         actor: 'ai', 
         text: "Here's the plan:", 
@@ -653,7 +656,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     setProgress(null); // Hide progress bar; checklist will show progress now.
 
     if (isInitialBuild) {
-        // FIX: Add validation to ensure the AI returns the main App.tsx file before clearing existing files.
+        // Add validation to ensure the AI returns the main App.tsx file before clearing existing files.
         if (!newFiles || !newFiles.some(f => f.path === 'src/App.tsx')) {
             throw new Error("The AI failed to generate the main 'src/App.tsx' file. The project build has been cancelled to prevent errors. Please try rephrasing your request.");
         }
