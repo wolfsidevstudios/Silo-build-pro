@@ -6,6 +6,7 @@ const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
 const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
+const FIREBASE_CONFIG_STORAGE_KEY = 'silo_firebase_config';
 
 type SettingsTab = 'general' | 'deployments' | 'integrations' | 'appstore';
 
@@ -135,9 +136,11 @@ interface SettingsPageProps {
   isLoading: boolean;
   previewMode: PreviewMode;
   onPreviewModeChange: (mode: PreviewMode) => void;
+  isFirebaseInitialized: boolean;
+  onFirebaseConfigChange: () => void;
 }
 
-const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange'>> = ({
+const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange' | 'isFirebaseInitialized' | 'onFirebaseConfigChange'>> = ({
   supabaseConfig,
   onSupabaseAuthorize,
   onSupabaseManualConnect,
@@ -228,6 +231,71 @@ const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onMo
         )}
       </div>
   );
+};
+
+// FIX: Destructure props to correctly access `isFirebaseInitialized` and `onConfigChange`.
+const FirebaseSettings: React.FC<{ isFirebaseInitialized: boolean; onConfigChange: () => void }> = ({ isFirebaseInitialized, onConfigChange }) => {
+    const [config, setConfig] = useState('');
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+    useEffect(() => {
+        const savedConfig = localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
+        if (savedConfig) {
+            try {
+                // Pretty-print for display
+                setConfig(JSON.stringify(JSON.parse(savedConfig), null, 2));
+            } catch {
+                setConfig(savedConfig);
+            }
+        }
+    }, []);
+
+    const handleSave = () => {
+        try {
+            // Validate and minify before saving
+            const parsedConfig = JSON.parse(config);
+            localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(parsedConfig));
+            onConfigChange();
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (error) {
+            console.error("Failed to save Firebase config:", error);
+            setSaveStatus('error');
+        }
+    };
+
+    return (
+        <div className="bg-zinc-900 border border-gray-700 rounded-lg p-4">
+             <div className="flex items-center justify-between mb-4">
+                 <p className="text-sm">Status: 
+                     <span className={isFirebaseInitialized ? 'text-green-400' : 'text-yellow-400'}>
+                         {isFirebaseInitialized ? ' Connected' : ' Not Connected'}
+                     </span>
+                 </p>
+                 <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
+                     Go to Firebase Console
+                 </a>
+            </div>
+            <label htmlFor="firebase-config" className="block text-sm font-medium text-gray-400 mb-2">
+                Firebase Web App Config (JSON)
+            </label>
+            <textarea
+                id="firebase-config"
+                value={config}
+                onChange={(e) => setConfig(e.target.value)}
+                placeholder='{\n  "apiKey": "...",\n  "authDomain": "...",\n  ...\n}'
+                rows={8}
+                className="w-full p-3 bg-zinc-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+            />
+             <button
+                onClick={handleSave}
+                className="mt-3 w-full py-2 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm"
+            >
+                {saveStatus === 'saved' ? 'Saved!' : 'Save Config'}
+            </button>
+             {saveStatus === 'error' && <p className="text-red-400 text-sm mt-2 text-center">Invalid JSON. Please check your config.</p>}
+        </div>
+    );
 };
 
 export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
@@ -321,6 +389,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                          <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
                             <SupabaseSettings {...props} />
+                        </SettingSection>
+                         <SettingSection title="Firebase" description="Connect your Firebase project to enable one-click App Store submissions.">
+                            <FirebaseSettings isFirebaseInitialized={props.isFirebaseInitialized} onConfigChange={props.onFirebaseConfigChange} />
                         </SettingSection>
                     </>
                 )}

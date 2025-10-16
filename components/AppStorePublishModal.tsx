@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 export type AppStorePublishState = {
-  status: 'idle' | 'building' | 'uploading' | 'submitting' | 'success' | 'error';
+  status: 'idle' | 'queued' | 'building' | 'uploading' | 'submitting' | 'success' | 'error';
   url?: string;
   error?: string;
 };
@@ -45,15 +45,17 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
 
     useEffect(() => {
         if (isOpen) {
-            // Reset state when modal opens
-            setCurrentStep(1);
-            setFormData(prev => ({ ...prev, appName: projectName, version: '1.0.0' }));
-            setAppIconPreview(null);
+            // Reset state when modal opens, unless a submission is in progress
+            if (publishState.status === 'idle' || publishState.status === 'error') {
+               setCurrentStep(1);
+               setFormData(prev => ({ ...prev, appName: projectName, version: '1.0.0' }));
+               setAppIconPreview(null);
+            }
         }
-    }, [isOpen, projectName]);
+    }, [isOpen, projectName, publishState.status]);
 
     useEffect(() => {
-        if (['building', 'uploading', 'submitting', 'success', 'error'].includes(publishState.status)) {
+        if (['queued', 'building', 'uploading', 'submitting', 'success', 'error'].includes(publishState.status)) {
             setCurrentStep(4); // Move to the final status step
         }
     }, [publishState.status]);
@@ -87,10 +89,12 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
     const renderContent = () => {
         if (currentStep === 4) { // Status page
              switch (publishState.status) {
+                case 'queued':
                 case 'building':
                 case 'uploading':
                 case 'submitting':
                     let message = 'Preparing submission...';
+                    if (publishState.status === 'queued') message = 'Job is queued and will begin shortly...';
                     if (publishState.status === 'building') message = 'Generating build with EAS...';
                     if (publishState.status === 'uploading') message = 'Uploading build to Expo...';
                     if (publishState.status === 'submitting') message = 'Submitting to App Store Connect...';
@@ -107,7 +111,7 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
                             <span className="material-symbols-outlined text-6xl text-green-400">task_alt</span>
                             <h2 className="text-2xl font-bold mt-4">Submitted Successfully!</h2>
                             <p className="text-gray-400 mt-2">Your app is now submitted for review by Apple.</p>
-                            <a href={publishState.url} target="_blank" rel="noopener noreferrer" className="mt-6 inline-block w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                            <a href={publishState.url || 'https://appstoreconnect.apple.com/apps'} target="_blank" rel="noopener noreferrer" className="mt-6 inline-block w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
                                 View in App Store Connect
                             </a>
                         </div>
@@ -140,7 +144,7 @@ export const AppStorePublishModal: React.FC<AppStorePublishModalProps> = ({ isOp
                             <input type="password" placeholder="App-Specific Password" className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg" />
                         </div>
                         <div className="p-3 bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-yellow-200 text-xs mt-4">
-                            <strong>Note:</strong> This is a UI prototype. Credentials are not saved or used. In a real application, these would be securely handled by the EAS build service and not stored on our servers.
+                            <strong>Note:</strong> Your credentials will be sent to a Firebase Cloud Function to be used by the EAS CLI for submission. They are not stored.
                         </div>
                     </div>
                 )}
