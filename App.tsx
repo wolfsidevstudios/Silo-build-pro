@@ -456,7 +456,7 @@ const App: React.FC = () => {
     }
   };
 
-  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
+  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], filesToGenerate: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
     const ai = getAiClient();
     const supabaseIntegrationPrompt = supabaseConfig ? `
       **Supabase Integration:**
@@ -494,7 +494,12 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     `;
 
     const fullPrompt = `
-      You are an expert React developer. Based on the user's request, the plan, and the current file structure, generate the complete code for ALL necessary files.
+      You are an expert React developer. Your task is to generate the complete code for a set of specified files based on the user's request, a plan, and the current file structure.
+
+      **CRITICAL INSTRUCTION:** You MUST generate code for EVERY file listed below. Do not add, omit, or rename any files from this list. The "files" array in your JSON response must contain an entry for each and every one of these paths.
+      
+      **Files to Generate:**
+      ${JSON.stringify(filesToGenerate)}
 
       ${projectTypeInstructions}
 
@@ -509,7 +514,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       **File Generation Rules:**
       - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
       - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
-      - You MUST provide the full code for ALL necessary files for the application to work. Do not omit files.
+      - You MUST provide the full code for ALL files specified in the "Files to Generate" section above. Do not omit files.
       - The main application component that should be rendered MUST be the default export of "src/App.tsx".
       - Do NOT generate an \`index.html\`, \`public/index.html\`, \`main.tsx\`, or any other entry-point HTML or JS file. The preview environment handles this automatically. Focus only on creating React components and related modules inside the \`src/\` directory.
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
@@ -612,7 +617,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     updateProjectState(projectId, { files: filesForCodeGeneration });
 
     setProgress(0);
-    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, model, projectType);
+    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, files_to_generate, model, projectType);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -878,7 +883,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const fixPrompt = `
       An error occurred in the application: "${errorToFix}". 
       Please analyze the existing files and fix the bug that is causing this error.
-      Provide the complete, corrected code for ALL necessary files.
+      You must return the complete, corrected code for ALL existing files.
     `;
 
     try {
@@ -888,7 +893,8 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
         setProgress(prev => Math.min((prev ?? 0) + 5, 95));
       }, 400);
 
-      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, model, activeProject.projectType);
+      const filesToModify = activeProject.files.map(f => f.path);
+      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType);
       
       clearInterval(interval);
       setProgress(100);
