@@ -19,6 +19,7 @@ interface WorkspaceProps {
   previewMode: PreviewMode;
   onPublish: () => void;
   onCommit: (message: string) => void;
+  onInitiateGitHubSave: () => void;
 }
 
 const TabButton: React.FC<{
@@ -154,7 +155,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   const { files, supabaseSql } = project;
@@ -278,7 +279,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         )}
         {activeTab === 'source-control' && (
             <div className="flex-1 overflow-auto">
-                <SourceControlPanel project={project} onCommit={onCommit} />
+                <SourceControlPanel project={project} onCommit={onCommit} onInitiateGitHubSave={onInitiateGitHubSave} />
             </div>
         )}
         {activeTab === 'database' && (

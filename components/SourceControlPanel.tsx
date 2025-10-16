@@ -33,10 +33,12 @@ const getChanges = (currentFiles: ProjectFile[], latestCommit: Commit | undefine
 interface SourceControlPanelProps {
   project: Project;
   onCommit: (message: string) => void;
+  onInitiateGitHubSave: () => void;
 }
 
-export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project, onCommit }) => {
+export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project, onCommit, onInitiateGitHubSave }) => {
     const [commitMessage, setCommitMessage] = useState('');
+    const isGitHubLinked = !!project.githubRepo;
 
     const latestCommit = useMemo(() => {
         if (!project.commits || project.commits.length === 0) return undefined;
@@ -56,6 +58,21 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
         <div className="flex h-full text-white bg-black">
             <div className="w-[400px] max-w-sm flex flex-col border-r border-gray-900">
                 <div className="p-4 border-b border-gray-900">
+                     {!isGitHubLinked ? (
+                        <div className="mb-4 text-center p-4 bg-zinc-900 border border-dashed border-gray-700 rounded-lg">
+                            <p className="text-sm text-gray-400 mb-3">Save your project to GitHub to track versions and collaborate.</p>
+                            <button
+                                onClick={onInitiateGitHubSave}
+                                className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm"
+                            >
+                                Connect to GitHub
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="mb-4 text-sm text-gray-400">
+                            Connected to: <a href={`https://github.com/${project.githubRepo}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{project.githubRepo}</a>
+                        </div>
+                    )}
                     <h2 className="text-lg font-semibold mb-4">Commit Changes</h2>
                     <textarea
                         value={commitMessage}
@@ -68,7 +85,7 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
                         disabled={!commitMessage.trim() || changes.length === 0}
                         className="mt-3 w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm"
                     >
-                        Commit ({changes.length} file{changes.length !== 1 ? 's' : ''})
+                        {isGitHubLinked ? 'Commit & Push' : 'Commit'} ({changes.length} file{changes.length !== 1 ? 's' : ''})
                     </button>
                 </div>
 

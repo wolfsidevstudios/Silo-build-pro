@@ -13,6 +13,8 @@ import { SettingsPage } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
 import DebugAssistPanel from './components/DebugAssistPanel';
 import { PublishModal, PublishState } from './components/PublishModal';
+import { GitHubSaveModal } from './components/GitHubSaveModal';
+import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } from './components/AppStorePublishModal';
 
 
 declare const Babel: any;
@@ -128,6 +130,13 @@ export interface Commit {
   files: ProjectFile[];
 }
 
+export interface AppStoreSubmission {
+  status: 'Not Submitted' | 'Submitted' | 'In Review' | 'Approved' | 'Rejected';
+  version: string;
+  submissionDate?: number;
+  url?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -139,7 +148,9 @@ export interface Project {
   netlifyUrl?: string;
   vercelProjectId?: string;
   vercelUrl?: string;
+  githubRepo?: string;
   commits?: Commit[];
+  appStoreSubmission?: AppStoreSubmission;
 }
 
 export interface SupabaseConfig {
@@ -170,6 +181,9 @@ const App: React.FC = () => {
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishState, setPublishState] = useState<PublishState>({ status: 'idle' });
+  const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
+  const [isAppStorePublishModalOpen, setIsAppStorePublishModalOpen] = useState(false);
+  const [appStorePublishState, setAppStorePublishState] = useState<AppStorePublishState>({ status: 'idle' });
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -186,6 +200,8 @@ const App: React.FC = () => {
             commits: p.commits || [],
             vercelProjectId: p.vercelProjectId || undefined,
             vercelUrl: p.vercelUrl || undefined,
+            githubRepo: p.githubRepo || undefined,
+            appStoreSubmission: p.appStoreSubmission || undefined,
         }));
         setProjects(migratedProjects);
       }
@@ -583,18 +599,177 @@ const App: React.FC = () => {
     }
   };
 
+  const pushFilesToGitHub = async (token: string, repo: string, files: ProjectFile[], message: string, branch: string = 'main', isInitialCommit: boolean = false) => {
+    const apiBase = 'https://api.github.com';
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+    };
+
+    let parentCommitSha: string | undefined;
+    let baseTreeSha: string | undefined;
+
+    if (!isInitialCommit) {
+        const branchRes = await fetch(`${apiBase}/repos/${repo}/branches/${branch}`, { headers });
+        if (!branchRes.ok) {
+            if (branchRes.status === 404) {
+                 throw new Error(`Branch '${branch}' not found in repository. Initial commit may not have been pushed correctly.`);
+            }
+            throw new Error(`Failed to get branch info (Status: ${branchRes.status}).`);
+        }
+        const branchData = await branchRes.json();
+        parentCommitSha = branchData.commit.sha;
+        baseTreeSha = branchData.commit.commit.tree.sha;
+    }
+
+    const filesWithReadme = [
+        ...files,
+        { path: 'README.md', code: `# ${activeProject?.name || 'Silo Build Project'}\n\nBuilt with Silo Build.`},
+        { path: '.gitignore', code: 'node_modules\ndist\n.DS_Store' }
+    ];
+
+    const blobCreationPromises = filesWithReadme.map(async file => {
+        const blobRes = await fetch(`${apiBase}/repos/${repo}/git/blobs`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ content: file.code, encoding: 'utf-8' }),
+        });
+        if (!blobRes.ok) throw new Error(`Failed to create blob for ${file.path}`);
+        const blobData = await blobRes.json();
+        return { path: file.path, mode: '100644', type: 'blob', sha: blobData.sha };
+    });
+
+    const tree = await Promise.all(blobCreationPromises);
+
+    const treePayload: { tree: any[], base_tree?: string } = { tree };
+    if (baseTreeSha) {
+        treePayload.base_tree = baseTreeSha;
+    }
+
+    const treeRes = await fetch(`${apiBase}/repos/${repo}/git/trees`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(treePayload),
+    });
+    if (!treeRes.ok) throw new Error('Failed to create git tree.');
+    const treeData = await treeRes.json();
+    const newTreeSha = treeData.sha;
+
+    const commitPayload: { message: string, tree: string, parents?: string[] } = {
+        message,
+        tree: newTreeSha,
+    };
+    if (parentCommitSha) {
+        commitPayload.parents = [parentCommitSha];
+    }
+
+    const commitRes = await fetch(`${apiBase}/repos/${repo}/git/commits`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(commitPayload),
+    });
+    if (!commitRes.ok) throw new Error('Failed to create commit.');
+    const commitData = await commitRes.json();
+    const newCommitSha = commitData.sha;
+
+    if (isInitialCommit) {
+        const refRes = await fetch(`${apiBase}/repos/${repo}/git/refs`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: newCommitSha }),
+        });
+        if (!refRes.ok) throw new Error('Failed to create new branch reference.');
+    } else {
+        const refRes = await fetch(`${apiBase}/repos/${repo}/git/refs/heads/${branch}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ sha: newCommitSha }),
+        });
+        if (!refRes.ok) throw new Error('Failed to update branch reference.');
+    }
+  };
+
   const handleCommit = async (commitMessage: string) => {
     if (!activeProject || !commitMessage.trim()) return;
 
+    setIsLoading(true);
+    
+    // 1. Save commit to local state
     const newCommit: Commit = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         message: commitMessage.trim(),
         timestamp: Date.now(),
-        files: JSON.parse(JSON.stringify(activeProject.files)), // Deep copy of files
+        files: JSON.parse(JSON.stringify(activeProject.files)), // Deep copy
     };
-
     const updatedCommits = [...(activeProject.commits || []), newCommit];
     updateProjectState(activeProject.id, { commits: updatedCommits });
+
+    // 2. If linked to GitHub, push changes
+    if (activeProject.githubRepo) {
+        const token = localStorage.getItem('silo_github_token');
+        if (!token) {
+            setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
+            setIsLoading(false);
+            return;
+        }
+        
+        try {
+            await pushFilesToGitHub(token, activeProject.githubRepo, activeProject.files, commitMessage);
+            addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully pushed changes to ${activeProject.githubRepo}.` });
+        } catch (err: any) {
+            const errorMessage = `GitHub Push Error: ${err.message}`;
+            setErrors(prev => [errorMessage, ...prev]);
+            addMessageToProject(activeProject.id, { actor: 'system', text: `Failed to push changes to GitHub. ${err.message}` });
+        }
+    }
+    setIsLoading(false);
+  };
+
+  const handleCreateRepoAndPush = async (repoName: string, description: string, isPrivate: boolean) => {
+    if (!activeProject) return;
+    const token = localStorage.getItem('silo_github_token');
+    if (!token) {
+        setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
+        setIsGitHubSaveModalOpen(false);
+        return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+        const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' };
+        
+        const userResponse = await fetch('https://api.github.com/user', { headers });
+        if (!userResponse.ok) throw new Error(`Failed to get GitHub user. Status: ${userResponse.status}`);
+        const { login } = await userResponse.json();
+
+        const repoResponse = await fetch('https://api.github.com/user/repos', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ name: repoName, description, private: isPrivate }),
+        });
+        if (!repoResponse.ok) {
+             const errorData = await repoResponse.json();
+             throw new Error(`Failed to create repository. ${errorData.message}`);
+        }
+        const repoData = await repoResponse.json();
+        const repoFullName = repoData.full_name;
+
+        await pushFilesToGitHub(token, repoFullName, activeProject.files, 'Initial commit from Silo Build', 'main', true);
+
+        updateProjectState(activeProject.id, { githubRepo: repoFullName });
+        addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully created and connected to GitHub repository: ${repoFullName}` });
+        setIsGitHubSaveModalOpen(false);
+        
+        // Make the first local commit match the initial push
+        handleCommit('Initial commit');
+
+    } catch (err: any) {
+        const errorMessage = `GitHub Error: ${err.message}`;
+        setErrors(prev => [errorMessage, ...prev]);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleFixError = async (errorToFix: string) => {
@@ -1060,6 +1235,25 @@ const App: React.FC = () => {
       }
   };
 
+  const handleAppStoreSubmit = (data: AppStoreSubmissionData) => {
+    if (!activeProject) return;
+    console.log("Simulating App Store Submission with data:", data);
+
+    setAppStorePublishState({ status: 'submitting' });
+
+    // Simulate network delay and submission process
+    setTimeout(() => {
+        const newSubmission: AppStoreSubmission = {
+            status: 'Submitted',
+            version: data.version,
+            submissionDate: Date.now(),
+            url: 'https://appstoreconnect.apple.com/apps' // Dummy URL
+        };
+        updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
+        setAppStorePublishState({ status: 'success', url: newSubmission.url });
+    }, 3000);
+  };
+
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -1115,6 +1309,7 @@ const App: React.FC = () => {
                     setIsPublishModalOpen(true)
                 }}
                 onCommit={handleCommit}
+                onInitiateGitHubSave={() => setIsGitHubSaveModalOpen(true)}
               />
             </div>
           </main>
@@ -1176,7 +1371,12 @@ const App: React.FC = () => {
       <PublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
-        onPublish={handlePublish}
+        onPublishToWeb={handlePublish}
+        onInitiateAppStorePublish={() => {
+            setIsPublishModalOpen(false);
+            setAppStorePublishState({ status: 'idle' });
+            setIsAppStorePublishModalOpen(true);
+        }}
         publishState={publishState}
         projectName={activeProject?.name || ''}
         isRedeploy={!!activeProject?.netlifySiteId || !!activeProject?.vercelProjectId}
@@ -1186,7 +1386,24 @@ const App: React.FC = () => {
             netlify: activeProject?.netlifyUrl,
             vercel: activeProject?.vercelUrl,
         }}
+        appStoreStatus={activeProject?.appStoreSubmission?.status}
       />
+      <GitHubSaveModal
+        isOpen={isGitHubSaveModalOpen}
+        onClose={() => setIsGitHubSaveModalOpen(false)}
+        onSave={handleCreateRepoAndPush}
+        isLoading={isLoading}
+        projectName={activeProject?.name || ''}
+      />
+      {activeProject && (
+        <AppStorePublishModal
+            isOpen={isAppStorePublishModalOpen}
+            onClose={() => setIsAppStorePublishModalOpen(false)}
+            onSubmit={handleAppStoreSubmit}
+            publishState={appStorePublishState}
+            projectName={activeProject.name}
+        />
+      )}
     </div>
   );
 };

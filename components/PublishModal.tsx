@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import type { AppStoreSubmission } from '../App';
 
 export type PublishState = {
   status: 'idle' | 'packaging' | 'creating_site' | 'uploading' | 'building' | 'success' | 'error';
@@ -11,7 +12,8 @@ export type PublishState = {
 interface PublishModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPublish: (platform: 'netlify' | 'vercel') => void;
+  onPublishToWeb: (platform: 'netlify' | 'vercel') => void;
+  onInitiateAppStorePublish: () => void;
   publishState: PublishState;
   projectName: string;
   isRedeploy: boolean;
@@ -21,6 +23,7 @@ interface PublishModalProps {
     netlify?: string;
     vercel?: string;
   };
+  appStoreStatus?: AppStoreSubmission['status'];
 }
 
 const getStatusMessage = (status: PublishState['status'], platform?: 'netlify' | 'vercel'): string => {
@@ -44,13 +47,15 @@ const Spinner: React.FC = () => (
 export const PublishModal: React.FC<PublishModalProps> = ({
   isOpen,
   onClose,
-  onPublish,
+  onPublishToWeb,
+  onInitiateAppStorePublish,
   publishState,
   projectName,
   isRedeploy,
   isNetlifyConfigured,
   isVercelConfigured,
   projectUrls,
+  appStoreStatus,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -117,7 +122,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               <p className="text-red-200 font-mono text-xs whitespace-pre-wrap">{publishState.error}</p>
             </div>
             <div className="mt-8 flex space-x-4 w-full">
-              <button onClick={() => onPublish(publishState.platform!)} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+              <button onClick={() => onPublishToWeb(publishState.platform!)} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
                 Try Again
               </button>
               <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
@@ -147,110 +152,48 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           );
         }
 
-        if (isRedeploy && (projectUrls?.netlify || projectUrls?.vercel)) {
-          return (
+        return (
             <>
               <div className="text-center">
-                <span className="material-symbols-outlined text-6xl text-green-400">dns</span>
-                <h2 className="text-2xl font-bold mt-4">Deployment Settings</h2>
+                <span className="material-symbols-outlined text-6xl text-blue-400">dns</span>
+                <h2 className="text-2xl font-bold mt-4">Deployment</h2>
                 <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
               </div>
 
-              {projectUrls.netlify && (
-                <div className="mt-6 w-full">
-                  <label className="text-xs text-gray-500">Netlify URL:</label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <input
-                      type="text"
-                      readOnly
-                      value={projectUrls.netlify}
-                      className="w-full p-2 bg-zinc-800 border border-gray-700 rounded-lg text-sm truncate"
-                    />
-                    <a
-                      href={projectUrls.netlify}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">open_in_new</span>
-                    </a>
-                  </div>
+              <div className="mt-6 w-full space-y-4">
+                {/* Web Deployments */}
+                <div className="bg-zinc-800/50 p-4 rounded-lg border border-gray-700">
+                    <h3 className="font-semibold text-lg mb-2">Web Deployment</h3>
+                    {projectUrls?.netlify && (
+                        <div className="text-xs text-gray-400 mb-2">Netlify: <a href={projectUrls.netlify} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Live</a></div>
+                    )}
+                    {projectUrls?.vercel && (
+                        <div className="text-xs text-gray-400 mb-2">Vercel: <a href={projectUrls.vercel} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Live</a></div>
+                    )}
+                    <div className="flex flex-col space-y-2 mt-3">
+                        {isNetlifyConfigured && <button onClick={() => onPublishToWeb('netlify')} className="w-full py-2.5 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors text-sm">Deploy to Netlify</button>}
+                        {isVercelConfigured && <button onClick={() => onPublishToWeb('vercel')} className="w-full py-2.5 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm">Deploy to Vercel</button>}
+                    </div>
                 </div>
-              )}
 
-              {projectUrls.vercel && (
-                <div className="mt-6 w-full">
-                  <label className="text-xs text-gray-500">Vercel URL:</label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <input
-                      type="text"
-                      readOnly
-                      value={projectUrls.vercel}
-                      className="w-full p-2 bg-zinc-800 border border-gray-700 rounded-lg text-sm truncate"
-                    />
-                     <a
-                      href={projectUrls.vercel}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">open_in_new</span>
-                    </a>
-                  </div>
+                {/* App Store */}
+                <div className="bg-zinc-800/50 p-4 rounded-lg border border-gray-700">
+                    <h3 className="font-semibold text-lg mb-2">App Store</h3>
+                    <div className="text-xs text-gray-400 mb-3">Status: <span className="font-mono bg-gray-700 px-2 py-0.5 rounded">{appStoreStatus || 'Not Submitted'}</span></div>
+                    <button onClick={onInitiateAppStorePublish} className="w-full py-2.5 text-center bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors text-sm">
+                        {appStoreStatus && appStoreStatus !== 'Not Submitted' ? 'View Submission' : 'Publish to App Store'}
+                    </button>
                 </div>
-              )}
-
-              <p className="text-sm text-gray-500 mt-6 text-center">Update your live site with the latest changes.</p>
-              
-              <div className="mt-4 flex flex-col space-y-3 w-full">
-                {isNetlifyConfigured && (
-                  <button onClick={() => onPublish('netlify')} className="w-full py-3 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors">
-                    Redeploy to Netlify
-                  </button>
-                )}
-                {isVercelConfigured && (
-                  <button onClick={() => onPublish('vercel')} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
-                    Redeploy to Vercel
-                  </button>
-                )}
               </div>
 
-              <div className="mt-4 w-full">
+              <div className="mt-6 w-full">
                 <button onClick={onClose} className="w-full py-2 text-center text-gray-400 rounded-lg font-semibold hover:bg-zinc-800 transition-colors">
                   Close
                 </button>
               </div>
             </>
-          );
-        }
-
-        return (
-          <>
-            <div className="text-center">
-                <span className="material-symbols-outlined text-6xl text-blue-400">publish</span>
-                <h2 className="text-2xl font-bold mt-4">{isRedeploy ? 'Redeploy Project' : 'Publish Project'}</h2>
-                <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
-            </div>
-             <p className="text-sm text-gray-500 mt-4 text-center">Choose a platform to deploy your project. This will make it available on a public URL.</p>
-             <div className="mt-8 flex flex-col space-y-3 w-full">
-                {isNetlifyConfigured && (
-                    <button onClick={() => onPublish('netlify')} className="w-full py-3 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors">
-                        Deploy with Netlify
-                    </button>
-                )}
-                {isVercelConfigured && (
-                    <button onClick={() => onPublish('vercel')} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
-                        Deploy with Vercel
-                    </button>
-                )}
-            </div>
-             <div className="mt-4 w-full">
-                <button onClick={onClose} className="w-full py-2 text-center text-gray-400 rounded-lg font-semibold hover:bg-zinc-800 transition-colors">
-                    Cancel
-                </button>
-            </div>
-          </>
         );
+
       default:
         return (
           <>
