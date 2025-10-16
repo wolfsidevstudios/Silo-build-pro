@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret } from '../App';
 
@@ -8,7 +7,7 @@ const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
-type SettingsTab = 'general' | 'appearance' | 'integrations' | 'deployments' | 'data' | 'appstore' | 'safety' | 'about';
+type SettingsTab = 'general' | 'appearance' | 'integrations' | 'deployments' | 'developer' | 'appstore' | 'safety' | 'about';
 
 const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8">
@@ -44,7 +43,7 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
                 <NavItem tab="appearance" icon="palette" label="Appearance" />
                 <NavItem tab="integrations" icon="integration_instructions" label="Integrations" />
                 <NavItem tab="deployments" icon="dns" label="Deployments" />
-                <NavItem tab="data" icon="database" label="Data" />
+                <NavItem tab="developer" icon="terminal" label="Developer" />
                 <NavItem tab="appstore" icon="storefront" label="App Store" />
                 <NavItem tab="safety" icon="shield" label="Safety" />
                 <NavItem tab="about" icon="info" label="About" />
@@ -442,22 +441,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 </button>
                             </div>
                         </SettingSection>
-                        <SettingSection title="Preview Mode" description="Iframe mode is sandboxed and secure. Service Worker mode offers faster reloads.">
-                            <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
-                                <button
-                                    onClick={() => props.onPreviewModeChange('iframe')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
-                                >
-                                    Iframe (Secure)
-                                </button>
-                                <button
-                                    onClick={() => props.onPreviewModeChange('service-worker')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
-                                >
-                                    Service Worker
-                                </button>
-                            </div>
-                        </SettingSection>
                     </>
                 )}
                 {activeTab === 'appearance' && (
@@ -509,12 +492,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                          <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
                             <SupabaseSettings {...props} />
                         </SettingSection>
-                        <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
-                            <ApiSecretsSettings 
-                                apiSecrets={props.apiSecrets}
-                                onApiSecretsChange={props.onApiSecretsChange}
-                            />
-                        </SettingSection>
                     </>
                 )}
                 {activeTab === 'deployments' && (
@@ -541,8 +518,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                     </>
                 )}
-                {activeTab === 'data' && (
+                {activeTab === 'developer' && (
                     <>
+                        <SettingSection title="Preview Mode" description="Iframe mode is sandboxed and secure. Service Worker mode offers faster reloads.">
+                            <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                                <button
+                                    onClick={() => props.onPreviewModeChange('iframe')}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                >
+                                    Iframe (Secure)
+                                </button>
+                                <button
+                                    onClick={() => props.onPreviewModeChange('service-worker')}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                >
+                                    Service Worker
+                                </button>
+                            </div>
+                        </SettingSection>
+                        <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
+                            <ApiSecretsSettings 
+                                apiSecrets={props.apiSecrets}
+                                onApiSecretsChange={props.onApiSecretsChange}
+                            />
+                        </SettingSection>
                         <SettingSection title="Backup & Restore" description="Export all projects and settings to a JSON file, or import from a backup.">
                             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                                 <button onClick={handleExportData} className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm">
