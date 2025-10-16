@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
@@ -137,9 +137,11 @@ interface SettingsPageProps {
   isLoading: boolean;
   previewMode: PreviewMode;
   onPreviewModeChange: (mode: PreviewMode) => void;
+  apiSecrets: ApiSecret[];
+  onApiSecretsChange: (secrets: ApiSecret[]) => void;
 }
 
-const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange'>> = ({
+const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange' | 'apiSecrets' | 'onApiSecretsChange'>> = ({
   supabaseConfig,
   onSupabaseAuthorize,
   onSupabaseManualConnect,
@@ -230,6 +232,91 @@ const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onMo
         )}
       </div>
   );
+};
+
+const ApiSecretsSettings: React.FC<{
+    apiSecrets: ApiSecret[];
+    onApiSecretsChange: (secrets: ApiSecret[]) => void;
+}> = ({ apiSecrets, onApiSecretsChange }) => {
+    const [newKey, setNewKey] = useState('');
+    const [newValue, setNewValue] = useState('');
+    const [error, setError] = useState<string | null>(null);
+
+    const handleAdd = () => {
+        setError(null);
+        if (!newKey.trim() || !newValue.trim()) {
+            setError('Both key and value are required.');
+            return;
+        }
+        if (!/^[A-Z_][A-Z0-9_]*$/.test(newKey.trim())) {
+            setError('Key should be in SCREAMING_SNAKE_CASE format (e.g., MY_API_KEY).');
+            return;
+        }
+        if (apiSecrets.some(s => s.key === newKey.trim())) {
+            setError('A secret with this key already exists.');
+            return;
+        }
+        onApiSecretsChange([...apiSecrets, { key: newKey.trim(), value: newValue.trim() }]);
+        setNewKey('');
+        setNewValue('');
+    };
+
+    const handleDelete = (keyToDelete: string) => {
+        onApiSecretsChange(apiSecrets.filter(s => s.key !== keyToDelete));
+    };
+
+    const maskValue = (value: string) => {
+        if (value.length <= 8) return '••••••••';
+        return `${value.substring(0, 4)}••••${value.substring(value.length - 4)}`;
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                {apiSecrets.length === 0 && (
+                    <p className="text-xs text-gray-500 text-center py-4">No secrets added yet.</p>
+                )}
+                {apiSecrets.map(secret => (
+                    <div key={secret.key} className="flex items-center justify-between bg-zinc-800/50 p-2 rounded-lg text-sm">
+                        <div className="font-mono flex-1 truncate">
+                            <span className="text-gray-400">{secret.key}</span>
+                            <span className="text-gray-600 mx-2">=</span>
+                            <span className="text-gray-300">{maskValue(secret.value)}</span>
+                        </div>
+                        <button onClick={() => handleDelete(secret.key)} className="p-1 rounded-full text-red-500 hover:bg-red-900/50" aria-label={`Delete ${secret.key}`}>
+                            <span className="material-symbols-outlined text-base">delete</span>
+                        </button>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="bg-zinc-800/50 p-3 rounded-lg border border-gray-700 space-y-3">
+                <div className="flex space-x-2">
+                    <input
+                        type="text"
+                        value={newKey}
+                        onChange={e => setNewKey(e.target.value)}
+                        placeholder="SECRET_NAME"
+                        className="w-1/2 p-2 bg-zinc-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                        type="password"
+                        value={newValue}
+                        onChange={e => setNewValue(e.target.value)}
+                        placeholder="Secret Value"
+                        className="w-1/2 p-2 bg-zinc-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                </div>
+                {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                <button
+                    onClick={handleAdd}
+                    className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                >
+                    Add Secret
+                </button>
+            </div>
+        </div>
+    );
 };
 
 export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
@@ -323,6 +410,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                          <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
                             <SupabaseSettings {...props} />
+                        </SettingSection>
+                        <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
+                            <ApiSecretsSettings 
+                                apiSecrets={props.apiSecrets}
+                                onApiSecretsChange={props.onApiSecretsChange}
+                            />
                         </SettingSection>
                     </>
                 )}

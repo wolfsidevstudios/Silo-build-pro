@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -136,6 +137,11 @@ export interface AppStoreSubmission {
   url?: string;
 }
 
+export interface ApiSecret {
+  key: string;
+  value: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -183,6 +189,7 @@ const App: React.FC = () => {
   const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
   const [isAppStorePublishModalOpen, setIsAppStorePublishModalOpen] = useState(false);
   const [appStorePublishState, setAppStorePublishState] = useState<AppStorePublishState>({ status: 'idle' });
+  const [apiSecrets, setApiSecrets] = useState<ApiSecret[]>([]);
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -212,6 +219,10 @@ const App: React.FC = () => {
       if (savedPreviewMode) {
         setPreviewMode(savedPreviewMode);
       }
+      const savedApiSecrets = localStorage.getItem('silo_api_secrets');
+      if (savedApiSecrets) {
+        setApiSecrets(JSON.parse(savedApiSecrets));
+      }
     } catch (e) {
       console.error("Failed to load data from local storage", e);
     }
@@ -228,6 +239,10 @@ const App: React.FC = () => {
       localStorage.removeItem('silo_supabase_config');
     }
   }, [supabaseConfig]);
+
+  useEffect(() => {
+      localStorage.setItem('silo_api_secrets', JSON.stringify(apiSecrets));
+  }, [apiSecrets]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -428,6 +443,14 @@ const App: React.FC = () => {
       - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
       - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
     ` : '';
+
+    const apiSecretsPrompt = apiSecrets.length > 0 ? `
+      **API Secrets:**
+      - The user has provided the following API secrets. You MUST use these in the code when an external API key is required (e.g., for another AI service, a database, etc.).
+      - IMPORTANT: Do not display these secrets directly in the UI. When initializing clients or making API calls, use the provided value for the corresponding key.
+      - Available secrets:
+${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
+    ` : '';
     
     const projectTypeInstructions = projectType === 'single'
     ? `
@@ -460,6 +483,8 @@ const App: React.FC = () => {
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
 
       ${supabaseIntegrationPrompt}
+
+      ${apiSecretsPrompt}
       
       **The user's request is:** "${prompt}".
       **The plan is:**
@@ -1418,6 +1443,8 @@ Good luck!
           isLoading={isLoading}
           previewMode={previewMode}
           onPreviewModeChange={handlePreviewModeChange}
+          apiSecrets={apiSecrets}
+          onApiSecretsChange={setApiSecrets}
         />
       );
     }
