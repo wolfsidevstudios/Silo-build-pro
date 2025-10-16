@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { ProjectType } from '../App';
 
@@ -43,7 +42,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-8 text-center bg-black overflow-hidden">
       {/* Centered circular gradient blob */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/10 rounded-full blur-[250px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-tr from-cyan-600/20 to-blue-600/20 rounded-full blur-[200px] pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center justify-center w-full">
         <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
@@ -94,8 +93,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., a real-time crypto price tracker with a dark theme"
-              className="w-full p-5 pr-40 bg-zinc-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none"
-              rows={3}
+              className="w-full p-5 pr-40 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-lg resize-none"
+              rows={4}
               disabled={isLoading}
             />
             <button

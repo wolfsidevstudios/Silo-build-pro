@@ -518,9 +518,15 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
             projectTypeInstructions = `
                 **Project Type:** Vanilla HTML/CSS/JS
                 **Constraint:** You MUST generate a standard, static web project with three files: 'index.html', 'style.css', and 'script.js'.
-                - **index.html:** Must contain the full HTML structure. It MUST link to the other two files correctly, like this: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
+                - **index.html:** Must contain the full HTML structure. It MUST link to the other two files correctly, like this: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag. It MUST also include the Google Material Symbols font stylesheet in the <head>: \`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />\`.
                 - **style.css:** Must contain all the CSS styles.
                 - **script.js:** Must contain all the JavaScript logic.
+                **Design System & UI Guidelines:**
+                - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
+                - **Background:** The main application background MUST be white. You should set this on the 'body' element in 'style.css'.
+                - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners, e.g., \`border-radius: 9999px;\`). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin black border.
+                - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The font is already linked in the HTML. Example usage in HTML: \`<span class="material-symbols-outlined">icon_name</span>\`.
+                - **Navigation Bars:** If a navigation bar is needed, it should be pill-shaped, floating, and have a frosted glass effect (e.g., using \`background-color: rgba(255, 255, 255, 0.5);\` and \`backdrop-filter: blur(10px);\`).
                 **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. Write plain HTML, CSS, and JavaScript. DO NOT use Tailwind CSS; write standard CSS rules. The final output MUST have exactly three file objects in the "files" array for these files.
             `;
             break;

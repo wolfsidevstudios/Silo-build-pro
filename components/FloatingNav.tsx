@@ -29,7 +29,7 @@ export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPath }) => {
   const path = currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
 
   return (
-    <nav className="fixed top-0 left-0 h-full w-20 bg-black flex flex-col items-center z-40 py-8">
+    <nav className="fixed top-0 left-0 h-full w-20 flex flex-col items-center z-40 py-8">
       <div className="flex-shrink-0">
         <h1
           className="text-white text-lg tracking-widest"
