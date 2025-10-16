@@ -137,6 +137,8 @@ export interface Project {
   projectType: ProjectType;
   netlifySiteId?: string;
   netlifyUrl?: string;
+  vercelProjectId?: string;
+  vercelUrl?: string;
   commits?: Commit[];
 }
 
@@ -182,6 +184,8 @@ const App: React.FC = () => {
             ...p,
             projectType: p.projectType || 'multi',
             commits: p.commits || [],
+            vercelProjectId: p.vercelProjectId || undefined,
+            vercelUrl: p.vercelUrl || undefined,
         }));
         setProjects(migratedProjects);
       }
@@ -753,7 +757,7 @@ const App: React.FC = () => {
     setSupabaseConfig(null);
   };
     
-  const createDeploymentPackage = async (files: ProjectFile[]): Promise<Blob> => {
+  const createNetlifyDeploymentPackage = async (files: ProjectFile[]): Promise<Blob> => {
     const zip = new JSZip();
 
     // Transpile TSX/JS files to JS with ES modules and update import paths
@@ -822,8 +826,64 @@ const App: React.FC = () => {
 
     return zip.generateAsync({ type: 'blob' });
   };
+
+  const createVercelPayload = async (files: ProjectFile[]): Promise<{ file: string, data: string }[]> => {
+    const payload: { file: string, data: string }[] = [];
+
+    for (const file of files) {
+        if (file.path.match(/\.(tsx|ts|jsx|js)$/)) {
+            try {
+                const transformedCode = Babel.transform(file.code, {
+                    presets: ['typescript', ['react', { runtime: 'classic' }]],
+                    filename: file.path,
+                }).code;
+                const codeWithJsImports = transformedCode.replace(/(from\s+['"]\..+)\.(tsx|ts|jsx)(['"])/g, '$1.js$3');
+                payload.push({
+                    file: file.path.replace(/\.(tsx|ts|jsx)$/, '.js'),
+                    data: codeWithJsImports,
+                });
+            } catch (e: any) {
+                throw new Error(`Babel transpilation failed for ${file.path}: ${e.message}`);
+            }
+        } else {
+            payload.push({ file: file.path, data: file.code });
+        }
+    }
+    const productionHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Silo Build App</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+          <style> body { background-color: #ffffff; } </style>
+          <script type="importmap">
+          {
+            "imports": {
+              "react": "https://esm.sh/react@18.2.0",
+              "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+            }
+          }
+          </script>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="module" src="/src/App.js"></script>
+        </body>
+      </html>
+    `;
+    payload.push({ file: 'index.html', data: productionHtml });
+
+    const vercelConfig = { routes: [{ "src": "/(.*)", "dest": "/index.html" }] };
+    payload.push({ file: 'vercel.json', data: JSON.stringify(vercelConfig, null, 2) });
+    
+    return payload;
+};
   
-  const handlePublish = async () => {
+  const handleNetlifyPublish = async () => {
     if (!activeProject) return;
 
     const token = localStorage.getItem('silo_netlify_token');
@@ -833,13 +893,13 @@ const App: React.FC = () => {
     }
 
     try {
-      setPublishState({ status: 'packaging' });
-      const zipBlob = await createDeploymentPackage(activeProject.files);
+      setPublishState({ status: 'packaging', platform: 'netlify' });
+      const zipBlob = await createNetlifyDeploymentPackage(activeProject.files);
 
       let siteId = activeProject.netlifySiteId;
 
       if (!siteId) {
-        setPublishState({ status: 'creating_site' });
+        setPublishState({ status: 'creating_site', platform: 'netlify' });
         const siteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -853,7 +913,7 @@ const App: React.FC = () => {
         updateProjectState(activeProject.id, { netlifySiteId: siteId });
       }
 
-      setPublishState({ status: 'uploading' });
+      setPublishState({ status: 'uploading', platform: 'netlify' });
       const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
@@ -866,7 +926,7 @@ const App: React.FC = () => {
       const deployData = await deployResponse.json();
       const deployId = deployData.id;
 
-      setPublishState({ status: 'building' });
+      setPublishState({ status: 'building', platform: 'netlify' });
       const pollDeploy = async (): Promise<string> => {
         const statusResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -885,13 +945,81 @@ const App: React.FC = () => {
       };
 
       const finalUrl = await pollDeploy();
-      setPublishState({ status: 'success', url: finalUrl });
+      setPublishState({ status: 'success', url: finalUrl, platform: 'netlify' });
       updateProjectState(activeProject.id, { netlifyUrl: finalUrl });
     } catch (err: any) {
       console.error("Publishing error:", err);
-      setPublishState({ status: 'error', error: err.message });
+      setPublishState({ status: 'error', error: err.message, platform: 'netlify' });
     }
   };
+
+  const handleVercelPublish = async () => {
+    if (!activeProject) return;
+    const token = localStorage.getItem('silo_vercel_token');
+    if (!token) {
+        setPublishState({ status: 'error', error: 'Vercel token not found. Please add it on the Settings page.', platform: 'vercel' });
+        return;
+    }
+
+    try {
+        setPublishState({ status: 'packaging', platform: 'vercel' });
+        const vercelPayload = await createVercelPayload(activeProject.files);
+
+        const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+        const deployPayload: any = {
+            name: activeProject.name.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 100),
+            files: vercelPayload,
+            target: 'production',
+            projectId: activeProject.vercelProjectId,
+        };
+
+        setPublishState({ status: 'uploading', platform: 'vercel' });
+        const deployResponse = await fetch('https://api.vercel.com/v13/deployments', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(deployPayload),
+        });
+
+        if (!deployResponse.ok) {
+            const errorData = await deployResponse.json();
+            throw new Error(`Vercel API Error: ${errorData.error.message}`);
+        }
+        const deployData = await deployResponse.json();
+
+        if (!activeProject.vercelProjectId && deployData.projectId) {
+            updateProjectState(activeProject.id, { vercelProjectId: deployData.projectId });
+        }
+
+        setPublishState({ status: 'building', platform: 'vercel' });
+        const pollDeploy = async (): Promise<string> => {
+            const statusResponse = await fetch(`https://api.vercel.com/v13/deployments/${deployData.id}`, { headers });
+            if (!statusResponse.ok) throw new Error('Failed to poll Vercel deploy status.');
+            const statusData = await statusResponse.json();
+
+            if (statusData.readyState === 'READY') return `https://${statusData.url}`;
+            if (['ERROR', 'CANCELED'].includes(statusData.readyState)) throw new Error(`Vercel build failed: ${statusData.errorMessage || 'Unknown error'}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            return pollDeploy();
+        };
+
+        const finalUrl = await pollDeploy();
+        setPublishState({ status: 'success', url: finalUrl, platform: 'vercel' });
+        updateProjectState(activeProject.id, { vercelUrl: finalUrl });
+    } catch (err: any) {
+        console.error("Vercel publishing error:", err);
+        setPublishState({ status: 'error', error: err.message, platform: 'vercel' });
+    }
+  };
+
+  const handlePublish = (platform: 'netlify' | 'vercel') => {
+      if (platform === 'netlify') {
+        handleNetlifyPublish();
+      } else {
+        handleVercelPublish();
+      }
+  };
+
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -989,6 +1117,9 @@ const App: React.FC = () => {
     return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
   };
 
+  const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
+  const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
+
 
   return (
     <div className="flex h-screen bg-black text-white font-sans">
@@ -1008,8 +1139,9 @@ const App: React.FC = () => {
         onPublish={handlePublish}
         publishState={publishState}
         projectName={activeProject?.name || ''}
-        isRedeploy={!!activeProject?.netlifySiteId}
-        existingUrl={activeProject?.netlifyUrl}
+        isRedeploy={!!activeProject?.netlifySiteId || !!activeProject?.vercelProjectId}
+        isNetlifyConfigured={isNetlifyConfigured}
+        isVercelConfigured={isVercelConfigured}
       />
     </div>
   );

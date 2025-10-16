@@ -1,8 +1,10 @@
 
+
 import React, { useState } from 'react';
 
 export type PublishState = {
   status: 'idle' | 'packaging' | 'creating_site' | 'uploading' | 'building' | 'success' | 'error';
+  platform?: 'netlify' | 'vercel';
   url?: string;
   error?: string;
 };
@@ -10,28 +12,42 @@ export type PublishState = {
 interface PublishModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPublish: () => void;
+  onPublish: (platform: 'netlify' | 'vercel') => void;
   publishState: PublishState;
   projectName: string;
-  isRedeploy?: boolean;
-  existingUrl?: string;
+  isRedeploy: boolean;
+  isNetlifyConfigured: boolean;
+  isVercelConfigured: boolean;
 }
 
-const statusMessages: Record<PublishState['status'], string> = {
-  idle: 'Ready to publish your project to the web.',
-  packaging: 'Packaging project files for deployment...',
-  creating_site: 'Creating a new site on Netlify...',
-  uploading: 'Uploading files to Netlify...',
-  building: 'Netlify is building your site. This might take a moment...',
-  success: 'Your project is live!',
-  error: 'An error occurred during publishing.',
+const getStatusMessage = (status: PublishState['status'], platform?: 'netlify' | 'vercel'): string => {
+    const platformName = platform === 'netlify' ? 'Netlify' : 'Vercel';
+    const messages: Record<PublishState['status'], string> = {
+        idle: 'Choose a platform to deploy your project to the web.',
+        packaging: 'Packaging project files for deployment...',
+        creating_site: `Creating a new site on ${platformName}...`,
+        uploading: `Uploading files to ${platformName}...`,
+        building: `${platformName} is building your site. This might take a moment...`,
+        success: 'Your project is live!',
+        error: 'An error occurred during publishing.',
+    };
+    return messages[status];
 };
 
 const Spinner: React.FC = () => (
     <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
 );
 
-export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish, publishState, projectName, isRedeploy, existingUrl }) => {
+export const PublishModal: React.FC<PublishModalProps> = ({
+  isOpen,
+  onClose,
+  onPublish,
+  publishState,
+  projectName,
+  isRedeploy,
+  isNetlifyConfigured,
+  isVercelConfigured
+}) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
@@ -52,7 +68,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
             <div className="text-center">
               <span className="material-symbols-outlined text-6xl text-green-400">task_alt</span>
               <h2 className="text-2xl font-bold mt-4">Published Successfully!</h2>
-              <p className="text-gray-400 mt-2">{statusMessages[publishState.status]}</p>
+              <p className="text-gray-400 mt-2">{getStatusMessage(publishState.status, publishState.platform)}</p>
             </div>
             <div className="mt-6 w-full">
               <label className="text-xs text-gray-500">Your live URL:</label>
@@ -97,7 +113,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
               <p className="text-red-200 font-mono text-xs whitespace-pre-wrap">{publishState.error}</p>
             </div>
             <div className="mt-8 flex space-x-4 w-full">
-              <button onClick={onPublish} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+              <button onClick={() => onPublish(publishState.platform!)} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
                 Try Again
               </button>
               <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
@@ -107,48 +123,48 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
           </>
         );
       case 'idle':
-        if (isRedeploy) {
-            return (
-                <>
-                    <div className="text-center">
-                        <span className="material-symbols-outlined text-6xl text-blue-400">upload</span>
-                        <h2 className="text-2xl font-bold mt-4">Redeploy Project</h2>
-                        <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
-                    </div>
-                    {existingUrl && (
-                        <div className="mt-4 w-full text-center">
-                            <label className="text-xs text-gray-500">Live URL:</label>
-                            <a href={existingUrl} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-400 hover:underline truncate mt-1">
-                                {existingUrl}
-                            </a>
-                        </div>
-                    )}
-                    <p className="text-sm text-gray-500 mt-4 text-center">This will update your existing Netlify site with the latest changes.</p>
-                    <div className="mt-8 flex space-x-4 w-full">
-                        <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
-                            Cancel
-                        </button>
-                        <button onClick={onPublish} className="w-full py-3 text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                            Update Site
-                        </button>
-                    </div>
-                </>
-            );
+        if (!isNetlifyConfigured && !isVercelConfigured) {
+          return (
+             <>
+                <div className="text-center">
+                    <span className="material-symbols-outlined text-6xl text-yellow-400">token</span>
+                    <h2 className="text-2xl font-bold mt-4">Deployment Not Configured</h2>
+                    <p className="text-gray-400 mt-2">To publish your project, please add a Netlify or Vercel access token in the settings.</p>
+                </div>
+                <div className="mt-8 flex space-x-4 w-full">
+                    <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
+                        Cancel
+                    </button>
+                    <a href="#/settings" onClick={onClose} className="w-full py-3 text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        Go to Settings
+                    </a>
+                </div>
+             </>
+          );
         }
-         return (
+        return (
           <>
             <div className="text-center">
                 <span className="material-symbols-outlined text-6xl text-blue-400">publish</span>
-                <h2 className="text-2xl font-bold mt-4">Publish Project</h2>
+                <h2 className="text-2xl font-bold mt-4">{isRedeploy ? 'Redeploy Project' : 'Publish Project'}</h2>
                 <p className="text-gray-400 mt-2 truncate">"{projectName}"</p>
             </div>
-             <p className="text-sm text-gray-500 mt-4 text-center">This will deploy your project to Netlify, making it available on a public URL. This action may create a new site in your Netlify account.</p>
-             <div className="mt-8 flex space-x-4 w-full">
-                <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
+             <p className="text-sm text-gray-500 mt-4 text-center">Choose a platform to deploy your project. This will make it available on a public URL.</p>
+             <div className="mt-8 flex flex-col space-y-3 w-full">
+                {isNetlifyConfigured && (
+                    <button onClick={() => onPublish('netlify')} className="w-full py-3 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors">
+                        Deploy with Netlify
+                    </button>
+                )}
+                {isVercelConfigured && (
+                    <button onClick={() => onPublish('vercel')} className="w-full py-3 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                        Deploy with Vercel
+                    </button>
+                )}
+            </div>
+             <div className="mt-4 w-full">
+                <button onClick={onClose} className="w-full py-2 text-center text-gray-400 rounded-lg font-semibold hover:bg-zinc-800 transition-colors">
                     Cancel
-                </button>
-                <button onClick={onPublish} className="w-full py-3 text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                    Publish Now
                 </button>
             </div>
           </>
@@ -158,7 +174,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
           <>
             <Spinner />
             <h2 className="text-xl font-bold mt-6">Publishing in Progress...</h2>
-            <p className="text-gray-400 mt-2 text-center">{statusMessages[publishState.status]}</p>
+            <p className="text-gray-400 mt-2 text-center">{getStatusMessage(publishState.status, publishState.platform)}</p>
           </>
         );
     }

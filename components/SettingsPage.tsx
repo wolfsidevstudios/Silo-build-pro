@@ -5,6 +5,7 @@ import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
+const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 
 
 const NetlifySettings: React.FC = () => {
@@ -52,6 +53,62 @@ const NetlifySettings: React.FC = () => {
             </div>
             {saveStatus === 'saved' && (
                 <p className="text-green-400 text-sm mt-2 text-center">Netlify Token saved!</p>
+            )}
+            {saveStatus === 'error' && (
+                <p className="text-red-400 text-sm mt-2 text-center">Failed to save token.</p>
+            )}
+            <p className="text-xs text-gray-500 mt-3">
+                Required for publishing your projects. Your token is stored in local storage.
+            </p>
+        </div>
+    );
+};
+
+const VercelSettings: React.FC = () => {
+    const [token, setToken] = useState('');
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+    useEffect(() => {
+        const savedToken = localStorage.getItem(VERCEL_TOKEN_STORAGE_KEY);
+        if (savedToken) {
+            setToken(savedToken);
+        }
+    }, []);
+
+    const handleSave = () => {
+        try {
+            localStorage.setItem(VERCEL_TOKEN_STORAGE_KEY, token);
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (error) {
+            console.error("Failed to save Vercel token:", error);
+            setSaveStatus('error');
+        }
+    };
+
+    return (
+        <div>
+            <label htmlFor="vercel-token" className="block text-sm font-medium text-gray-400 mb-2">
+                Vercel Access Token
+            </label>
+            <div className="relative w-full">
+                <input
+                    id="vercel-token"
+                    type="password"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Enter your Vercel token"
+                    className="w-full p-3 pl-5 pr-28 bg-zinc-900 border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                />
+                <button
+                    onClick={handleSave}
+                    className="absolute top-1/2 right-2 transform -translate-y-1/2 px-6 py-1.5 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors"
+                >
+                    Save
+                </button>
+            </div>
+            {saveStatus === 'saved' && (
+                <p className="text-green-400 text-sm mt-2 text-center">Vercel Token saved!</p>
             )}
             {saveStatus === 'error' && (
                 <p className="text-red-400 text-sm mt-2 text-center">Failed to save token.</p>
@@ -325,6 +382,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
         </div>
         <div className="border-t border-gray-800 my-4"></div>
         <NetlifySettings />
+        <VercelSettings />
         <SupabaseSettings {...props} />
       </div>
     </div>
