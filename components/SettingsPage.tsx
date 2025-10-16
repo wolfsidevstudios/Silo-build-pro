@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
 
@@ -7,7 +8,7 @@ const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
-type SettingsTab = 'general' | 'deployments' | 'integrations' | 'appstore';
+type SettingsTab = 'general' | 'deployments' | 'integrations' | 'appstore' | 'about';
 
 const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8">
@@ -43,6 +44,7 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
                 <NavItem tab="deployments" icon="dns" label="Deployments" />
                 <NavItem tab="integrations" icon="integration_instructions" label="Integrations" />
                 <NavItem tab="appstore" icon="storefront" label="App Store" />
+                <NavItem tab="about" icon="info" label="About" />
             </div>
         </nav>
     );
@@ -331,6 +333,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 <h3 className="text-xl font-semibold text-gray-300">Coming Soon!</h3>
                                 <p className="text-gray-500 mt-2">
                                     We're working hard to bring you a seamless App Store publishing experience.
+                                </p>
+                            </div>
+                        </SettingSection>
+                    </>
+                )}
+                {activeTab === 'about' && (
+                    <>
+                        <SettingSection title="About Silo Build" description="Building applications with the power of AI.">
+                            <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg">
+                                <p>Silo Build is a powerful in-browser IDE that transpiles and renders React TSX code in real-time. Write your components using TypeScript and JSX, and see the live preview instantly.</p>
+                                <p>This project leverages the capabilities of Google's Gemini API to assist in code generation, planning, and debugging, enabling rapid application development directly from natural language prompts.</p>
+                            </div>
+                        </SettingSection>
+                        <SettingSection title="Contact Information" description="For support, feedback, or inquiries, please reach out to our team.">
+                            <div className="text-gray-400 text-sm space-y-2 bg-zinc-800/50 p-4 rounded-lg">
+                                <p>
+                                    <a href="mailto:survivalcreativeminecraftadven@gmail.com" className="text-blue-400 hover:underline">survivalcreativeminecraftadven@gmail.com</a>
+                                </p>
+                                <p>
+                                    <a href="mailto:rocio1976ramirezpena@gmail.com" className="text-blue-400 hover:underline">rocio1976ramirezpena@gmail.com</a>
                                 </p>
                             </div>
                         </SettingSection>
