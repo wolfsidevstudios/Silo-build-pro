@@ -1008,7 +1008,13 @@ const App: React.FC = () => {
 
         setPublishState({ status: 'uploading', platform: 'vercel' });
         
-        const deployResponse = await fetch('https://api.vercel.com/v13/deployments', {
+        let apiUrl = 'https://api.vercel.com/v13/deployments';
+        // If it's a new project (no projectId yet), add the query parameter to skip auto-detection confirmation.
+        if (!activeProject.vercelProjectId) {
+            apiUrl += '?skipAutoDetectionConfirmation=1';
+        }
+        
+        const deployResponse = await fetch(apiUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify(deployPayload),
