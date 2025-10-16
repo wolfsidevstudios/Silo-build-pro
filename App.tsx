@@ -503,6 +503,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
       - You MUST provide the full code for ALL necessary files for the application to work. Do not omit files.
       - The main application component that should be rendered MUST be the default export of "src/App.tsx".
+      - Do NOT generate an \`index.html\`, \`public/index.html\`, \`main.tsx\`, or any other entry-point HTML or JS file. The preview environment handles this automatically. Focus only on creating React components and related modules inside the \`src/\` directory.
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
 
       ${supabaseIntegrationPrompt}

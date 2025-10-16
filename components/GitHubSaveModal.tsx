@@ -9,8 +9,27 @@ interface GitHubSaveModalProps {
   projectName: string;
 }
 
+const sanitizeRepoName = (name: string): string => {
+    if (!name) return `silo-project-${Date.now()}`;
+    let sanitized = name
+        .toLowerCase()
+        .replace(/\s+/g, '-') // replace spaces with hyphens
+        .replace(/[^a-z0-9-]/g, ''); // remove invalid characters
+    
+    // GitHub repo names can't start or end with a hyphen
+    sanitized = sanitized.replace(/^-+|-+$/g, '');
+
+    // If sanitization results in an empty string (e.g., from only symbols), provide a fallback
+    if (!sanitized) {
+        return `silo-project-${Date.now()}`;
+    }
+
+    // Max repo name length is 100
+    return sanitized.substring(0, 100);
+};
+
 export const GitHubSaveModal: React.FC<GitHubSaveModalProps> = ({ isOpen, onClose, onSave, isLoading, projectName }) => {
-  const [repoName, setRepoName] = useState(projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+  const [repoName, setRepoName] = useState(sanitizeRepoName(projectName));
   const [description, setDescription] = useState(`Project "${projectName}" created with Silo Build.`);
   const [isPrivate, setIsPrivate] = useState(true);
 
