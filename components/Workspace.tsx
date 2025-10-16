@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -20,6 +21,7 @@ interface WorkspaceProps {
   onPublish: () => void;
   onCommit: (message: string) => void;
   onInitiateGitHubSave: () => void;
+  onExportProject: () => void;
 }
 
 const TabButton: React.FC<{
@@ -155,7 +157,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   const { files, supabaseSql } = project;
@@ -279,7 +281,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         )}
         {activeTab === 'source-control' && (
             <div className="flex-1 overflow-auto">
-                <SourceControlPanel project={project} onCommit={onCommit} onInitiateGitHubSave={onInitiateGitHubSave} />
+                <SourceControlPanel project={project} onCommit={onCommit} onInitiateGitHubSave={onInitiateGitHubSave} onExportProject={onExportProject} />
             </div>
         )}
         {activeTab === 'database' && (

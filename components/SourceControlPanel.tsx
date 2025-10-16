@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { Project, Commit, ProjectFile } from '../App';
 
@@ -34,9 +35,10 @@ interface SourceControlPanelProps {
   project: Project;
   onCommit: (message: string) => void;
   onInitiateGitHubSave: () => void;
+  onExportProject: () => void;
 }
 
-export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project, onCommit, onInitiateGitHubSave }) => {
+export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project, onCommit, onInitiateGitHubSave, onExportProject }) => {
     const [commitMessage, setCommitMessage] = useState('');
     const isGitHubLinked = !!project.githubRepo;
 
@@ -87,6 +89,15 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
                     >
                         {isGitHubLinked ? 'Commit & Push' : 'Commit'} ({changes.length} file{changes.length !== 1 ? 's' : ''})
                     </button>
+                     <div className="mt-4 pt-4 border-t border-gray-800/50">
+                        <button
+                            onClick={onExportProject}
+                            className="w-full flex items-center justify-center space-x-2 py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm"
+                        >
+                            <span className="material-symbols-outlined text-base">download</span>
+                            <span>Download Project for EAS</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
