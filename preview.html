@@ -12,6 +12,15 @@
   </head>
   <body>
     <div id="preview-root"></div>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react-router-dom": "https://esm.sh/react-router-dom@6"
+      }
+    }
+    </script>
     <script type="module">
       const handleError = (err) => {
           console.error("Preview Error:", err);
