@@ -974,7 +974,13 @@ const App: React.FC = () => {
         };
 
         setPublishState({ status: 'uploading', platform: 'vercel' });
-        const deployResponse = await fetch('https://api.vercel.com/v13/deployments', {
+
+        let deployUrl = 'https://api.vercel.com/v13/deployments';
+        if (!activeProject.vercelProjectId) {
+            deployUrl += '?skipAutoDetectionConfirmation=1';
+        }
+        
+        const deployResponse = await fetch(deployUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify(deployPayload),
