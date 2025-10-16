@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -100,6 +101,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
         const customRequire = (path, currentPath) => {
             if (path === 'react') return window.React;
             if (path === 'react-dom/client') return window.ReactDOM;
+            if (path === 'react-router-dom') return window.ReactRouterDOM;
             const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
             if (moduleCache[resolvedPath]) return moduleCache[resolvedPath].exports;
             const code = transpiledModules[resolvedPath];
@@ -143,6 +145,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
           <script src="https://cdn.tailwindcss.com"></script>
           <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
           <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+          <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
           <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>

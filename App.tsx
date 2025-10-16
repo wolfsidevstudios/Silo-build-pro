@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -523,6 +524,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The library is already available. Example: \`<span className="material-symbols-outlined">icon_name</span>\`.
       - **Navigation Bars:** If a navigation bar or header is requested or necessary for the application's functionality, it should be pill-shaped, floating, and have a frosted glass effect (using Tailwind CSS for backdrop blur and semi-transparent backgrounds, e.g., \`bg-white/50 backdrop-blur-md\`). Do not add a navigation bar unless it is explicitly requested or is essential for the app's core features.
       - **Styling:** You MUST use Tailwind CSS for all styling. Do not generate a \`tailwind.config.js\` file; all necessary classes are available via the CDN.
+      - **CRITICAL STYLING RULE:** You MUST NOT generate any CSS files (e.g., 'App.css', 'index.css'). You MUST NOT include any CSS import statements in your TSX/JS files (e.g., \`import './App.css'\`). All styling MUST be done exclusively with Tailwind CSS classes applied directly to the JSX elements.
 
       **File Generation Rules:**
       - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.

@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode } from '../App';
 
@@ -161,11 +162,16 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
              if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
-                const transformedCode = Babel.transform(file.code, {
+                let transformedCode = Babel.transform(file.code, {
                     presets: ['typescript', ['react', { runtime: 'classic' }]],
                     plugins: plugins,
                     filename: file.path,
                 }).code;
+                
+                // Robustness: Strip out any CSS imports to prevent crashing the preview.
+                // FIX: Corrected the regular expression to properly strip CSS imports by removing unnecessary backslashes.
+                transformedCode = transformedCode.replace(/import\s+['"]\.\/.*\.css['"];?/g, '');
+                
                 transpiledFiles[file.path] = transformedCode;
              }
         });
