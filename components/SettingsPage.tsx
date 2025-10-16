@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GeminiModel, PreviewMode } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
@@ -7,7 +7,7 @@ const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
-type SettingsTab = 'general' | 'deployments' | 'appstore';
+type SettingsTab = 'general' | 'deployments' | 'integrations' | 'appstore';
 
 const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8">
@@ -40,7 +40,8 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
             </div>
             <div className="space-y-2">
                 <NavItem tab="general" icon="tune" label="General" />
-                <NavItem tab="deployments" icon="dns" label="Deployments & Source" />
+                <NavItem tab="deployments" icon="dns" label="Deployments" />
+                <NavItem tab="integrations" icon="integration_instructions" label="Integrations" />
                 <NavItem tab="appstore" icon="storefront" label="App Store" />
             </div>
         </nav>
@@ -127,10 +128,107 @@ const TokenInput: React.FC<{
 interface SettingsPageProps {
   selectedModel: GeminiModel;
   onModelChange: (model: GeminiModel) => void;
+  supabaseConfig: SupabaseConfig | null;
+  onSupabaseAuthorize: () => void;
+  onSupabaseManualConnect: (url: string, anonKey: string) => void;
+  onSupabaseDisconnect: () => void;
   isLoading: boolean;
   previewMode: PreviewMode;
   onPreviewModeChange: (mode: PreviewMode) => void;
 }
+
+const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange'>> = ({
+  supabaseConfig,
+  onSupabaseAuthorize,
+  onSupabaseManualConnect,
+  onSupabaseDisconnect,
+  isLoading,
+}) => {
+  const [url, setUrl] = useState('');
+  const [anonKey, setAnonKey] = useState('');
+  const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
+  
+  const handleManualSubmit = () => {
+    if (url.trim() && anonKey.trim()) {
+      onSupabaseManualConnect(url.trim(), anonKey.trim());
+    }
+  };
+
+  if (supabaseConfig) {
+    return (
+        <div className="bg-zinc-900 border border-gray-700 rounded-lg p-4 flex items-center justify-between">
+            <div>
+                <p className="font-semibold text-green-400">Connected</p>
+                <p className="text-xs text-gray-500">Project: {supabaseConfig.projectRef}</p>
+            </div>
+            <button onClick={onSupabaseDisconnect} className="px-4 py-1.5 bg-red-600/80 text-white rounded-full text-xs font-semibold hover:bg-red-600 transition-colors">
+                Disconnect
+            </button>
+        </div>
+    );
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-gray-700 rounded-lg p-4">
+        <p className="text-center text-sm text-gray-400 mb-4">Connect your Supabase account to enable backend features.</p>
+        <div className="flex justify-center mb-4">
+          <div className="flex items-center space-x-1 bg-black border border-gray-600 rounded-full p-1">
+            <button
+              onClick={() => setActiveTab('auto')}
+              className={`w-28 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                activeTab === 'auto' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+              }`}
+            >
+              Authorize
+            </button>
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`w-28 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                activeTab === 'manual' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'
+              }`}
+            >
+              Manual
+            </button>
+          </div>
+        </div>
+        
+        {activeTab === 'auto' && (
+           <div className="text-center p-4 bg-zinc-800/50 rounded-lg">
+             <h3 className="text-md font-semibold mb-1">Authorize with Supabase</h3>
+             <p className="text-gray-500 mb-4 text-xs">
+                The recommended and most secure method.
+             </p>
+             <button
+                onClick={onSupabaseAuthorize}
+                className="w-full max-w-xs mx-auto py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+              >
+                Connect with Supabase
+             </button>
+           </div>
+        )}
+
+        {activeTab === 'manual' && (
+           <div className="space-y-4">
+             <div>
+              <label htmlFor="supabase-url" className="block text-xs font-medium text-gray-400 mb-1">Project URL</label>
+              <input id="supabase-url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-project-ref.supabase.co" className="w-full p-2 bg-zinc-800 border border-gray-600 rounded-lg text-white text-sm" />
+            </div>
+             <div>
+              <label htmlFor="supabase-key" className="block text-xs font-medium text-gray-400 mb-1">Anon (Public) Key</label>
+              <input id="supabase-key" type="text" value={anonKey} onChange={(e) => setAnonKey(e.target.value)} placeholder="ey..." className="w-full p-2 bg-zinc-800 border border-gray-600 rounded-lg text-white text-sm" />
+            </div>
+             <button
+              onClick={handleManualSubmit}
+              disabled={!url.trim() || !anonKey.trim() || isLoading}
+              className="w-full py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+            >
+              {isLoading ? 'Connecting...' : 'Connect'}
+            </button>
+           </div>
+        )}
+      </div>
+  );
+};
 
 export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -207,6 +305,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 helpLink={{ href: 'https://vercel.com/account/tokens', text: 'Create a token' }}
                             />
                         </SettingSection>
+                    </>
+                )}
+                 {activeTab === 'integrations' && (
+                    <>
                         <SettingSection title="GitHub" description="Save projects to GitHub. Create a classic token with `repo` scope.">
                            <TokenInput 
                                 id="github-token" 
@@ -216,6 +318,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 helpText=""
                                 helpLink={{ href: 'https://github.com/settings/tokens/new?scopes=repo&description=Silo%20Build%20Access', text: 'Create a token' }}
                            />
+                        </SettingSection>
+                         <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
+                            <SupabaseSettings {...props} />
                         </SettingSection>
                     </>
                 )}

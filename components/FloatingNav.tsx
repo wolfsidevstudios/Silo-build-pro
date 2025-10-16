@@ -1,12 +1,8 @@
 
-
-import React, { useState } from 'react';
+import React from 'react';
 
 interface FloatingNavProps {
   currentPath: string;
-  user: any | null;
-  onSignIn: () => void;
-  onSignOut: () => void;
 }
 
 const NavButton: React.FC<{
@@ -29,9 +25,8 @@ const NavButton: React.FC<{
   </a>
 );
 
-export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPath, user, onSignIn, onSignOut }) => {
+export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPath }) => {
   const path = currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
     <nav className="fixed top-0 left-0 h-full w-20 bg-black flex flex-col items-center z-40 py-8">
@@ -70,35 +65,6 @@ export const FloatingNav: React.FC<FloatingNavProps> = ({ currentPath, user, onS
       </div>
 
       <div className="flex-grow" />
-
-      <div className="relative">
-        <button
-          onClick={user ? () => setIsProfileOpen(!isProfileOpen) : onSignIn}
-          className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-gray-300 hover:bg-zinc-700 transition-colors"
-          title={user ? "Profile" : "Sign In"}
-        >
-          {user ? (
-            <img src={user.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover"/>
-          ) : (
-            <span className="material-symbols-outlined">person</span>
-          )}
-        </button>
-        {user && isProfileOpen && (
-          <div className="absolute bottom-0 left-20 mb-2 w-56 bg-zinc-900 border border-gray-800 rounded-lg shadow-lg p-2 z-50">
-            <div className="px-2 py-1 border-b border-gray-800 mb-2">
-                <p className="text-sm font-semibold text-gray-200 truncate">{user.displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-            </div>
-            <button
-                onClick={() => { onSignOut(); setIsProfileOpen(false); }}
-                className="w-full text-left flex items-center space-x-2 px-2 py-1.5 text-sm text-red-400 hover:bg-white/10 rounded"
-            >
-                <span className="material-symbols-outlined text-base">logout</span>
-                <span>Sign Out</span>
-            </button>
-          </div>
-        )}
-      </div>
     </nav>
   );
 };

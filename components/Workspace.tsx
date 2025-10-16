@@ -16,6 +16,7 @@ type ActiveTab = 'preview' | 'code' | 'database' | 'source-control';
 interface WorkspaceProps {
   project: Project;
   onRuntimeError: (message: string) => void;
+  isSupabaseConnected: boolean;
   previewMode: PreviewMode;
   onPublish: () => void;
   onCommit: (message: string) => void;
@@ -156,7 +157,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
   const { files, supabaseSql } = project;
@@ -226,6 +227,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, p
           )}
         </div>
         <div className="flex items-center space-x-2">
+          {isSupabaseConnected && (
+            <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
+              <span className="material-symbols-outlined text-base">cloud_done</span>
+              <span>Supabase Connected</span>
+            </div>
+          )}
            <button
             onClick={onPublish}
             title={isDeployed ? "Deployment Settings" : "Publish Project"}

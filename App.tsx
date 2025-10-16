@@ -18,11 +18,94 @@ import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } fr
 
 declare const Babel: any;
 declare const JSZip: any;
-declare global {
-  interface Window {
-    firebase: any;
-  }
+
+interface ProjectSelectorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConnect: (projectRef: string) => void;
+  isLoading: boolean;
 }
+
+const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({ isOpen, onClose, onConnect, isLoading }) => {
+  const [projectRef, setProjectRef] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleConnect = () => {
+    if (projectRef.trim()) {
+      onConnect(projectRef.trim());
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-zinc-900 border border-gray-800 rounded-2xl p-8 w-full max-w-lg relative text-white" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+          <span className="material-symbols-outlined">close</span>
+        </button>
+
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold">Almost there!</h2>
+          <p className="text-gray-400 mt-2">Authentication successful. Please provide your Project Reference ID to complete the connection.</p>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="supabase-ref" className="block text-sm font-medium text-gray-400 mb-2">
+              Project Reference ID
+            </label>
+            <input
+              id="supabase-ref"
+              type="text"
+              value={projectRef}
+              onChange={(e) => setProjectRef(e.target.value)}
+              placeholder="e.g., abcdefghijklmnopqrst"
+              className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+             <p className="text-xs text-gray-500 mt-2">
+              You can find this in your Supabase project's General Settings page.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <button
+            onClick={handleConnect}
+            disabled={!projectRef.trim() || isLoading}
+            className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {isLoading ? 'Connecting...' : 'Connect Project'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// PKCE Helper Functions
+const generateRandomString = (length: number): string => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let result = '';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+};
+
+const sha256 = async (plain: string): Promise<ArrayBuffer> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return window.crypto.subtle.digest('SHA-256', data);
+};
+
+const base64urlencode = (a: ArrayBuffer): string => {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(a) as any))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi';
@@ -55,7 +138,6 @@ export interface AppStoreSubmission {
 
 export interface Project {
   id: string;
-  userId: string;
   name: string;
   files: ProjectFile[];
   messages: Message[];
@@ -70,6 +152,12 @@ export interface Project {
   appStoreSubmission?: AppStoreSubmission;
 }
 
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+  projectRef: string;
+  accessToken: string;
+}
 
 const App: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
@@ -84,9 +172,9 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('iframe');
   
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-
+  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
+  const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
+  const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
   const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
@@ -100,39 +188,26 @@ const App: React.FC = () => {
   const activeProject = projects.find(p => p.id === activeProjectId);
 
   useEffect(() => {
-    const unsubscribe = window.firebase.onAuthStateChanged(window.firebase.auth, (user: any) => {
-        setCurrentUser(user);
-        setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-        const fetchProjects = async () => {
-            setIsLoading(true);
-            try {
-                const projectsCol = window.firebase.collection(window.firebase.firestore, 'projects');
-                const q = window.firebase.query(projectsCol, window.firebase.where('userId', '==', currentUser.uid));
-                const projectsSnapshot = await window.firebase.getDocs(q);
-                const projectsList = projectsSnapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-                setProjects(projectsList as Project[]);
-            } catch (err: any) {
-                setErrors(prev => [`Failed to load projects: ${err.message}`, ...prev]);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProjects();
-    } else {
-        setProjects([]);
-        setActiveProjectId(null);
-    }
-  }, [currentUser]);
-
-
-  useEffect(() => {
     try {
+      const savedProjects = localStorage.getItem('silo_projects');
+      if (savedProjects) {
+        const parsedProjects: Project[] = JSON.parse(savedProjects);
+        // Add default projectType if missing for backward compatibility
+        const migratedProjects = parsedProjects.map(p => ({
+            ...p,
+            projectType: p.projectType || 'multi',
+            commits: p.commits || [],
+            vercelProjectId: p.vercelProjectId || undefined,
+            vercelUrl: p.vercelUrl || undefined,
+            githubRepo: p.githubRepo || undefined,
+            appStoreSubmission: p.appStoreSubmission || undefined,
+        }));
+        setProjects(migratedProjects);
+      }
+      const savedSupabaseConfig = localStorage.getItem('silo_supabase_config');
+      if (savedSupabaseConfig) {
+        setSupabaseConfig(JSON.parse(savedSupabaseConfig));
+      }
       const savedPreviewMode = localStorage.getItem('silo_preview_mode') as PreviewMode;
       if (savedPreviewMode) {
         setPreviewMode(savedPreviewMode);
@@ -141,6 +216,18 @@ const App: React.FC = () => {
       console.error("Failed to load data from local storage", e);
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('silo_projects', JSON.stringify(projects));
+  }, [projects]);
+  
+  useEffect(() => {
+    if (supabaseConfig) {
+      localStorage.setItem('silo_supabase_config', JSON.stringify(supabaseConfig));
+    } else {
+      localStorage.removeItem('silo_supabase_config');
+    }
+  }, [supabaseConfig]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -172,6 +259,67 @@ const App: React.FC = () => {
   }, [location, activeProjectId]);
 
   
+  useEffect(() => {
+    const exchangeCodeForToken = async (code: string) => {
+      const codeVerifier = sessionStorage.getItem('supabase_code_verifier');
+      if (!codeVerifier) {
+          setErrors(prev => ["Supabase Authentication Error: Could not find code verifier. Please try authenticating again.", ...prev]);
+          return;
+      }
+      sessionStorage.removeItem('supabase_code_verifier');
+
+      try {
+        setIsLoading(true);
+        const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
+        const redirectUri = window.location.origin;
+
+        const response = await fetch('https://api.supabase.com/v1/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: SUPABASE_CLIENT_ID,
+            code: code,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error_description || 'Failed to exchange authorization code for token.');
+        }
+
+        const { access_token } = await response.json();
+
+        if (access_token) {
+          setTempSupabaseToken(access_token);
+          setIsProjectSelectorOpen(true);
+        } else {
+          throw new Error('Access token not found in response.');
+        }
+      } catch (err: any) {
+        setErrors(prev => [`Supabase Authentication Error: ${err.message}`, ...prev]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const errorParam = params.get('error_description');
+
+    if (errorParam) {
+      setErrors(prev => [`Supabase Auth Error: ${errorParam}`, ...prev]);
+      window.history.replaceState(null, document.title, window.location.pathname);
+    } else if (code) {
+      window.history.replaceState(null, document.title, window.location.pathname);
+      exchangeCodeForToken(code);
+    }
+  }, []);
+
   useEffect(() => {
     const savedModel = localStorage.getItem('gemini_model') as GeminiModel;
     if (savedModel && (savedModel === 'gemini-2.5-flash' || savedModel === 'gemini-2.5-pro')) {
@@ -220,11 +368,13 @@ const App: React.FC = () => {
 
   const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string}> => {
     const ai = getAiClient();
-    
+    const supabaseContext = supabaseConfig ? `The project is connected to Supabase project "${supabaseConfig.projectRef}", so for any data persistence requirements, plan to use the Supabase client.` : ``;
+
     const planPrompt = `
       You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React application. 
       This plan should include a list of all the files you intend to create or modify.
-      If you need to use a database table (with Supabase), provide the SQL code to create it. If no database is needed, the "sql" field should be an empty string.
+      ${supabaseContext}
+      If you need to use a database table, provide the SQL code to create it. If no database is needed, the "sql" field should be an empty string.
 
       Respond ONLY with a JSON object matching this schema:
       {
@@ -270,6 +420,14 @@ const App: React.FC = () => {
 
   const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
     const ai = getAiClient();
+    const supabaseIntegrationPrompt = supabaseConfig ? `
+      **Supabase Integration:**
+      - This project is connected to a Supabase backend.
+      - Supabase Project URL: "${supabaseConfig.url}"
+      - Supabase Anon Key: "${supabaseConfig.anonKey}"
+      - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
+      - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
+    ` : '';
     
     const projectTypeInstructions = projectType === 'single'
     ? `
@@ -300,6 +458,8 @@ const App: React.FC = () => {
       - You MUST provide the full code for ALL necessary files for the application to work. Do not omit files.
       - The main application component that should be rendered MUST be the default export of "src/App.tsx".
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
+
+      ${supabaseIntegrationPrompt}
       
       **The user's request is:** "${prompt}".
       **The plan is:**
@@ -351,31 +511,14 @@ const App: React.FC = () => {
     }
   };
   
-  const updateProjectState = async (projectId: string, updates: Partial<Project>) => {
-    const projectToUpdate = projects.find(p => p.id === projectId);
-    if (!projectToUpdate) return;
-
-    const updatedProject = { ...projectToUpdate, ...updates };
-    const projectRef = window.firebase.doc(window.firebase.firestore, 'projects', projectId);
-    await window.firebase.setDoc(projectRef, updatedProject); // Persist the full updated object
-
-    setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+  const updateProjectState = (projectId: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   };
   
   const addMessageToProject = (projectId: string, message: Message) => {
-    setProjects(prev => {
-        const newProjects = prev.map(p => {
-            if (p.id === projectId) {
-                const updatedProject = { ...p, messages: [...p.messages, message] };
-                // Persist the full project state after adding a message
-                const projectRef = window.firebase.doc(window.firebase.firestore, 'projects', updatedProject.id);
-                window.firebase.setDoc(projectRef, updatedProject);
-                return updatedProject;
-            }
-            return p;
-        });
-        return newProjects;
-    });
+    setProjects(prev => prev.map(p => 
+      p.id === projectId ? { ...p, messages: [...p.messages, message] } : p
+    ));
   };
 
   const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType) => {
@@ -391,7 +534,7 @@ const App: React.FC = () => {
     addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
     
     if (sql) {
-      await updateProjectState(projectId, { supabaseSql: sql });
+      updateProjectState(projectId, { supabaseSql: sql });
     }
 
     setProgress(0);
@@ -413,7 +556,7 @@ const App: React.FC = () => {
     clearInterval(interval);
     setProgress(100);
 
-    await updateProjectState(projectId, { files: newFiles });
+    updateProjectState(projectId, { files: newFiles });
     addMessageToProject(projectId, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' });
     
     setTimeout(() => {
@@ -422,20 +565,17 @@ const App: React.FC = () => {
     }, 500);
   };
 
-  const createNewProject = async (prompt: string, projectType: ProjectType) => {
-    if (!prompt.trim() || !currentUser) return;
+  const createNewProject = (prompt: string, projectType: ProjectType) => {
+    if (!prompt.trim()) return;
     
-    const projectData: Omit<Project, 'id'> = {
-        userId: currentUser.uid,
+    const newProject: Project = {
+        id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
         files: [{ path: 'src/App.tsx', code: DEFAULT_CODE }],
         messages: [],
         projectType,
         commits: [],
     };
-    
-    const docRef = await window.firebase.addDoc(window.firebase.collection(window.firebase.firestore, 'projects'), projectData);
-    const newProject = { ...projectData, id: docRef.id };
     
     setProjects(prev => [...prev, newProject]);
     
@@ -553,6 +693,7 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     
+    // 1. Save commit to local state
     const newCommit: Commit = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         message: commitMessage.trim(),
@@ -560,8 +701,9 @@ const App: React.FC = () => {
         files: JSON.parse(JSON.stringify(activeProject.files)), // Deep copy
     };
     const updatedCommits = [...(activeProject.commits || []), newCommit];
-    await updateProjectState(activeProject.id, { commits: updatedCommits });
+    updateProjectState(activeProject.id, { commits: updatedCommits });
 
+    // 2. If linked to GitHub, push changes
     if (activeProject.githubRepo) {
         const token = localStorage.getItem('silo_github_token');
         if (!token) {
@@ -614,10 +756,11 @@ const App: React.FC = () => {
 
         await pushFilesToGitHub(token, repoFullName, activeProject.files, 'Initial commit from Silo Build', 'main', true);
 
-        await updateProjectState(activeProject.id, { githubRepo: repoFullName });
+        updateProjectState(activeProject.id, { githubRepo: repoFullName });
         addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully created and connected to GitHub repository: ${repoFullName}` });
         setIsGitHubSaveModalOpen(false);
         
+        // Make the first local commit match the initial push
         handleCommit('Initial commit');
 
     } catch (err: any) {
@@ -652,7 +795,7 @@ const App: React.FC = () => {
       clearInterval(interval);
       setProgress(100);
 
-      await updateProjectState(activeProject.id, { files: newFiles });
+      updateProjectState(activeProject.id, { files: newFiles });
       setErrors(prev => prev.filter(e => e !== errorToFix)); 
       
       addMessageToProject(activeProject.id, { actor: 'system', text: `I've attempted a fix for the error: "${errorToFix.substring(0, 100)}...". Please check the preview.` });
@@ -684,12 +827,108 @@ const App: React.FC = () => {
     window.location.hash = `/project/${projectId}`;
   };
   
-  const handleDeleteProject = async (projectId: string) => {
-    await window.firebase.deleteDoc(window.firebase.doc(window.firebase.firestore, 'projects', projectId));
+  const handleDeleteProject = (projectId: string) => {
     setProjects(prev => prev.filter(p => p.id !== projectId));
     if (activeProjectId === projectId) {
       window.location.hash = '/home';
     }
+  };
+
+  const handleSupabaseAuthorize = async () => {
+    const codeVerifier = generateRandomString(128);
+    sessionStorage.setItem('supabase_code_verifier', codeVerifier);
+    const codeChallenge = base64urlencode(await sha256(codeVerifier));
+
+    const SUPABASE_CLIENT_ID = 'c5eb27f8-43d3-4e20-84d9-69bdd80267a7';
+    const redirectUri = window.location.origin;
+    const scopes = 'project:read';
+    
+    const authUrl = new URL('https://api.supabase.com/v1/oauth/authorize');
+    authUrl.searchParams.set('client_id', SUPABASE_CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', scopes);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    window.location.href = authUrl.toString();
+  };
+
+  const handleProjectRefSubmit = async (projectRef: string) => {
+    if (!tempSupabaseToken) {
+      setErrors(prev => ["An authentication error occurred. Please try connecting again.", ...prev]);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/api-keys`, {
+        headers: {
+          'Authorization': `Bearer ${tempSupabaseToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to fetch project details from Supabase. Status: ${response.status}`);
+      }
+      
+      const apiKeys = await response.json();
+      const anonKey = apiKeys.find((k: any) => k.name === 'anon')?.api_key;
+      
+      if (!anonKey) {
+        throw new Error("Could not find the public anon key for your project. Please ensure you have the correct Project Reference ID and permissions.");
+      }
+      
+      const projectUrl = `https://${projectRef}.supabase.co`;
+      
+      setSupabaseConfig({
+        accessToken: tempSupabaseToken,
+        projectRef: projectRef,
+        url: projectUrl, 
+        anonKey: anonKey 
+      });
+      
+      sessionStorage.setItem('silo_authorized_return_path', '/settings');
+      setIsProjectSelectorOpen(false);
+      setTempSupabaseToken(null);
+      window.location.hash = '/authorized';
+      
+    } catch (err: any) {
+      setErrors(prev => [`Supabase Connection Error: ${err.message}`, ...prev]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleManualSupabaseConnect = (url: string, anonKey: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      if (!anonKey.startsWith('ey')) {
+          throw new Error("Invalid Anon Key format. It should start with 'ey'.");
+      }
+      const projectRefMatch = parsedUrl.hostname.match(/^([\w-]+)\.supabase\.co$/);
+      if (!projectRefMatch) {
+        throw new Error("Invalid Supabase URL format. Hostname should be '<project-ref>.supabase.co'.");
+      }
+      const projectRef = projectRefMatch[1];
+      
+      setSupabaseConfig({
+        url,
+        anonKey,
+        projectRef,
+        accessToken: '', // No access token for manual connection
+      });
+
+    } catch (err: any) {
+      setErrors(prev => [`Invalid Supabase details: ${err.message}`, ...prev]);
+    }
+  };
+  
+  const handleSupabaseDisconnect = () => {
+    setSupabaseConfig(null);
   };
     
   const createNetlifyDeploymentPackage = async (files: ProjectFile[]): Promise<Blob> => {
@@ -735,6 +974,7 @@ const App: React.FC = () => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>Silo Build App</title>
           <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
           <style> body { background-color: #ffffff; } </style>
           <script type="importmap">
@@ -827,6 +1067,7 @@ const App: React.FC = () => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>${projectName}</title>
           <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
           <style> body { background-color: #ffffff; } </style>
           <script type="importmap">
@@ -876,7 +1117,7 @@ const App: React.FC = () => {
         }
         const siteData = await siteResponse.json();
         siteId = siteData.id;
-        await updateProjectState(activeProject.id, { netlifySiteId: siteId });
+        updateProjectState(activeProject.id, { netlifySiteId: siteId });
       }
 
       setPublishState({ status: 'uploading', platform: 'netlify' });
@@ -912,7 +1153,7 @@ const App: React.FC = () => {
 
       const finalUrl = await pollDeploy();
       setPublishState({ status: 'success', url: finalUrl, platform: 'netlify' });
-      await updateProjectState(activeProject.id, { netlifyUrl: finalUrl });
+      updateProjectState(activeProject.id, { netlifyUrl: finalUrl });
     } catch (err: any) {
       console.error("Publishing error:", err);
       setPublishState({ status: 'error', error: err.message, platform: 'netlify' });
@@ -942,6 +1183,7 @@ const App: React.FC = () => {
         setPublishState({ status: 'uploading', platform: 'vercel' });
         
         let apiUrl = 'https://api.vercel.com/v13/deployments';
+        // If it's a new project (no projectId yet), add the query parameter to skip auto-detection confirmation.
         if (!activeProject.vercelProjectId) {
             apiUrl += '?skipAutoDetectionConfirmation=1';
         }
@@ -959,7 +1201,7 @@ const App: React.FC = () => {
         const deployData = await deployResponse.json();
 
         if (!activeProject.vercelProjectId && deployData.projectId) {
-            await updateProjectState(activeProject.id, { vercelProjectId: deployData.projectId });
+            updateProjectState(activeProject.id, { vercelProjectId: deployData.projectId });
         }
 
         setPublishState({ status: 'building', platform: 'vercel' });
@@ -977,7 +1219,7 @@ const App: React.FC = () => {
 
         const finalUrl = await pollDeploy();
         setPublishState({ status: 'success', url: finalUrl, platform: 'vercel' });
-        await updateProjectState(activeProject.id, { vercelUrl: finalUrl });
+        updateProjectState(activeProject.id, { vercelUrl: finalUrl });
     } catch (err: any) {
         console.error("Vercel publishing error:", err);
         setPublishState({ status: 'error', error: err.message, platform: 'vercel' });
@@ -992,50 +1234,30 @@ const App: React.FC = () => {
       }
   };
 
-  const handleAppStoreSubmit = async (data: AppStoreSubmissionData) => {
-    if (!activeProject || !currentUser) return;
-    console.log("Queueing App Store Submission with data:", data);
+  const handleAppStoreSubmit = (data: AppStoreSubmissionData) => {
+    if (!activeProject) return;
+    console.log("Simulating App Store Submission with data:", data);
 
-    setAppStorePublishState({ status: 'submitting' });
+    setAppStorePublishState({ status: 'building' });
 
-    const submissionRequest = {
-        userId: currentUser.uid,
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        status: 'Submitted',
-        createdAt: window.firebase.serverTimestamp(),
-        appleId: data.appleId,
-        appName: data.appName,
-        version: data.version,
-        category: data.category,
-        ageRating: data.ageRating,
-    };
-
-    try {
-        await window.firebase.addDoc(window.firebase.collection(window.firebase.firestore, 'submissions'), submissionRequest);
-        
-        const newSubmission: AppStoreSubmission = {
+    // Simulate a more realistic, multi-step process
+    setTimeout(() => {
+      setAppStorePublishState({ status: 'uploading' });
+      setTimeout(() => {
+        setAppStorePublishState({ status: 'submitting' });
+        setTimeout(() => {
+          const newSubmission: AppStoreSubmission = {
             status: 'Submitted',
             version: data.version,
             submissionDate: Date.now(),
-            url: '#', // Placeholder URL
-        };
-        
-        await updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
-
-        setAppStorePublishState({ status: 'success', url: '#' });
-
-        addMessageToProject(activeProject.id, { 
-            actor: 'system', 
-            text: 'Your App Store submission has been queued. A backend service (like a Firebase Cloud Function) would now take over to build and submit your app using EAS. This process can take some time.' 
-        });
-
-    } catch (err: any) {
-        console.error("Failed to create submission request:", err);
-        setAppStorePublishState({ status: 'error', error: `Failed to queue submission: ${err.message}` });
-    }
+            url: 'https://appstoreconnect.apple.com/apps' // Dummy URL
+          };
+          updateProjectState(activeProject.id, { appStoreSubmission: newSubmission });
+          setAppStorePublishState({ status: 'success', url: newSubmission.url });
+        }, 2500);
+      }, 2500);
+    }, 2500);
   };
-
 
   const handleExportProject = async () => {
     if (!activeProject) return;
@@ -1044,10 +1266,12 @@ const App: React.FC = () => {
         const zip = new JSZip();
         const projectName = activeProject.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
+        // 1. Add user's source files
         activeProject.files.forEach(file => {
             zip.file(file.path, file.code);
         });
         
+        // 2. Add package.json
         const packageJson = {
             name: projectName,
             version: "1.0.0",
@@ -1072,6 +1296,7 @@ const App: React.FC = () => {
         };
         zip.file('package.json', JSON.stringify(packageJson, null, 2));
         
+        // 3. Add app.json (Expo Config)
         const appJson = {
             "expo": {
                 "name": activeProject.name,
@@ -1101,6 +1326,7 @@ const App: React.FC = () => {
         };
         zip.file('app.json', JSON.stringify(appJson, null, 2));
 
+        // 4. Add README.md with instructions
         const readmeContent = `
 # ${activeProject.name}
 
@@ -1156,6 +1382,7 @@ Good luck!
 `;
         zip.file('README.md', readmeContent);
 
+        // 5. Generate and download the zip
         const blob = await zip.generateAsync({ type: 'blob' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -1169,24 +1396,6 @@ Good luck!
     }
   };
 
-  const handleGoogleSignIn = async () => {
-      const provider = new window.firebase.GoogleAuthProvider();
-      try {
-          await window.firebase.signInWithPopup(window.firebase.auth, provider);
-      } catch (error: any) {
-          console.error("Authentication Error:", error);
-          setErrors(prev => [`Authentication failed. ${error.message}`, ...prev]);
-      }
-  };
-
-  const handleSignOut = async () => {
-      try {
-          await window.firebase.signOut(window.firebase.auth);
-      } catch (error: any) {
-          console.error("Sign Out Error:", error);
-          setErrors(prev => [`Sign out failed. ${error.message}`, ...prev]);
-      }
-  };
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -1202,6 +1411,10 @@ Good luck!
         <SettingsPage 
           selectedModel={model} 
           onModelChange={handleModelChange}
+          supabaseConfig={supabaseConfig}
+          onSupabaseAuthorize={handleSupabaseAuthorize}
+          onSupabaseManualConnect={handleManualSupabaseConnect}
+          onSupabaseDisconnect={handleSupabaseDisconnect}
           isLoading={isLoading}
           previewMode={previewMode}
           onPreviewModeChange={handlePreviewModeChange}
@@ -1231,6 +1444,7 @@ Good luck!
               <Workspace
                 project={activeProject}
                 onRuntimeError={handleRuntimeError}
+                isSupabaseConnected={!!supabaseConfig}
                 previewMode={previewMode}
                 onPublish={() => {
                     setPublishState({ status: 'idle' });
@@ -1281,129 +1495,22 @@ Good luck!
     return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
   };
 
-  const LoginOverlay = () => {
-    const [authView, setAuthView] = useState<'options' | 'signup' | 'signin'>('options');
-    const [authForm, setAuthForm] = useState({ email: '', password: '' });
-    const [authError, setAuthError] = useState<string | null>(null);
-
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setAuthForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleEmailPasswordSignUp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setAuthError(null);
-        if (authForm.password.length < 6) {
-            setAuthError("Password should be at least 6 characters.");
-            return;
-        }
-        try {
-            await window.firebase.createUserWithEmailAndPassword(window.firebase.auth, authForm.email, authForm.password);
-        } catch (error: any) {
-            setAuthError(error.message);
-        }
-    };
-
-    const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setAuthError(null);
-        try {
-            await window.firebase.signInWithEmailAndPassword(window.firebase.auth, authForm.email, authForm.password);
-        } catch (error: any) {
-            setAuthError(error.message);
-        }
-    };
-
-
-    return (
-        <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center text-center backdrop-blur-sm p-4">
-            <div className="w-full max-w-sm">
-                <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600" style={{ fontFamily: "'Press Start 2P', system-ui" }}>
-                Silo Build
-                </h1>
-                
-                {authView === 'options' && (
-                    <>
-                        <p className="text-gray-400 text-lg mb-8">
-                            Sign in to build, manage, and deploy your projects.
-                        </p>
-                        <div className="space-y-4">
-                            <button
-                                onClick={handleGoogleSignIn}
-                                className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-transform hover:scale-105"
-                            >
-                                <img src="https://www.google.com/favicon.ico" alt="Google icon" className="w-6 h-6"/>
-                                <span>Sign in with Google</span>
-                            </button>
-                             <button
-                                onClick={() => setAuthView('signin')}
-                                className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-zinc-700 text-white rounded-lg font-semibold hover:bg-zinc-600 transition-transform hover:scale-105"
-                            >
-                                <span className="material-symbols-outlined">mail</span>
-                                <span>Sign in with Email</span>
-                            </button>
-                        </div>
-                    </>
-                )}
-
-                {(authView === 'signin' || authView === 'signup') && (
-                     <form onSubmit={authView === 'signin' ? handleEmailPasswordSignIn : handleEmailPasswordSignUp} className="w-full mt-8 space-y-4">
-                        <input
-                            type="email"
-                            name="email"
-                            value={authForm.email}
-                            onChange={handleFormChange}
-                            placeholder="Email Address"
-                            required
-                            className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                            type="password"
-                            name="password"
-                            value={authForm.password}
-                            onChange={handleFormChange}
-                            placeholder="Password"
-                            required
-                            className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        {authError && <p className="text-red-400 text-sm">{authError.replace('Firebase: ', '')}</p>}
-                        <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                            {authView === 'signin' ? 'Sign In' : 'Create Account'}
-                        </button>
-                        <div className="text-sm text-gray-400">
-                            {authView === 'signin' ? "Don't have an account?" : "Already have an account?"}
-                            <button type="button" onClick={() => setAuthView(authView === 'signin' ? 'signup' : 'signin')} className="ml-1 font-semibold text-blue-400 hover:underline">
-                                {authView === 'signin' ? 'Sign Up' : 'Sign In'}
-                            </button>
-                        </div>
-                         <button type="button" onClick={() => { setAuthView('options'); setAuthError(null); }} className="text-xs text-gray-500 hover:underline">
-                            &larr; Back to all sign-in options
-                        </button>
-                    </form>
-                )}
-            </div>
-        </div>
-    );
-  };
-
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
 
+
   return (
     <div className="flex h-screen bg-black text-white font-sans">
-      <FloatingNav currentPath={location} user={currentUser} onSignOut={handleSignOut} onSignIn={handleGoogleSignIn} />
-      <div className="flex-1 flex flex-col overflow-hidden ml-20 relative">
-        {isAuthLoading ? (
-          <div className="flex items-center justify-center h-full text-gray-400">Loading user...</div>
-        ) : !currentUser ? (
-          <>
-            <HomePage onStartBuild={() => {}} isLoading={true} />
-            <LoginOverlay />
-          </>
-        ) : (
-          renderContent()
-        )}
+      <FloatingNav currentPath={location} />
+      <div className="flex-1 flex flex-col overflow-hidden ml-20">
+        {renderContent()}
       </div>
+       <ProjectSelectorModal
+        isOpen={isProjectSelectorOpen}
+        onClose={() => setIsProjectSelectorOpen(false)}
+        onConnect={handleProjectRefSubmit}
+        isLoading={isLoading}
+      />
       <PublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
