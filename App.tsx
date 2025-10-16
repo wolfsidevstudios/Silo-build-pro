@@ -363,7 +363,7 @@ const App: React.FC = () => {
         setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId, projectType);
+          await runBuildProcess(prompt, [{ path: 'src/App.tsx', code: DEFAULT_CODE }], projectId, projectType, true);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setErrors(prev => [errorMessage, ...prev]);
@@ -583,7 +583,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType) => {
+  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false) => {
     setIsLoading(true);
     setErrors([]);
 
@@ -635,31 +635,60 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     clearInterval(interval);
     setProgress(null); // Hide progress bar; checklist will show progress now.
 
-    for (const file of newFiles) {
-        setProjects(prev => prev.map(p => {
-            if (p.id === projectId) {
-                // 1. Update project files
-                const existingFileIndex = p.files.findIndex(f => f.path === file.path);
-                const updatedFiles = [...p.files];
-                if (existingFileIndex > -1) {
-                    updatedFiles[existingFileIndex] = file;
-                } else {
-                    updatedFiles.push(file);
-                }
+    if (isInitialBuild) {
+        const sqlFile = filesForCodeGeneration.find(f => f.path === 'app.sql');
+        
+        // Start with a clean slate, keeping only the SQL file if it exists
+        updateProjectState(projectId, { files: sqlFile ? [sqlFile] : [] });
+        await new Promise(resolve => setTimeout(resolve, 50)); // ensure state update propagates
 
-                // 2. Update message to mark file as generated
-                const messages = [...p.messages];
-                const lastMessage = messages[messages.length - 1];
-                if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
-                    const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
-                    messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
+        for (const file of newFiles) {
+            setProjects(prev => prev.map(p => {
+                if (p.id === projectId) {
+                    // Add the new file
+                    const updatedFiles = [...p.files, file];
+
+                    // Update the message checklist
+                    const messages = [...p.messages];
+                    const lastMessage = messages[messages.length - 1];
+                    if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
+                        const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
+                        messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
+                    }
+                    
+                    return { ...p, files: updatedFiles, messages };
                 }
-                
-                return { ...p, files: updatedFiles, messages };
-            }
-            return p;
-        }));
-        await new Promise(resolve => setTimeout(resolve, 150)); // small delay for visual effect
+                return p;
+            }));
+            await new Promise(resolve => setTimeout(resolve, 150));
+        }
+    } else {
+        for (const file of newFiles) {
+            setProjects(prev => prev.map(p => {
+                if (p.id === projectId) {
+                    // 1. Update project files
+                    const existingFileIndex = p.files.findIndex(f => f.path === file.path);
+                    const updatedFiles = [...p.files];
+                    if (existingFileIndex > -1) {
+                        updatedFiles[existingFileIndex] = file;
+                    } else {
+                        updatedFiles.push(file);
+                    }
+
+                    // 2. Update message to mark file as generated
+                    const messages = [...p.messages];
+                    const lastMessage = messages[messages.length - 1];
+                    if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
+                        const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
+                        messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
+                    }
+                    
+                    return { ...p, files: updatedFiles, messages };
+                }
+                return p;
+            }));
+            await new Promise(resolve => setTimeout(resolve, 150)); // small delay for visual effect
+        }
     }
 
 
