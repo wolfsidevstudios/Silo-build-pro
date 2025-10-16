@@ -147,7 +147,6 @@ export interface Project {
   name: string;
   files: ProjectFile[];
   messages: Message[];
-  supabaseSql?: string;
   projectType: ProjectType;
   netlifySiteId?: string;
   netlifyUrl?: string;
@@ -198,17 +197,30 @@ const App: React.FC = () => {
     try {
       const savedProjects = localStorage.getItem('silo_projects');
       if (savedProjects) {
-        const parsedProjects: Project[] = JSON.parse(savedProjects);
-        // Add default projectType if missing for backward compatibility
-        const migratedProjects = parsedProjects.map(p => ({
-            ...p,
-            projectType: p.projectType || 'multi',
-            commits: p.commits || [],
-            vercelProjectId: p.vercelProjectId || undefined,
-            vercelUrl: p.vercelUrl || undefined,
-            githubRepo: p.githubRepo || undefined,
-            appStoreSubmission: p.appStoreSubmission || undefined,
-        }));
+        const parsedProjects: (Project & { supabaseSql?: string })[] = JSON.parse(savedProjects);
+        const migratedProjects = parsedProjects.map(p => {
+            const newFiles = [...p.files];
+            // Migration for old supabaseSql property to app.sql file
+            if (p.supabaseSql && !p.files.some(f => f.path === 'app.sql')) {
+                newFiles.push({ path: 'app.sql', code: p.supabaseSql });
+            }
+
+            const migratedProject: Project = {
+                id: p.id,
+                name: p.name,
+                files: newFiles,
+                messages: p.messages,
+                projectType: p.projectType || 'multi',
+                netlifySiteId: p.netlifySiteId,
+                netlifyUrl: p.netlifyUrl,
+                vercelProjectId: p.vercelProjectId,
+                vercelUrl: p.vercelUrl,
+                githubRepo: p.githubRepo,
+                commits: p.commits || [],
+                appStoreSubmission: p.appStoreSubmission || undefined,
+            };
+            return migratedProject;
+        });
         setProjects(migratedProjects);
       }
       const savedSupabaseConfig = localStorage.getItem('silo_supabase_config');
@@ -383,21 +395,24 @@ const App: React.FC = () => {
 
   const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string}> => {
     const ai = getAiClient();
-    const supabaseContext = supabaseConfig ? `The project is connected to Supabase project "${supabaseConfig.projectRef}", so for any data persistence requirements, plan to use the Supabase client.` : ``;
 
     const planPrompt = `
-      You are a senior software architect. Based on the user's request, create a concise, step-by-step plan for building the React application. 
-      This plan should include a list of all the files you intend to create or modify.
-      ${supabaseContext}
-      If you need to use a database table, provide the SQL code to create it. If no database is needed, the "sql" field should be an empty string.
+      You are a senior software architect. Your task is to create a plan to build a React application based on the user's request.
 
-      Respond ONLY with a JSON object matching this schema:
+      **Instructions:**
+      1.  Create a concise, step-by-step plan for the implementation. This plan should list all files you intend to create or modify.
+      2.  If the application requires data persistence, you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
+      3.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
+      4.  If no database is needed, the "sql" field in your response must be an empty string.
+
+      **Output Format:**
+      You MUST respond with ONLY a JSON object that matches this exact schema. Do not include any other text or markdown.
       {
-        "plan": ["A list of steps for the implementation, including file creation."],
-        "sql": "The SQL code to create tables, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax."
+        "plan": ["A list of steps for the implementation."],
+        "sql": "The complete SQL code for the database schema, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax."
       }
       
-      User Request: "${prompt}"
+      **User Request:** "${prompt}"
     `;
     const response = await ai.models.generateContent({
       model: selectedModel,
@@ -443,6 +458,14 @@ const App: React.FC = () => {
       - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
       - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
     ` : '';
+    
+    const customSqlPrompt = currentFiles.some(f => f.path === 'app.sql') && !supabaseConfig ? `
+      **Custom Backend:**
+      - An \`app.sql\` file exists, which defines the database schema for the application.
+      - You MUST assume a backend API exists that can interact with this database.
+      - Your task is to write frontend code that makes \`fetch\` requests to hypothetical API endpoints that would logically correspond to the schema (e.g., \`/api/users\`, \`/api/items\`).
+      - You MUST NOT implement the backend server itself. Focus only on the frontend React code that consumes these imagined APIs.
+    ` : '';
 
     const apiSecretsPrompt = apiSecrets.length > 0 ? `
       **API Secrets:**
@@ -483,7 +506,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
 
       ${supabaseIntegrationPrompt}
-
+      ${customSqlPrompt}
       ${apiSecretsPrompt}
       
       **The user's request is:** "${prompt}".
@@ -558,12 +581,23 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const { plan, sql } = await generatePlan(prompt, model);
     addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
     
+    let filesForCodeGeneration = project?.files ? [...project.files] : [...baseFiles];
     if (sql) {
-      updateProjectState(projectId, { supabaseSql: sql });
+      const sqlFileIndex = filesForCodeGeneration.findIndex(f => f.path === 'app.sql');
+      if (sqlFileIndex > -1) {
+        filesForCodeGeneration[sqlFileIndex] = { ...filesForCodeGeneration[sqlFileIndex], code: sql };
+      } else {
+        filesForCodeGeneration.push({ path: 'app.sql', code: sql });
+      }
+    } else {
+      // If no SQL is returned, remove any existing app.sql
+      filesForCodeGeneration = filesForCodeGeneration.filter(f => f.path !== 'app.sql');
     }
+    // Update the project state immediately so the change is reflected and passed to generateCode
+    updateProjectState(projectId, { files: filesForCodeGeneration });
 
     setProgress(0);
-    const codePromise = generateCode(prompt, baseFiles, plan, model, projectType);
+    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, model, projectType);
 
     const interval = setInterval(() => {
       setProgress(prev => {

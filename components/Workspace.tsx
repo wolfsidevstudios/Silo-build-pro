@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -160,7 +159,8 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>('src/App.tsx');
-  const { files, supabaseSql } = project;
+  const { files } = project;
+  const sqlFile = files.find(f => f.path === 'app.sql');
   const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
   
   useEffect(() => {
@@ -217,7 +217,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             isActive={activeTab === 'source-control'}
             onClick={() => setActiveTab('source-control')}
           />
-          {supabaseSql && (
+          {sqlFile && (
             <TabButton
               title="Database"
               icon={<span className="material-symbols-outlined">dataset</span>}
@@ -287,7 +287,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         {activeTab === 'database' && (
           <div className="flex-1 overflow-auto p-4 pt-0">
             <div className="w-full h-full">
-              <DatabasePanel sql={supabaseSql || ''} />
+              <DatabasePanel sql={sqlFile?.code || ''} />
             </div>
           </div>
         )}
