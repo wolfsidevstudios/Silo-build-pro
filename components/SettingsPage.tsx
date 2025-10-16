@@ -326,15 +326,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 )}
                  {activeTab === 'appstore' && (
                     <>
-                        <SettingSection title="App Store Publishing" description="Configure your Expo account to enable publishing to the Apple App Store.">
-                           <TokenInput 
-                                id="expo-token" 
-                                label="Expo Access Token" 
-                                placeholder="Enter your Expo token" 
-                                storageKey={EXPO_TOKEN_STORAGE_KEY}
-                                helpText="This token authenticates you with Expo Application Services (EAS)."
-                                helpLink={{ href: 'https://expo.dev/settings/access-tokens', text: 'Create a token' }}
-                            />
+                        <SettingSection title="App Store Publishing" description="Publish your React Native apps directly to the Apple App Store.">
+                            <div className="text-center p-8 bg-zinc-800/50 rounded-lg border border-dashed border-gray-700">
+                                <h3 className="text-xl font-semibold text-gray-300">Coming Soon!</h3>
+                                <p className="text-gray-500 mt-2">
+                                    We're working hard to bring you a seamless App Store publishing experience.
+                                </p>
+                            </div>
                         </SettingSection>
                     </>
                 )}
