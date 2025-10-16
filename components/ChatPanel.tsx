@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import type { Message } from '../App';
 
@@ -16,13 +17,33 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   const aiStyle = "bg-gray-800 text-gray-200 self-start";
   const systemStyle = "bg-gray-900 text-gray-400 self-center text-sm italic w-full text-center";
 
-  if (message.plan) {
+  if (message.plan || message.files_to_generate) {
     return (
       <div className="self-start bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 max-w-lg mb-2 text-gray-200 shadow-lg">
         <p className="font-semibold mb-2">{message.text}</p>
-        <ul className="space-y-1 list-disc list-inside text-sm text-gray-300">
-          {message.plan.map((item, i) => <li key={i}>{item}</li>)}
-        </ul>
+        {message.plan && (
+            <ul className="space-y-1 list-disc list-inside text-sm text-gray-300">
+            {message.plan.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+        )}
+        {message.files_to_generate && (
+            <div className="mt-4 pt-3 border-t border-white/10">
+                <p className="font-semibold text-sm mb-2 text-gray-300">File Checklist:</p>
+                <ul className="space-y-1.5 text-sm">
+                {message.files_to_generate.map((file, i) => {
+                    const isGenerated = message.generated_files?.includes(file);
+                    return (
+                    <li key={i} className={`flex items-center transition-colors duration-300 ${isGenerated ? 'text-green-400' : 'text-gray-400'}`}>
+                        <span className="material-symbols-outlined text-base mr-2">
+                        {isGenerated ? 'check_circle' : 'radio_button_unchecked'}
+                        </span>
+                        <span className="font-mono">{file}</span>
+                    </li>
+                    );
+                })}
+                </ul>
+            </div>
+        )}
       </div>
     );
   }
@@ -69,7 +90,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
         ))}
         
         {/* Shows spinner while waiting for the plan */}
-        {isLoading && progress === null && (
+        {isLoading && progress === null && !messages.some(m => m.files_to_generate) && (
           <div className="self-start bg-gray-800 p-3 rounded-lg flex items-center space-x-2">
             <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
             <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div>

@@ -116,6 +116,8 @@ export interface Message {
   actor: 'user' | 'ai' | 'system';
   text: string;
   plan?: string[];
+  files_to_generate?: string[];
+  generated_files?: string[];
 }
 
 export interface ProjectFile {
@@ -393,23 +395,25 @@ const App: React.FC = () => {
     return new GoogleGenAI({ apiKey });
   }
 
-  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string}> => {
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
     const ai = getAiClient();
 
     const planPrompt = `
       You are a senior software architect. Your task is to create a plan to build a React application based on the user's request.
 
       **Instructions:**
-      1.  Create a concise, step-by-step plan for the implementation. This plan should list all files you intend to create or modify.
-      2.  If the application requires data persistence, you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
-      3.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
-      4.  If no database is needed, the "sql" field in your response must be an empty string.
+      1.  Create a concise, step-by-step plan for the implementation.
+      2.  List all the file paths you intend to create or modify. This list should be comprehensive.
+      3.  If the application requires data persistence, you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
+      4.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
+      5.  If no database is needed, the "sql" field in your response must be an empty string.
 
       **Output Format:**
       You MUST respond with ONLY a JSON object that matches this exact schema. Do not include any other text or markdown.
       {
         "plan": ["A list of steps for the implementation."],
-        "sql": "The complete SQL code for the database schema, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax."
+        "sql": "The complete SQL code for the database schema, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax.",
+        "files_to_generate": ["A list of file paths you will create or modify, e.g., 'src/App.tsx', 'src/components/Header.tsx'."]
       }
       
       **User Request:** "${prompt}"
@@ -423,8 +427,10 @@ const App: React.FC = () => {
           type: Type.OBJECT,
           properties: {
             plan: { type: Type.ARRAY, items: { type: Type.STRING } },
-            sql: { type: Type.STRING }
-          }
+            sql: { type: Type.STRING },
+            files_to_generate: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ['plan', 'sql', 'files_to_generate']
         }
       }
     });
@@ -437,13 +443,15 @@ const App: React.FC = () => {
       const parsed = JSON.parse(response.text);
       return {
           plan: parsed.plan || [],
-          sql: parsed.sql || ''
+          sql: parsed.sql || '',
+          files_to_generate: parsed.files_to_generate || []
       };
     } catch (e) {
       console.error("Failed to parse plan and SQL:", e);
       return {
           plan: ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."],
-          sql: ""
+          sql: "",
+          files_to_generate: []
       };
     }
   };
@@ -579,8 +587,14 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const project = projects.find(p => p.id === projectId);
     const projectType = projectTypeOverride || project?.projectType || 'multi';
 
-    const { plan, sql } = await generatePlan(prompt, model);
-    addMessageToProject(projectId, { actor: 'ai', text: "Here's the plan:", plan });
+    const { plan, sql, files_to_generate } = await generatePlan(prompt, model);
+    addMessageToProject(projectId, { 
+        actor: 'ai', 
+        text: "Here's the plan:", 
+        plan,
+        files_to_generate,
+        generated_files: []
+    });
     
     let filesForCodeGeneration = project?.files ? [...project.files] : [...baseFiles];
     if (sql) {
@@ -614,15 +628,39 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
     const newFiles = await codePromise;
     clearInterval(interval);
-    setProgress(100);
+    setProgress(null); // Hide progress bar; checklist will show progress now.
 
-    updateProjectState(projectId, { files: newFiles });
+    for (const file of newFiles) {
+        setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+                // 1. Update project files
+                const existingFileIndex = p.files.findIndex(f => f.path === file.path);
+                const updatedFiles = [...p.files];
+                if (existingFileIndex > -1) {
+                    updatedFiles[existingFileIndex] = file;
+                } else {
+                    updatedFiles.push(file);
+                }
+
+                // 2. Update message to mark file as generated
+                const messages = [...p.messages];
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
+                    const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
+                    messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
+                }
+                
+                return { ...p, files: updatedFiles, messages };
+            }
+            return p;
+        }));
+        await new Promise(resolve => setTimeout(resolve, 150)); // small delay for visual effect
+    }
+
+
     addMessageToProject(projectId, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' });
     
-    setTimeout(() => {
-      setProgress(null);
-      setIsLoading(false);
-    }, 500);
+    setIsLoading(false);
   };
 
   const createNewProject = (prompt: string, projectType: ProjectType) => {
