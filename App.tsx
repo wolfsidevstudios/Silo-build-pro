@@ -21,6 +21,7 @@ import { IntegrationsPage } from './components/IntegrationsPage';
 import { INTEGRATION_DEFINITIONS } from './integrations';
 import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
 import { MaxCursor } from './components/MaxCursor';
+import { NotificationsPanel, Notification } from './components/NotificationsPanel';
 
 
 declare const Babel: any;
@@ -178,6 +179,28 @@ export interface SupabaseConfig {
   accessToken: string;
 }
 
+const FEATURE_NOTIFICATIONS: Omit<Notification, 'read'>[] = [
+  {
+    id: 'max-ai-agent-v1',
+    title: 'New Feature: Max AI Agent',
+    description: 'Meet Max, your autonomous AI development partner. Activate Max to have it brainstorm, write, and execute prompts for you.',
+    timestamp: new Date('2024-07-20T10:00:00Z').getTime()
+  },
+  {
+    id: 'integrations-marketplace-v1',
+    title: 'New: Integrations Marketplace',
+    description: "Connect to services like Pexels, OpenAI, and more directly within Silo Build. Check out the new Integrations page!",
+    timestamp: new Date('2024-07-19T10:00:00Z').getTime()
+  },
+  {
+    id: 'eas-export-v1',
+    title: 'Project Export for EAS',
+    description: "You can now download your projects as a zip file, pre-configured for submission to the App Store using Expo Application Services.",
+    timestamp: new Date('2024-07-18T10:00:00Z').getTime()
+  },
+];
+
+
 const generateAvatar = (name: string): string => {
     const canvas = document.createElement('canvas');
     const size = 128;
@@ -246,6 +269,10 @@ const App: React.FC = () => {
   const agentTaskQueue = React.useRef<(() => Promise<void>)[]>([]);
   const isAgentProcessing = React.useRef(false);
 
+  // Notifications State
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
   const activeProject = projects.find(p => p.id === activeProjectId);
 
   const addMaxThought = (text: string) => {
@@ -308,6 +335,24 @@ const App: React.FC = () => {
       }
     } catch (e) {
       console.error("Failed to load data from local storage", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const readStatusesRaw = localStorage.getItem('silo_read_notifications');
+      const readStatuses = readStatusesRaw ? JSON.parse(readStatusesRaw) : {};
+      
+      const enrichedNotifications = FEATURE_NOTIFICATIONS.map(n => ({
+        ...n,
+        read: !!readStatuses[n.id]
+      })).sort((a, b) => b.timestamp - a.timestamp);
+
+      setNotifications(enrichedNotifications);
+
+    } catch (e) {
+      console.error("Failed to load notifications", e);
+      setNotifications(FEATURE_NOTIFICATIONS.map(n => ({...n, read: false})).sort((a, b) => b.timestamp - a.timestamp));
     }
   }, []);
 
@@ -1754,6 +1799,27 @@ Good luck!
         setErrors(prev => [`Failed to create project ZIP. ${err.message}`, ...prev]);
     }
   };
+  
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleToggleNotifications = () => {
+      setIsNotificationsOpen(prev => {
+          const newIsOpen = !prev;
+          // If we are opening the panel, mark all as read
+          if (newIsOpen) {
+              setNotifications(prevNotifications => {
+                  const allRead = prevNotifications.map(n => ({ ...n, read: true }));
+                  const newReadStatuses: Record<string, boolean> = {};
+                  allRead.forEach(n => {
+                      newReadStatuses[n.id] = true;
+                  });
+                  localStorage.setItem('silo_read_notifications', JSON.stringify(newReadStatuses));
+                  return allRead;
+              });
+          }
+          return newIsOpen;
+      });
+  };
 
 
   const renderContent = () => {
@@ -1890,7 +1956,17 @@ Good luck!
              backgroundImage: 'radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%)'
         }}
     >
-      <TopNavBar userProfile={userProfile} theme={isDarkPage ? 'dark' : 'light'} />
+      <TopNavBar 
+        userProfile={userProfile}
+        theme={isDarkPage ? 'dark' : 'light'}
+        unreadCount={unreadCount}
+        onToggleNotifications={handleToggleNotifications}
+      />
+      <NotificationsPanel
+        isOpen={isNotificationsOpen}
+        notifications={notifications}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderContent()}
       </div>

@@ -4,6 +4,8 @@ import type { UserProfile } from '../App';
 interface TopNavBarProps {
   userProfile: UserProfile;
   theme: 'light' | 'dark';
+  unreadCount: number;
+  onToggleNotifications: () => void;
 }
 
 const NavLink: React.FC<{ href: string; children: React.ReactNode; theme: 'light' | 'dark' }> = ({ href, children, theme }) => (
@@ -14,7 +16,7 @@ const NavLink: React.FC<{ href: string; children: React.ReactNode; theme: 'light
     </a>
 );
 
-export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme }) => {
+export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme, unreadCount, onToggleNotifications }) => {
     const textColor = theme === 'dark' ? 'text-white' : 'text-black';
     const iconColor = theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-800 hover:text-black';
     const profileIconTextColor = theme === 'dark' ? 'text-gray-300' : 'text-gray-800';
@@ -40,6 +42,12 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme }) => {
         </div>
 
         <div className="flex items-center space-x-4">
+            <button onClick={onToggleNotifications} title="Notifications" className={`${iconColor} transition-colors relative`}>
+                <span className="material-symbols-outlined">notifications</span>
+                {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                )}
+            </button>
             <a href="#/settings" title="Settings" className={`${iconColor} transition-colors`}>
                 <span className="material-symbols-outlined">settings</span>
             </a>
