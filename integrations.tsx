@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -13,6 +13,46 @@ export interface Integration {
 }
 
 export const INTEGRATION_DEFINITIONS: Integration[] = [
+    {
+        id: 'apple-signin',
+        name: 'Sign in with Apple',
+        icon: <AppleSignInIcon />,
+        description: 'Enable users to sign in to your app with their Apple ID.',
+        storageKey: 'silo_integration_apple_signin',
+        keys: [{ name: 'serviceId', label: 'Service ID' }],
+        usageInstructions: 'Use the Sign in with Apple JS library. The `clientId` in your configuration should be `{{serviceId}}`.',
+        category: 'Apple Services'
+    },
+    {
+        id: 'apple-mapkit',
+        name: 'MapKit JS',
+        icon: <AppleMapKitIcon />,
+        description: 'Embed interactive maps with annotations and overlays.',
+        storageKey: 'silo_integration_apple_mapkit',
+        keys: [{ name: 'authToken', label: 'JWT Auth Token' }],
+        usageInstructions: 'Use MapKit JS. When initializing the map, provide the authorization callback that returns your token `{{authToken}}`.',
+        category: 'Apple Services'
+    },
+    {
+        id: 'apple-music',
+        name: 'Apple Music',
+        icon: <AppleMusicIcon />,
+        description: 'Access Apple Music content and control playback.',
+        storageKey: 'silo_integration_apple_music',
+        keys: [{ name: 'developerToken', label: 'Developer Token (JWT)' }],
+        usageInstructions: 'Use MusicKit JS. Configure it with your developer token `{{developerToken}}`.',
+        category: 'Apple Services'
+    },
+    {
+        id: 'apple-icloud',
+        name: 'iCloud (CloudKit)',
+        icon: <AppleICloudIcon />,
+        description: 'Store and sync app data across user devices with CloudKit.',
+        storageKey: 'silo_integration_apple_icloud',
+        keys: [{ name: 'apiToken', label: 'CloudKit API Token' }, { name: 'containerId', label: 'Container Identifier' }],
+        usageInstructions: 'Use CloudKit JS. Configure it with your container identifier `{{containerId}}` and API token `{{apiToken}}`.',
+        category: 'Apple Services'
+    },
     {
         id: 'youtube',
         name: 'YouTube',
