@@ -2159,6 +2159,7 @@ Good luck!
                 onCommit={handleCommit}
                 onInitiateGitHubSave={() => setIsGitHubSaveModalOpen(true)}
                 onExportProject={handleExportProject}
+                isLoading={isLoading}
               />
             </div>
              {isMaxAgentPanelOpen && (

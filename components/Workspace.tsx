@@ -4,12 +4,15 @@ import { CodeEditor } from './CodeEditor';
 import { DatabasePanel } from './DatabasePanel';
 import { FileExplorer } from './FileExplorer';
 import { SourceControlPanel } from './SourceControlPanel';
+import { FeatureSlideshow } from './FeatureSlideshow';
 import type { Project, PreviewMode } from '../App';
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
 declare const Babel: any;
 
 type ActiveTab = 'preview' | 'code' | 'database' | 'source-control';
+type Language = 'tsx' | 'sql' | 'html' | 'css' | 'javascript';
+
 
 interface WorkspaceProps {
   project: Project;
@@ -20,6 +23,7 @@ interface WorkspaceProps {
   onCommit: (message: string) => void;
   onInitiateGitHubSave: () => void;
   onExportProject: () => void;
+  isLoading: boolean;
 }
 
 const TabButton: React.FC<{
@@ -157,7 +161,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject, isLoading }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
   const { files } = project;
@@ -182,6 +186,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
   }, [files, activeFilePath, project.projectType]);
 
   const activeFile = files.find(f => f.path === activeFilePath);
+
+  const getLanguage = (filePath: string): Language => {
+    if (filePath.endsWith('.sql')) return 'sql';
+    if (filePath.endsWith('.html')) return 'html';
+    if (filePath.endsWith('.css')) return 'css';
+    if (filePath.endsWith('.js')) return 'javascript';
+    // Default to tsx for ts, tsx, jsx
+    return 'tsx';
+  };
 
   const handleOpenInNewTab = () => {
     if (project.projectType === 'html') {
@@ -294,7 +307,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         {activeTab === 'preview' && (
           <div className="flex-1 overflow-auto p-4 pt-0">
             <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
-              <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+              {isLoading ? (
+                <FeatureSlideshow />
+              ) : (
+                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+              )}
             </div>
           </div>
         )}
@@ -309,7 +326,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             </div>
             <div className="flex-1 overflow-auto p-4 pt-0">
               <div className="w-full h-full rounded-3xl overflow-hidden border border-gray-200">
-                <CodeEditor value={activeFile?.code ?? ''} onChange={() => {}} readOnly />
+                <CodeEditor value={activeFile?.code ?? ''} language={getLanguage(activeFile?.path ?? '')} />
               </div>
             </div>
           </div>

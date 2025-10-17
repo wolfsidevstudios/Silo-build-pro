@@ -41,7 +41,7 @@ export const DatabasePanel: React.FC<DatabasePanelProps> = ({ sql }) => {
         </button>
       </div>
       <div className="flex-1 bg-gray-50">
-         <CodeEditor value={sql} onChange={() => {}} readOnly />
+         <CodeEditor value={sql} language="sql" />
       </div>
        <div className="p-3 bg-gray-100 border-t border-gray-200 text-xs text-gray-600">
         <p>Run this SQL code in your database to set up the necessary tables. If you've connected Supabase, you can use the SQL Editor in your project dashboard.</p>
