@@ -75,16 +75,22 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ supabaseConfig }) 
                             <a 
                                 key={app.id} 
                                 href={`#/community/${app.name}`}
-                                className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col justify-between aspect-[4/3] transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1"
+                                className="group bg-slate-50/50 backdrop-blur-sm border border-gray-200/80 rounded-3xl p-6 flex flex-col justify-between aspect-[4/3] transition-all duration-300 ease-in-out hover:shadow-2xl hover:shadow-blue-500/10 hover:border-blue-300 hover:scale-[1.02]"
                             >
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 mb-1 truncate">{app.name}</h3>
-                                    <p className="text-sm text-gray-500 leading-snug line-clamp-3">{app.description || 'No description provided.'}</p>
+                                <div className="flex-grow">
+                                    <div className="w-12 h-12 mb-4 bg-white rounded-xl border border-gray-200 flex items-center justify-center">
+                                         <span className="material-symbols-outlined text-3xl text-blue-500">auto_awesome</span>
+                                    </div>
+                                    <h3 className="font-bold text-lg text-gray-900 mb-1 truncate">{app.name}</h3>
+                                    <p className="text-sm text-gray-600 leading-snug line-clamp-3">{app.description || 'No description provided.'}</p>
                                 </div>
-                                <div className="flex justify-end items-center mt-4">
-                                    <p className="text-xs text-gray-400">
+                                <div className="flex justify-between items-end mt-4 pt-4 border-t border-gray-200/80">
+                                    <p className="text-xs text-gray-500">
                                         {new Date(app.created_at).toLocaleDateString()}
                                     </p>
+                                    <div className="bg-white border border-gray-200/80 text-black rounded-full w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-45">
+                                        <span className="material-symbols-outlined">arrow_forward</span>
+                                    </div>
                                 </div>
                             </a>
                         ))}
