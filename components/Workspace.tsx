@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -348,12 +349,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
               <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
                 <div
                   className="rounded-[47.33px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
-                  style={{ width: '390px', height: '844px', flexShrink: 0 }}
+                  style={{ width: '390px', height: '780px', flexShrink: 0 }}
                 >
                     <div
                         className="w-full h-full bg-gray-900 rounded-[calc(47.33px-1px)] p-[5px]"
                     >
-                        <div className="w-full h-full bg-white overflow-hidden rounded-[calc(47.33px-6px)]">
+                        <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(47.33px-6px)]">
+                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>
                             {isLoading ? (
                                 <FeatureSlideshow />
                             ) : (
