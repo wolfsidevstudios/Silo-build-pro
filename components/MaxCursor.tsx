@@ -2,14 +2,15 @@ import React from 'react';
 
 interface MaxCursorProps {
   position: { x: number; y: number } | null;
+  isClicking: boolean;
 }
 
-export const MaxCursor: React.FC<MaxCursorProps> = ({ position }) => {
+export const MaxCursor: React.FC<MaxCursorProps> = ({ position, isClicking }) => {
   if (!position) return null;
 
   return (
     <div
-      className="fixed top-0 left-0 z-[9999] pointer-events-none transition-transform duration-100 ease-linear"
+      className={`fixed top-0 left-0 z-[9999] pointer-events-none transition-transform duration-100 ease-linear ${isClicking ? 'animate-click' : ''}`}
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
       }}

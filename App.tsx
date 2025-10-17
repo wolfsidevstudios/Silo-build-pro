@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { useDebounce } from './hooks/useDebounce';
@@ -266,6 +266,7 @@ const App: React.FC = () => {
   const [isMaxAgentRunning, setIsMaxAgentRunning] = useState(false);
   const [maxThoughts, setMaxThoughts] = useState<MaxThought[]>([]);
   const [maxCursorPosition, setMaxCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isMaxCursorClicking, setIsMaxCursorClicking] = useState(false);
   const agentTaskQueue = React.useRef<(() => Promise<void>)[]>([]);
   const isAgentProcessing = React.useRef(false);
 
@@ -1215,7 +1216,6 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     }
   };
 
-
   const handleModelChange = (newModel: GeminiModel) => {
     setModel(newModel);
     localStorage.setItem('gemini_model', newModel);
@@ -1821,6 +1821,159 @@ Good luck!
       });
   };
 
+  // --- MAX AGENT LOGIC ---
+
+  const moveCursorToElement = (selector: string) => new Promise<void>((resolve) => {
+    const element = document.querySelector(selector) as HTMLElement;
+    if (!element) {
+      console.warn(`Max agent couldn't find element: ${selector}`);
+      return resolve();
+    }
+    const rect = element.getBoundingClientRect();
+    const target = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    
+    // A simple animation loop
+    const start = maxCursorPosition || { x: window.innerWidth - 160, y: 80 };
+    const duration = 500;
+    let startTime: number | null = null;
+
+    const animate = (time: number) => {
+      if (startTime === null) startTime = time;
+      const elapsed = time - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const newX = start.x + (target.x - start.x) * progress;
+      const newY = start.y + (target.y - start.y) * progress;
+
+      setMaxCursorPosition({ x: newX, y: newY });
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        resolve();
+      }
+    };
+    requestAnimationFrame(animate);
+  });
+  
+  const typePrompt = (text: string) => new Promise<void>((resolve) => {
+    let i = 0;
+    setUserInput('');
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        setUserInput(prev => prev + text.charAt(i));
+        i++;
+      } else {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50); // Typing speed
+  });
+
+  const clickWithCursor = (selector: string) => new Promise<void>((resolve) => {
+    const element = document.querySelector(selector) as HTMLElement;
+    if (!element) return resolve();
+
+    setIsMaxCursorClicking(true);
+    setTimeout(() => {
+        setIsMaxCursorClicking(false);
+        element.click(); // This will trigger handleSend
+        resolve();
+    }, 200);
+  });
+
+  const generateNextAgentPrompt = async (): Promise<string> => {
+      if (!activeProject) return "Make a simple counter app";
+      const ai = getAiClient();
+      const currentFiles = activeProject.files || [];
+      const currentMessages = activeProject.messages || [];
+      
+      const systemInstruction = `You are an autonomous AI agent building a web application. Your goal is to iteratively add features. Based on the current project files and conversation history, propose the next single, logical feature to add. Formulate your response as a concise, actionable instruction for another AI developer. Respond with only the prompt text, no extra formatting or explanation. Be creative and aim for a functional, impressive application.`;
+      
+      const promptToGemini = `
+          Current Files (abbreviated):
+          ${JSON.stringify(currentFiles.map(f => ({ path: f.path, code: f.code.substring(0, 200) + '...' })), null, 2)}
+
+          Conversation History (last 5 messages):
+          ${JSON.stringify(currentMessages.slice(-5), null, 2)}
+
+          What is the next logical prompt to continue building this app?
+      `;
+
+      try {
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: promptToGemini,
+            config: {
+              systemInstruction: systemInstruction,
+            }
+          });
+          return response.text.trim();
+      } catch (err: any) {
+          console.error("Max Agent failed to generate a prompt:", err);
+          addMaxThought(`I encountered an error thinking: ${err.message}. Deactivating.`);
+          setIsMaxAgentRunning(false);
+          return "Create a simple counter component."; // Fallback
+      }
+  };
+  
+  const runAgentCycle = useCallback(async () => {
+    addMaxThought("Brainstorming next steps...");
+    const newPrompt = await generateNextAgentPrompt();
+    addMaxThought(`New idea: ${newPrompt}`);
+    await new Promise(r => setTimeout(r, 500));
+    
+    await moveCursorToElement('#prompt-input');
+    await typePrompt(newPrompt);
+    await new Promise(r => setTimeout(r, 300));
+
+    await moveCursorToElement('#send-button');
+    await clickWithCursor('#send-button');
+    addMaxThought("Prompt sent. Waiting for the build to complete...");
+  }, [activeProject]);
+
+  useEffect(() => {
+    const processAgentQueue = async () => {
+        if (isAgentProcessing.current || !isMaxAgentRunning || agentTaskQueue.current.length === 0) {
+            return;
+        }
+        isAgentProcessing.current = true;
+        const nextTask = agentTaskQueue.current.shift();
+        if (nextTask) {
+            await nextTask();
+        }
+        isAgentProcessing.current = false;
+    };
+
+    const intervalId = setInterval(processAgentQueue, 200);
+
+    return () => clearInterval(intervalId);
+  }, [isMaxAgentRunning]);
+  
+  useEffect(() => {
+    // This effect triggers the agent's next cycle after a build is complete.
+    if (isMaxAgentRunning && !isLoading && !isAgentProcessing.current && agentTaskQueue.current.length === 0) {
+        addMaxThought("Build complete. Analyzing the results...");
+        agentTaskQueue.current.push(runAgentCycle);
+    }
+  }, [isMaxAgentRunning, isLoading, runAgentCycle]);
+
+  const startAgent = () => {
+      setMaxThoughts([]);
+      addMaxThought("Max is activated. Let's build something amazing.");
+      setIsMaxAgentRunning(true);
+      setMaxCursorPosition({ x: window.innerWidth - 160, y: 80 });
+      agentTaskQueue.current.push(runAgentCycle);
+  };
+  
+  const stopAgent = () => {
+      setIsMaxAgentRunning(false);
+      addMaxThought("Max has been deactivated.");
+      agentTaskQueue.current = [];
+      setMaxCursorPosition(null);
+  };
+
+  // --- END MAX AGENT LOGIC ---
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
@@ -1905,17 +2058,8 @@ Good luck!
                 <MaxAgentPanel
                   thoughts={maxThoughts}
                   isRunning={isMaxAgentRunning}
-                  onStart={() => {
-                    setMaxThoughts([]);
-                    addMaxThought("Max is activated. Let's build something amazing.");
-                    setIsMaxAgentRunning(true);
-                  }}
-                  onStop={() => {
-                    setIsMaxAgentRunning(false);
-                    addMaxThought("Max has been deactivated.");
-                    agentTaskQueue.current = [];
-                    setMaxCursorPosition(null);
-                  }}
+                  onStart={startAgent}
+                  onStop={stopAgent}
                 />
               </div>
             )}
@@ -2013,7 +2157,7 @@ Good luck!
         />
       )}
       <FocusTimer isOpen={isFocusTimerOpen} onClose={() => setIsFocusTimerOpen(false)} />
-      {isMaxAgentRunning && <MaxCursor position={maxCursorPosition} />}
+      <MaxCursor position={maxCursorPosition} isClicking={isMaxCursorClicking} />
       <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-4">
         {activeProject && (
           <>
