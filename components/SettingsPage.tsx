@@ -7,7 +7,7 @@ const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
-type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'safety' | 'about';
+type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'about';
 
 const SettingsContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8 pt-24">
@@ -44,7 +44,6 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
                 <NavItem tab="deployments" icon="dns" label="Deployments" />
                 <NavItem tab="developer" icon="terminal" label="Developer" />
                 <NavItem tab="appstore" icon="storefront" label="App Store" />
-                <NavItem tab="safety" icon="shield" label="Safety" />
                 <NavItem tab="about" icon="info" label="About" />
             </div>
         </nav>
@@ -505,32 +504,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                     </>
                 )}
-                {activeTab === 'safety' && (
-                    <>
-                        <SettingSection title="Privacy Policy" description="How we handle your data.">
-                            <div className="text-gray-700 text-sm space-y-4 bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-60 overflow-y-auto">
-                                <p><strong>Last Updated: [Date]</strong></p>
-                                <p>Your privacy is important to us. It is Silo Build's policy to respect your privacy regarding any information we may collect from you across our website, and other sites we own and operate.</p>
-                                <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
-                                <p>We only retain collected information for as long as necessary to provide you with your requested service. What data we store, we’ll protect within commercially acceptable means to prevent loss and theft, as well as unauthorized access, disclosure, copying, use or modification.</p>
-                                <p>We don’t share any personally identifying information publicly or with third-parties, except when required to by law.</p>
-                                <p>Our website may link to external sites that are not operated by us. Please be aware that we have no control over the content and practices of these sites, and cannot accept responsibility or liability for their respective privacy policies.</p>
-                                <p>You are free to refuse our request for your personal information, with the understanding that we may be unable to provide you with some of your desired services.</p>
-                                <p>Your continued use of our website will be regarded as acceptance of our practices around privacy and personal information. If you have any questions about how we handle user data and personal information, feel free to contact us.</p>
-                            </div>
-                        </SettingSection>
-                        <SettingSection title="Terms of Service" description="The rules for using our application.">
-                           <div className="text-gray-700 text-sm space-y-4 bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-60 overflow-y-auto">
-                                <p><strong>1. Terms</strong></p>
-                                <p>By accessing the website at Silo Build, you are agreeing to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws. If you do not agree with any of these terms, you are prohibited from using or accessing this site. The materials contained in this website are protected by applicable copyright and trademark law.</p>
-                                <p><strong>2. Use License</strong></p>
-                                <p>Permission is granted to temporarily download one copy of the materials (information or software) on Silo Build's website for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not: modify or copy the materials; use the materials for any commercial purpose, or for any public display (commercial or non-commercial); attempt to decompile or reverse engineer any software contained on Silo Build's website; remove any copyright or other proprietary notations from the materials; or transfer the materials to another person or "mirror" the materials on any other server. This license shall automatically terminate if you violate any of these restrictions and may be terminated by Silo Build at any time.</p>
-                                <p><strong>3. Disclaimer</strong></p>
-                                <p>The materials on Silo Build's website are provided on an 'as is' basis. Silo Build makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.</p>
-                            </div>
-                        </SettingSection>
-                    </>
-                )}
                 {activeTab === 'about' && (
                     <>
                         <SettingSection title="About Silo Build" description="Building applications with the power of AI.">
@@ -546,6 +519,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 </p>
                                 <p>
                                     <a href="mailto:rocio1976ramirezpena@gmail.com" className="text-blue-600 hover:underline">rocio1976ramirezpena@gmail.com</a>
+                                </p>
+                            </div>
+                        </SettingSection>
+                         <SettingSection title="Legal" description="Review our terms and policies.">
+                             <div className="text-gray-700 text-sm space-y-2 bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                                <p>
+                                    <a href="#/privacy" className="text-blue-600 hover:underline">Privacy Policy</a>
+                                </p>
+                                <p>
+                                    <a href="#/terms" className="text-blue-600 hover:underline">Terms of Service</a>
                                 </p>
                             </div>
                         </SettingSection>

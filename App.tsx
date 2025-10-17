@@ -25,6 +25,8 @@ import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
 import { MaxCursor } from './components/MaxCursor';
 import { NotificationsPanel, Notification } from './components/NotificationsPanel';
 import { DeveloperPortalPage } from './components/DeveloperPortalPage';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { TermsOfServicePage } from './components/TermsOfServicePage';
 
 
 declare const Babel: any;
@@ -2133,6 +2135,12 @@ Good luck!
     }
     if (path === '/developer-portal') {
       return <DeveloperPortalPage />;
+    }
+    if (path === '/privacy') {
+        return <PrivacyPolicyPage />;
+    }
+    if (path === '/terms') {
+        return <TermsOfServicePage />;
     }
      if (path === '/authorized') {
       return <AuthorizedPage />;
