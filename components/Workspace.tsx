@@ -345,21 +345,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           ) : (
             // Mobile View
             <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
-              <div
-                className="rounded-[2.5rem] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
-                style={{ width: '390px', height: '844px', flexShrink: 0 }}
-              >
-                  <div
-                      className="w-full h-full bg-gray-900 rounded-[calc(2.5rem-1px)] p-[5px]"
-                  >
-                      <div className="w-full h-full bg-white overflow-hidden rounded-[calc(2.5rem-6px)]">
-                          {isLoading ? (
-                              <FeatureSlideshow />
-                          ) : (
-                              <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
-                          )}
-                      </div>
-                  </div>
+              <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>
+                <div
+                  className="rounded-[47.33px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
+                  style={{ width: '390px', height: '844px', flexShrink: 0 }}
+                >
+                    <div
+                        className="w-full h-full bg-gray-900 rounded-[calc(47.33px-1px)] p-[5px]"
+                    >
+                        <div className="w-full h-full bg-white overflow-hidden rounded-[calc(47.33px-6px)]">
+                            {isLoading ? (
+                                <FeatureSlideshow />
+                            ) : (
+                                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+                            )}
+                        </div>
+                    </div>
+                </div>
               </div>
             </div>
           )
