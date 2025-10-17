@@ -90,12 +90,31 @@ const CountdownTimer = () => {
   );
 };
 
+const CompatibilityWarningModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-lg">
+        <span className="material-symbols-outlined text-5xl text-yellow-500">desktop_windows</span>
+        <h3 className="text-xl font-bold text-gray-800 mt-4">Desktop Browser Required</h3>
+        <p className="text-gray-600 mt-2">
+          The screenshot feature is only available on desktop Chromium browsers like Chrome or Edge. Please switch to desktop.
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-6 w-full py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(false);
 
   const banners = [
     {
@@ -133,6 +152,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   }, []);
 
   const handleCaptureClick = async () => {
+    const isChromium = !!(window as any).chrome;
+    const isDesktop = window.innerWidth >= 1024;
+
+    if (!isChromium || !isDesktop || !navigator.mediaDevices?.getDisplayMedia) {
+      setShowCompatibilityWarning(true);
+      return;
+    }
+
     try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const video = document.createElement('video');
@@ -175,6 +202,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   return (
     <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
+      {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <div className="w-full max-w-4xl mx-auto mb-8 h-24">
             <div className="relative w-full h-full overflow-hidden rounded-2xl">
@@ -206,7 +234,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                                 </div>
                             )}
                             {banner.badgeHtml && (
-                                <div className="flex-shrink-0" dangerouslySetInnerHTML={{ __html: banner.badgeHtml }} />
+                                <div className="flex-shrink-0 ml-auto" dangerouslySetInnerHTML={{ __html: banner.badgeHtml }} />
                             )}
                         </div>
                     </div>
