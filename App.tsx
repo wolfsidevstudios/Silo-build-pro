@@ -17,6 +17,8 @@ import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } fr
 import { FocusTimer } from './components/FocusTimer';
 import { PricingPage } from './components/PricingPage';
 import { DocsPage } from './components/DocsPage';
+import { IntegrationsPage } from './components/IntegrationsPage';
+import { INTEGRATION_DEFINITIONS } from './integrations';
 
 
 declare const Babel: any;
@@ -565,6 +567,55 @@ const App: React.FC = () => {
 
   const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], filesToGenerate: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
     const ai = getAiClient();
+    
+    // START: Dynamic Integrations Prompt Generation
+    let integrationsPrompt = '';
+    const integrationsList: string[] = [];
+    
+    for (const integration of INTEGRATION_DEFINITIONS) {
+        const storedKeysRaw = localStorage.getItem(integration.storageKey);
+        if (storedKeysRaw) {
+            try {
+                const storedKeys = JSON.parse(storedKeysRaw);
+                let integrationDetails = `\n- **${integration.name} Integration:**`;
+                let hasAllKeys = true;
+                
+                integration.keys.forEach(keyInfo => {
+                    const keyValue = storedKeys[keyInfo.name];
+                    if (keyValue) {
+                        integrationDetails += `\n  - ${keyInfo.label}: "${keyValue}"`;
+                    } else {
+                        hasAllKeys = false;
+                    }
+                });
+
+                if (hasAllKeys) {
+                    if (integration.usageInstructions) {
+                        // Replace placeholders like {{apiKey}} with actual values
+                        let instructions = integration.usageInstructions;
+                        integration.keys.forEach(keyInfo => {
+                            const placeholder = `{{${keyInfo.name}}}`;
+                            instructions = instructions.replace(new RegExp(placeholder, 'g'), storedKeys[keyInfo.name]);
+                        });
+                        integrationDetails += `\n  - **Usage:** ${instructions}`;
+                    }
+                    integrationsList.push(integrationDetails);
+                }
+            } catch (e) {
+                console.warn(`Could not parse keys for integration: ${integration.name}`);
+            }
+        }
+    }
+
+    if (integrationsList.length > 0) {
+        integrationsPrompt = `
+**API Integrations:**
+The user has connected the following APIs. If the user's request involves any of these services, you MUST use the provided keys and instructions to integrate them into the application.
+${integrationsList.join('\n')}
+`;
+    }
+    // END: Dynamic Integrations Prompt Generation
+
     const supabaseIntegrationPrompt = supabaseConfig ? `
       **Supabase Integration:**
       - This project is connected to a Supabase backend.
@@ -588,49 +639,6 @@ const App: React.FC = () => {
       - IMPORTANT: Do not display these secrets directly in the UI. When initializing clients or making API calls, use the provided value for the corresponding key.
       - Available secrets:
 ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
-    ` : '';
-    
-    const productHuntToken = localStorage.getItem('silo_product_hunt_token');
-    const productHuntApiPrompt = productHuntToken ? `
-      **Product Hunt API Integration:**
-      - The user has provided a Product Hunt Developer Token. If the user's request involves fetching data from Product Hunt (e.g., "show latest products"), you MUST use this API.
-      - Developer Token: "${productHuntToken}"
-      - You MUST use this token to interact with the Product Hunt API v2 (GraphQL).
-      - The API endpoint is: \`https://api.producthunt.com/v2/api/graphql\`.
-      - When making requests, include the token in the 'Authorization' header like this: \`Authorization: Bearer ${productHuntToken}\`.
-      - Example GraphQL query using fetch to get the top 10 posts:
-        \`\`\`javascript
-        const response = await fetch('https://api.producthunt.com/v2/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${productHuntToken}',
-          },
-          body: JSON.stringify({
-            query: \`
-              query GetLatestPosts {
-                posts(first: 10) {
-                  edges {
-                    node {
-                      id
-                      name
-                      tagline
-                      url
-                      thumbnail {
-                        url
-                      }
-                      votesCount
-                    }
-                  }
-                }
-              }
-            \`
-          }),
-        });
-        const productHuntData = await response.json();
-        // Now you can use productHuntData.data.posts.edges to display the products
-        \`\`\`
     ` : '';
     
     let projectTypeInstructions = '';
@@ -702,7 +710,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
       ${supabaseIntegrationPrompt}
       ${customSqlPrompt}
-      ${productHuntApiPrompt}
+      ${integrationsPrompt}
       ${apiSecretsPrompt}
       
       **The user's request is:** "${prompt}".
@@ -1774,6 +1782,9 @@ Good luck!
     }
     if (path === '/docs') {
       return <DocsPage />;
+    }
+     if (path === '/integrations') {
+      return <IntegrationsPage />;
     }
      if (path === '/authorized') {
       return <AuthorizedPage />;
