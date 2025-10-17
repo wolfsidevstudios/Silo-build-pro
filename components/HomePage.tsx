@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
-import { ProductHuntIcon } from './icons';
+import { ProductHuntIcon, PexelsIcon } from './icons';
 
 interface HomePageProps {
   onStartBuild: (prompt: string, projectType: ProjectType) => void;
@@ -93,6 +93,32 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const [prompt, setPrompt] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  const banners = [
+    {
+      id: 'pexels',
+      icon: <PexelsIcon />,
+      title: 'Silo Build x Pexels',
+      description: 'Product of the Week: Access free stock photos.',
+      link: '#/integrations',
+      linkLabel: 'Add Integration',
+    },
+    {
+      id: 'product-hunt',
+      icon: <ProductHuntIcon />,
+      title: 'We are live on Product Hunt!',
+      badgeHtml: `<a href="https://www.producthunt.com/products/silo-build?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-silo-build" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1027607&theme=light&t=1760711966482" alt="Silo Build - Create apps and websites by chatting with AI. | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>`,
+    },
+  ];
+
+  useEffect(() => {
+    const bannerInterval = setInterval(() => {
+      setCurrentBannerIndex(prevIndex => (prevIndex + 1) % banners.length);
+    }, 5000); // Slide every 5 seconds
+
+    return () => clearInterval(bannerInterval);
+  }, [banners.length]);
 
   useEffect(() => {
     const suggestedPrompt = sessionStorage.getItem('silo_prompt_suggestion');
@@ -119,24 +145,41 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   return (
     <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
-        <div className="w-full max-w-4xl mx-auto mb-8">
-            <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                    <div className="w-14 h-14 bg-white rounded-xl p-2 flex items-center justify-center shadow">
-                        <ProductHuntIcon />
+        <div className="w-full max-w-4xl mx-auto mb-8 h-24">
+            <div className="relative w-full h-full overflow-hidden rounded-2xl">
+                {banners.map((banner, index) => (
+                    <div
+                        key={banner.id}
+                        className="absolute w-full h-full transition-transform duration-700 ease-in-out"
+                        style={{ transform: `translateX(${(index - currentBannerIndex) * 100}%)` }}
+                    >
+                        <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4 w-full h-full">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-14 h-14 bg-white rounded-xl p-2 flex items-center justify-center shadow flex-shrink-0">
+                                    {banner.icon}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-black text-left">{banner.title}</h3>
+                                    {banner.description && (
+                                        <p className="text-sm text-gray-600 text-left">{banner.description}</p>
+                                    )}
+                                    {banner.badgeHtml && (
+                                       <div className="mt-1 flex" dangerouslySetInnerHTML={{ __html: banner.badgeHtml }} />
+                                    )}
+                                </div>
+                            </div>
+                            {banner.linkLabel && (
+                                <div className="flex-shrink-0">
+                                    <div className="bg-white rounded-xl p-1 shadow-inner">
+                                        <a href={banner.link} className="block px-4 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-colors whitespace-nowrap">
+                                            {banner.linkLabel}
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-lg text-black text-left">Silo Build <span className="font-sans font-normal text-gray-600">x</span> Product Hunt</h3>
-                        <p className="text-sm text-gray-600 text-left">Integration of the Day: Fetch data from Product Hunt.</p>
-                    </div>
-                </div>
-                <div className="flex-shrink-0">
-                    <div className="bg-white rounded-xl p-1 shadow-inner">
-                        <a href="#/integrations" className="block px-4 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-colors whitespace-nowrap">
-                            Add Integration
-                        </a>
-                    </div>
-                </div>
+                ))}
             </div>
         </div>
         <h1 className="text-5xl md:text-6xl font-bold mb-4 text-black">
