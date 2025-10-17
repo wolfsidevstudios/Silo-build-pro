@@ -2437,21 +2437,26 @@ Good luck!
 
   const path = location.startsWith('/') ? location : `/${location}`;
   const isDarkPage = path === '/profile';
+  const isCommunityAppView = !!path.match(/^\/community\/([^/]+)$/);
 
   return (
     <div className="flex h-screen text-black font-sans">
-      <TopNavBar 
-        userProfile={userProfile}
-        isLoggedIn={isLoggedIn}
-        theme={isDarkPage ? 'dark' : 'light'}
-        unreadCount={unreadCount}
-        onToggleNotifications={handleToggleNotifications}
-      />
-      <NotificationsPanel
-        isOpen={isNotificationsOpen}
-        notifications={notifications}
-        onClose={() => setIsNotificationsOpen(false)}
-      />
+      {!isCommunityAppView && (
+        <>
+            <TopNavBar 
+                userProfile={userProfile}
+                isLoggedIn={isLoggedIn}
+                theme={isDarkPage ? 'dark' : 'light'}
+                unreadCount={unreadCount}
+                onToggleNotifications={handleToggleNotifications}
+            />
+            <NotificationsPanel
+                isOpen={isNotificationsOpen}
+                notifications={notifications}
+                onClose={() => setIsNotificationsOpen(false)}
+            />
+        </>
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderContent()}
       </div>
