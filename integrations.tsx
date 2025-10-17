@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon, JasperIcon, RunwayIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon, JasperIcon, RunwayIcon, UberIcon, TikTokIcon, VenmoIcon, RedditIcon, SoundCloudIcon, KofiIcon, RssIcon, CloudflareIcon, GoogleMapsIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -181,6 +181,17 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         category: 'Google Services',
         getApiKeyUrl: 'https://console.cloud.google.com/apis/credentials',
     },
+     {
+        id: 'google-maps',
+        name: 'Google Maps',
+        icon: <GoogleMapsIcon />,
+        description: 'Embed maps and use geolocation, directions, and places data.',
+        storageKey: 'silo_integration_google_maps',
+        keys: [{ name: 'apiKey', label: 'Google Maps API Key' }],
+        usageInstructions: "Use the Google Maps JavaScript API. Include the script with your API key: `<script src=\"https://maps.googleapis.com/maps/api/js?key={{apiKey}}\"></script>`.",
+        category: 'Google Services',
+        getApiKeyUrl: 'https://console.cloud.google.com/google/maps-apis/credentials',
+    },
     {
         id: 'google-pay',
         name: 'Google Pay',
@@ -281,6 +292,17 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         getApiKeyUrl: 'https://console.anthropic.com/settings/keys',
     },
     {
+        id: 'cloudflare',
+        name: 'Cloudflare',
+        icon: <CloudflareIcon />,
+        description: 'Manage DNS, Workers, and other Cloudflare services via API.',
+        storageKey: 'silo_integration_cloudflare',
+        keys: [{ name: 'apiToken', label: 'API Token' }],
+        usageInstructions: "Use the Cloudflare API v4. The endpoint is `https://api.cloudflare.com/client/v4/`. Authenticate using the `Authorization: Bearer {{apiToken}}` header.",
+        category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://dash.cloudflare.com/profile/api-tokens',
+    },
+    {
         id: 'spotify',
         name: 'Spotify',
         icon: <SpotifyIcon />,
@@ -340,6 +362,39 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         getApiKeyUrl: 'https://developers.giphy.com/dashboard/',
     },
     {
+        id: 'reddit',
+        name: 'Reddit',
+        icon: <RedditIcon />,
+        description: "Fetch data from subreddits, posts, and users.",
+        storageKey: 'silo_integration_reddit',
+        keys: [{ name: 'clientId', label: 'Client ID' }, { name: 'clientSecret', label: 'Client Secret' }],
+        usageInstructions: "Use the Reddit API. Requires an OAuth 2.0 flow with your Client ID `{{clientId}}` to get user consent and an access token.",
+        category: 'Social & Content',
+        getApiKeyUrl: 'https://www.reddit.com/prefs/apps',
+    },
+    {
+        id: 'soundcloud',
+        name: 'SoundCloud',
+        icon: <SoundCloudIcon />,
+        description: "Integrate audio streaming and access SoundCloud's music library.",
+        storageKey: 'silo_integration_soundcloud',
+        keys: [{ name: 'clientId', label: 'Client ID' }],
+        usageInstructions: "Use the SoundCloud API. Authenticate your requests by appending `?client_id={{clientId}}` to API endpoints.",
+        category: 'Social & Content',
+        getApiKeyUrl: 'https://developers.soundcloud.com/',
+    },
+     {
+        id: 'tiktok',
+        name: 'TikTok',
+        icon: <TikTokIcon />,
+        description: 'Access TikTok content, user data, and embed videos.',
+        storageKey: 'silo_integration_tiktok',
+        keys: [{ name: 'clientKey', label: 'Client Key' }, { name: 'clientSecret', label: 'Client Secret' }],
+        usageInstructions: "Use the TikTok API. Requires an OAuth 2.0 flow with your Client Key `{{clientKey}}` to get user consent and an access token.",
+        category: 'Social & Content',
+        getApiKeyUrl: 'https://developers.tiktok.com/',
+    },
+    {
         id: 'stripe',
         name: 'Stripe',
         icon: <StripeIcon />,
@@ -371,6 +426,28 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.',
         category: 'Payments & E-commerce',
         getApiKeyUrl: 'https://shopify.dev/docs/apps/auth/admin-api-access-tokens',
+    },
+    {
+        id: 'kofi',
+        name: 'Ko-fi',
+        icon: <KofiIcon />,
+        description: 'Add a Ko-fi button for donations and creator support.',
+        storageKey: 'silo_integration_kofi',
+        keys: [{ name: 'username', label: 'Ko-fi Username' }],
+        usageInstructions: "Create a Ko-fi donation link using the format `https://ko-fi.com/{{username}}`. This can be used for donation buttons.",
+        category: 'Payments & E-commerce',
+        getApiKeyUrl: 'https://ko-fi.com/',
+    },
+     {
+        id: 'venmo',
+        name: 'Venmo',
+        icon: <VenmoIcon />,
+        description: 'Add Venmo for peer-to-peer payments or donation buttons.',
+        storageKey: 'silo_integration_venmo',
+        keys: [{ name: 'username', label: 'Venmo Username' }],
+        usageInstructions: "Create a Venmo payment link using the format `https://venmo.com/{{username}}`. This can be used for donation buttons or simple payments.",
+        category: 'Payments & E-commerce',
+        getApiKeyUrl: 'https://venmo.com/',
     },
     {
         id: 'producthunt',
@@ -439,6 +516,14 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         getApiKeyUrl: 'https://unsplash.com/oauth/applications',
     },
     {
+        id: 'rss',
+        name: 'RSS Feed',
+        icon: <RssIcon />,
+        description: "Parse and display content from any RSS or Atom feed.",
+        prompt: "Build an RSS feed reader. It should have an input for a URL and display the titles and links from the feed.",
+        category: 'Data & Media',
+    },
+    {
         id: 'notion',
         name: 'Notion',
         icon: <NotionIcon />,
@@ -459,6 +544,17 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         usageInstructions: 'Use the Airtable API. The endpoint is `https://api.airtable.com/v0/{{baseId}}/`. Authenticate using the `Authorization: Bearer {{personalAccessToken}}` header.',
         category: 'Productivity',
         getApiKeyUrl: 'https://airtable.com/create/tokens',
+    },
+    {
+        id: 'uber',
+        name: 'Uber',
+        icon: <UberIcon />,
+        description: 'Integrate ride requests, trip data, and estimates into your app.',
+        storageKey: 'silo_integration_uber',
+        keys: [{ name: 'serverToken', label: 'Server Token' }],
+        usageInstructions: 'Use the Uber API. The endpoint is `https://api.uber.com/v1/`. Authenticate using the `Authorization: Token {{serverToken}}` header.',
+        category: 'Lifestyle & Services',
+        getApiKeyUrl: 'https://developer.uber.com/docs/riders/guides/authentication',
     },
 ];
 
