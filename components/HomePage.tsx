@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon } from './icons';
@@ -250,7 +249,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     type="button"
                     onClick={handleCaptureClick}
                     disabled={isLoading}
-                    className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
+                    className="w-12 h-12 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
                     aria-label="Capture screenshot"
                     title="Capture Screenshot"
                 >
