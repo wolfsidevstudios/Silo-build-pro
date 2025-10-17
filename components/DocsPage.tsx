@@ -2,6 +2,12 @@ import React from 'react';
 
 const articles = [
   {
+    title: 'Beyond the Build: Our Vision for Future Innovations',
+    date: 'October 18, 2025',
+    excerpt: 'We\'re dreaming big. From multi-agent development teams and direct App Store submissions to AI-powered UI/UX analysis, we\'re exploring the next frontier of software creation. Discover our roadmap for making Silo Build the most intelligent and seamless development environment ever.',
+    link: '#',
+  },
+  {
     title: 'Introducing Real-Time Code Generation',
     date: 'October 17, 2025',
     excerpt: 'Silo Build now writes code in real-time! Watch as the AI generates files, writes code character-by-character, and updates your project live, powered by Gemini\'s streaming API. The future of development is here, and it\'s instant.',
