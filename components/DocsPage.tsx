@@ -2,6 +2,12 @@ import React from 'react';
 
 const articles = [
   {
+    title: 'Introducing Real-Time Code Generation',
+    date: 'October 17, 2025',
+    excerpt: 'Silo Build now writes code in real-time! Watch as the AI generates files, writes code character-by-character, and updates your project live, powered by Gemini\'s streaming API. The future of development is here, and it\'s instant.',
+    link: '#/news/real-time-code-gen',
+  },
+  {
     title: 'Silo Build Partners with Neon for Serverless Postgres',
     date: 'October 16, 2025',
     excerpt: 'We are thrilled to announce a new partnership with Neon, bringing the power of serverless PostgreSQL to all Silo Build projects. Developers can now connect their Neon databases in a single click and instruct the AI to build data-driven applications.',

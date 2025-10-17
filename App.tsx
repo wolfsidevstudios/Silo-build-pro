@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -21,6 +17,7 @@ import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } fr
 import { FocusTimer } from './components/FocusTimer';
 import { PricingPage } from './components/PricingPage';
 import { DocsPage } from './components/DocsPage';
+import { ArticlePage } from './components/ArticlePage';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { INTEGRATION_DEFINITIONS, Integration } from './integrations';
 import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
@@ -2114,6 +2111,9 @@ Good luck!
     }
     if (path === '/docs') {
       return <DocsPage />;
+    }
+    if (path === '/news/real-time-code-gen') {
+        return <ArticlePage />;
     }
      if (path === '/integrations') {
       return <IntegrationsPage />;
