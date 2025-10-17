@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -201,6 +202,11 @@ export interface SupabaseConfig {
   projectRef: string;
   accessToken: string;
 }
+
+const communitySupabaseConfig = {
+  url: 'https://yzymxzmxdnzfwvsezbwm.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6eW14em14ZG56Znd2c2V6YndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDM4NjMsImV4cCI6MjA3NjI3OTg2M30.NwM5VnsFmX7kE5W67fxMvxJk5u5VhBCkkfWURjfwNqg',
+};
 
 const FEATURE_NOTIFICATIONS: Omit<Notification, 'read'>[] = [
   {
@@ -2060,13 +2066,13 @@ Good luck!
   };
 
   const handlePublishToCommunity = async (appName: string, description: string) => {
-    if (!activeProject || !supabaseConfig) return;
+    if (!activeProject) return;
 
     const sanitizedAppName = appName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     setCommunityPublishState({ status: 'loading' });
     try {
-        const supabaseClient = supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const supabaseClient = supabase.createClient(communitySupabaseConfig.url, communitySupabaseConfig.anonKey);
         const { error } = await supabaseClient
             .from('community_apps')
             .insert({
@@ -2329,12 +2335,12 @@ Good luck!
         return <TermsOfServicePage />;
     }
     if (path === '/community') {
-        return <CommunityPage supabaseConfig={supabaseConfig} />;
+        return <CommunityPage supabaseConfig={communitySupabaseConfig} />;
     }
     const communityAppMatch = path.match(/^\/community\/([^/]+)$/);
     if (communityAppMatch) {
         const appName = communityAppMatch[1];
-        return <CommunityAppViewerPage appName={appName} supabaseConfig={supabaseConfig} />;
+        return <CommunityAppViewerPage appName={appName} supabaseConfig={communitySupabaseConfig} />;
     }
      if (path === '/authorized') {
       return <AuthorizedPage />;
@@ -2408,7 +2414,7 @@ Good luck!
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
-  const isCommunityConfigured = !!supabaseConfig;
+  const isCommunityConfigured = true;
 
   const path = location.startsWith('/') ? location : `/${location}`;
   const isDarkPage = path === '/profile';
