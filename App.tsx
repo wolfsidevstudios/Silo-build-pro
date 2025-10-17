@@ -2028,7 +2028,7 @@ Good luck!
       return (
         <>
           <main className="flex flex-1 overflow-hidden pt-20">
-            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-200 bg-white/80 backdrop-blur-md">
+            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-200">
               <ChatPanel
                 messages={activeProject.messages}
                 userInput={userInput}

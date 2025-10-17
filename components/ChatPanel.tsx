@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import type { Message } from '../App';
 
@@ -12,10 +13,10 @@ interface ChatPanelProps {
 }
 
 const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
-  const baseStyle = "p-3 rounded-xl max-w-lg mb-2";
+  const baseStyle = "p-3 rounded-xl max-w-lg mb-2 shadow-lg";
   const userStyle = "bg-blue-600 text-white self-end";
-  const aiStyle = "bg-gray-100 text-gray-800 self-start";
-  const systemStyle = "bg-gray-200 text-gray-600 self-center text-sm italic w-full text-center";
+  const aiStyle = "bg-white/70 backdrop-blur-lg border border-gray-200/50 text-gray-800 self-start";
+  const systemStyle = "bg-white/50 backdrop-blur-md border border-gray-200/30 text-gray-600 self-center text-sm italic w-full text-center";
 
   if (message.plan || message.files_to_generate) {
     return (
@@ -90,7 +91,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
         ))}
         
         {isLoading && progress === null && !messages.some(m => m.files_to_generate) && (
-          <div className="self-start bg-gray-100 p-3 rounded-lg flex items-center space-x-2">
+          <div className="self-start bg-white/70 backdrop-blur-lg border border-gray-200/50 p-3 rounded-lg flex items-center space-x-2 shadow-lg">
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
@@ -105,8 +106,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
 
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t border-gray-200">
-        <div className="relative bg-white border border-gray-300 rounded-2xl shadow-md">
+      <div className="p-4">
+        <div className="relative bg-white/70 backdrop-blur-lg border border-gray-200/50 rounded-3xl shadow-xl">
           <textarea
             id="prompt-input"
             value={userInput}
@@ -121,7 +122,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
           <div className="absolute left-4 bottom-4 hidden md:block">
             <button
                 onClick={onToggleMaxAgent}
-                className="px-4 py-2 bg-white text-black rounded-full font-semibold border border-gray-300 hover:bg-gray-200 transition-colors text-sm shadow-sm"
+                className="px-4 py-2 bg-white/50 backdrop-blur-sm text-black rounded-full font-semibold border border-white/80 hover:bg-white/90 transition-colors text-sm shadow-sm"
             >
                 MAX
             </button>
