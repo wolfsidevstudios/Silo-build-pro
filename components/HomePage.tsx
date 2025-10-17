@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon } from './icons';
@@ -114,11 +113,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                // Wait for the next frame to be painted
+                // Wait for the next frame to be painted to ensure the image is drawn correctly.
                 requestAnimationFrame(() => {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     setScreenshot(dataUrl);
+                    // Stop all tracks on the stream to end the screen sharing session immediately.
                     stream.getTracks().forEach(track => track.stop());
                 });
             } else {
@@ -215,23 +215,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
               value={prompt}
               onChange={handlePromptChange}
               placeholder="Describe your app, or type '/' for integrations..."
-              className="w-full p-3 pl-32 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
+              className="w-full p-3 pl-4 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
               rows={4}
               disabled={isLoading}
             />
-             {screenshot && (
-              <div className="absolute top-3 left-16 group">
-                <img src={screenshot} alt="Screenshot preview" className="w-20 h-auto rounded-lg border-2 border-blue-500" />
-                <button
-                  type="button"
-                  onClick={() => setScreenshot(null)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label="Remove screenshot"
-                >
-                  <span className="material-symbols-outlined text-sm">close</span>
-                </button>
-              </div>
-            )}
             <div className="absolute bottom-4 left-4 flex items-center space-x-2">
                  <button
                     type="button"
@@ -243,6 +230,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                 >
                     <span className="material-symbols-outlined text-3xl">photo_camera</span>
                 </button>
+                {screenshot && (
+                  <div className="relative group animate-fade-in">
+                    <img src={screenshot} alt="Screenshot preview" className="w-20 h-auto rounded-lg border-2 border-blue-500" />
+                    <button
+                      type="button"
+                      onClick={() => setScreenshot(null)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Remove screenshot"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                )}
                 {selectedIntegration && (
                     <div className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium animate-fade-in">
                         <div className="w-5 h-5 flex items-center justify-center">{selectedIntegration.icon}</div>
