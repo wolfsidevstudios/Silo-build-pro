@@ -1492,72 +1492,84 @@ ${integrationsList.join('\n')}
     setSupabaseConfig(null);
   };
     
-  const createNetlifyDeploymentPackage = async (files: ProjectFile[]): Promise<Blob> => {
+  const createNetlifyDeploymentPackage = async (files: ProjectFile[], projectType: ProjectType): Promise<Blob> => {
     const zip = new JSZip();
 
-    // Transpile TSX/JS files to JS with ES modules and update import paths
-    const transpiledFiles: ProjectFile[] = [];
-    for (const file of files) {
-      if (file.path.match(/\.(tsx|ts|jsx|js)$/)) {
-        try {
-          // Keep ES modules, don't transform to commonjs
-          const transformedCode = Babel.transform(file.code, {
-            presets: ['typescript', ['react', { runtime: 'classic' }]],
-            filename: file.path,
-          }).code;
+    if (projectType === 'html') {
+      files.forEach(file => {
+        zip.file(file.path, file.code);
+      });
+    } else { // React projects ('single' or 'multi')
+      // Transpile TSX/JS files to JS with ES modules and update import paths
+      const transpiledFiles: ProjectFile[] = [];
+      for (const file of files) {
+        if (file.path.match(/\.(tsx|ts|jsx|js)$/)) {
+          try {
+            // Keep ES modules, don't transform to commonjs
+            const transformedCode = Babel.transform(file.code, {
+              presets: ['typescript', ['react', { runtime: 'classic' }]],
+              filename: file.path,
+            }).code;
 
-          // Replace .tsx, .ts, .jsx extensions in relative imports with .js
-          const codeWithJsImports = transformedCode.replace(
-            /(from\s+['"]\..+)\.(tsx|ts|jsx)(['"])/g,
-            '$1.js$3'
-          );
-          
-          transpiledFiles.push({
-            path: file.path.replace(/\.(tsx|ts|jsx)$/, '.js'),
-            code: codeWithJsImports,
-          });
+            // Replace .tsx, .ts, .jsx extensions in relative imports with .js
+            const codeWithJsImports = transformedCode.replace(
+              /(from\s+['"]\..+)\.(tsx|ts|jsx)(['"])/g,
+              '$1.js$3'
+            );
+            
+            transpiledFiles.push({
+              path: file.path.replace(/\.(tsx|ts|jsx)$/, '.js'),
+              code: codeWithJsImports,
+            });
 
-        } catch (e: any) {
-          console.error(`Babel compilation failed for ${file.path}:`, e);
-          throw new Error(`Failed to transpile ${file.path}. Error: ${e.message}. Please check for syntax errors in your code.`);
+          } catch (e: any) {
+            console.error(`Babel compilation failed for ${file.path}:`, e);
+            throw new Error(`Failed to transpile ${file.path}. Error: ${e.message}. Please check for syntax errors in your code.`);
+          }
+        } else {
+          // Add other files (like CSS, images, etc.) to the package as-is
+          transpiledFiles.push(file);
         }
-      } else {
-        // Add other files (like CSS, images, etc.) to the package as-is
-        transpiledFiles.push(file);
+      }
+
+      const productionHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Silo Build App</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+            <style> body { background-color: #ffffff; } </style>
+            <script type="importmap">
+            {
+              "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "react-router-dom": "https://esm.sh/react-router-dom@6"
+              }
+            }
+            </script>
+          </head>
+          <body>
+            <div id="root"></div>
+            <script type="module" src="/src/App.js"></script>
+          </body>
+        </html>
+      `;
+      zip.file('index.html', productionHtml);
+
+      transpiledFiles.forEach(file => {
+        zip.file(file.path, file.code);
+      });
+      
+      const usesReactRouter = files.some(f => f.code.includes('react-router-dom'));
+      if (usesReactRouter) {
+        zip.file('_redirects', '/* /index.html 200');
       }
     }
-
-    const productionHtml = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Silo Build App</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-          <style> body { background-color: #ffffff; } </style>
-          <script type="importmap">
-          {
-            "imports": {
-              "react": "https://esm.sh/react@18.2.0",
-              "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
-            }
-          }
-          </script>
-        </head>
-        <body>
-          <div id="root"></div>
-          <script type="module" src="/src/App.js"></script>
-        </body>
-      </html>
-    `;
-    zip.file('index.html', productionHtml);
-
-    transpiledFiles.forEach(file => {
-      zip.file(file.path, file.code);
-    });
 
     return zip.generateAsync({ type: 'blob' });
   };
@@ -1662,7 +1674,7 @@ ${integrationsList.join('\n')}
 
     try {
       setPublishState({ status: 'packaging', platform: 'netlify' });
-      const zipBlob = await createNetlifyDeploymentPackage(activeProject.files);
+      const zipBlob = await createNetlifyDeploymentPackage(activeProject.files, activeProject.projectType);
 
       let siteId = activeProject.netlifySiteId;
 
