@@ -19,6 +19,8 @@ import { PricingPage } from './components/PricingPage';
 import { DocsPage } from './components/DocsPage';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { INTEGRATION_DEFINITIONS } from './integrations';
+import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
+import { MaxCursor } from './components/MaxCursor';
 
 
 declare const Babel: any;
@@ -236,8 +238,19 @@ const App: React.FC = () => {
     profilePicture: null,
   });
 
+  // Max Agent State
+  const [isMaxAgentPanelOpen, setIsMaxAgentPanelOpen] = useState(false);
+  const [isMaxAgentRunning, setIsMaxAgentRunning] = useState(false);
+  const [maxThoughts, setMaxThoughts] = useState<MaxThought[]>([]);
+  const [maxCursorPosition, setMaxCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const agentTaskQueue = React.useRef<(() => Promise<void>)[]>([]);
+  const isAgentProcessing = React.useRef(false);
 
   const activeProject = projects.find(p => p.id === activeProjectId);
+
+  const addMaxThought = (text: string) => {
+    setMaxThoughts(prev => [...prev, { text, timestamp: Date.now() }]);
+  };
 
   useEffect(() => {
     try {
@@ -1803,6 +1816,7 @@ Good luck!
                 onSend={handleSend}
                 isLoading={isLoading}
                 progress={progress}
+                onToggleMaxAgent={() => setIsMaxAgentPanelOpen(p => !p)}
               />
             </div>
             <div className="flex-1 flex flex-col">
@@ -1820,6 +1834,25 @@ Good luck!
                 onExportProject={handleExportProject}
               />
             </div>
+             {isMaxAgentPanelOpen && (
+              <div className="hidden md:block">
+                <MaxAgentPanel
+                  thoughts={maxThoughts}
+                  isRunning={isMaxAgentRunning}
+                  onStart={() => {
+                    setMaxThoughts([]);
+                    addMaxThought("Max is activated. Let's build something amazing.");
+                    setIsMaxAgentRunning(true);
+                  }}
+                  onStop={() => {
+                    setIsMaxAgentRunning(false);
+                    addMaxThought("Max has been deactivated.");
+                    agentTaskQueue.current = [];
+                    setMaxCursorPosition(null);
+                  }}
+                />
+              </div>
+            )}
           </main>
           <ErrorDisplay error={errors[0] || null} onClose={() => setErrors(prev => prev.slice(1))} />
             <DebugAssistPanel
@@ -1904,6 +1937,7 @@ Good luck!
         />
       )}
       <FocusTimer isOpen={isFocusTimerOpen} onClose={() => setIsFocusTimerOpen(false)} />
+      {isMaxAgentRunning && <MaxCursor position={maxCursorPosition} />}
       <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-4">
         {activeProject && (
           <>

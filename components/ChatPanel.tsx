@@ -8,6 +8,7 @@ interface ChatPanelProps {
   onSend: () => void;
   isLoading: boolean;
   progress: number | null;
+  onToggleMaxAgent: () => void;
 }
 
 const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
@@ -67,7 +68,7 @@ const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
   </div>
 );
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, progress }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, progress, onToggleMaxAgent }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
       <div className="p-4 border-t border-gray-200">
         <div className="relative bg-white border border-gray-300 rounded-2xl shadow-md">
           <textarea
+            id="prompt-input"
             value={userInput}
             onChange={(e) => onUserInput(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -116,7 +118,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
             rows={2}
             disabled={isLoading}
           />
+          <div className="absolute left-4 bottom-4 hidden md:block">
+            <button
+                onClick={onToggleMaxAgent}
+                className="px-4 py-2 bg-white text-black rounded-full font-semibold border border-gray-300 hover:bg-gray-200 transition-colors text-sm shadow-sm"
+            >
+                MAX
+            </button>
+          </div>
           <button
+            id="send-button"
             onClick={onSend}
             disabled={isLoading || !userInput.trim()}
             className="absolute right-4 bottom-4 w-12 h-12 flex items-center justify-center rounded-full bg-black text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
