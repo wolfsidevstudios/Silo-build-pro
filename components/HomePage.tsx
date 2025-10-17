@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon, GoogleGeminiIcon } from './icons';
@@ -253,7 +252,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-full p-8 text-center">
+    <div className="relative flex flex-col items-center justify-start min-h-full p-8 text-center">
       {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
       <ImportModal
         isOpen={isFigmaModalOpen}
@@ -479,6 +478,20 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                 </div>
             </div>
         )}
+        <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 py-6 mt-auto border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between items-center text-center">
+                <p className="text-sm text-gray-500 mb-4 sm:mb-0">
+                    &copy; {new Date().getFullYear() + 1} Silo Build. All rights reserved.
+                </p>
+                <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-sm text-gray-500">
+                    <a href="#/docs" className="hover:text-black transition-colors">Newsroom</a>
+                    <a href="#/developer-portal" className="hover:text-black transition-colors">Developers</a>
+                    <a href="#/community" className="hover:text-black transition-colors">Community</a>
+                    <a href="#/privacy" className="hover:text-black transition-colors">Privacy</a>
+                    <a href="#/terms" className="hover:text-black transition-colors">Terms</a>
+                </div>
+            </div>
+        </footer>
     </div>
   );
 };
