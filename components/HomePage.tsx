@@ -174,7 +174,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center bg-white">
+    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <div className="w-full max-w-4xl mx-auto mb-8 h-24">
             <div className="relative w-full h-full overflow-hidden rounded-2xl">
