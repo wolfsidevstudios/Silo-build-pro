@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import type { Project, UserProfile } from '../App';
 
@@ -8,6 +7,7 @@ interface ProfilePageProps {
   onDeleteProject: (id: string) => void;
   userProfile: UserProfile;
   onProfileUpdate: (profile: UserProfile) => void;
+  onLogout: () => void;
 }
 
 const ProfileModal: React.FC<{
@@ -49,7 +49,7 @@ const ProfileModal: React.FC<{
     );
 };
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ projects, onSelectProject, onDeleteProject, userProfile, onProfileUpdate }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ projects, onSelectProject, onDeleteProject, userProfile, onProfileUpdate, onLogout }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,9 +82,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ projects, onSelectProj
                         <input type="file" ref={fileInputRef} onChange={handleProfilePicChange} accept="image/*" className="hidden" />
                     </div>
                     <div className="space-y-2">
-                        <h1 className="text-2xl md:text-3xl font-bold">{userProfile.username}</h1>
-                        <p className="text-gray-400">{userProfile.name}</p>
-                        <button onClick={() => setIsModalOpen(true)} className="px-4 py-1.5 bg-zinc-800 text-sm rounded-lg hover:bg-zinc-700 transition-colors">Edit Profile</button>
+                        <h1 className="text-2xl md:text-3xl font-bold">{userProfile.name}</h1>
+                        <p className="text-gray-400">@{userProfile.username}</p>
+                        {userProfile.email && <p className="text-sm text-gray-500">{userProfile.email}</p>}
+                        <div className="pt-2 flex space-x-2">
+                            <button onClick={() => setIsModalOpen(true)} className="px-4 py-1.5 bg-zinc-800 text-sm rounded-lg hover:bg-zinc-700 transition-colors">Edit Profile</button>
+                            {userProfile.email && <button onClick={onLogout} className="px-4 py-1.5 bg-zinc-800 text-sm rounded-lg hover:bg-zinc-700 transition-colors">Sign Out</button>}
+                        </div>
                     </div>
                 </header>
 

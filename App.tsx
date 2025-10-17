@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -30,6 +31,17 @@ import { TermsOfServicePage } from './components/TermsOfServicePage';
 
 declare const Babel: any;
 declare const JSZip: any;
+declare const google: any;
+
+
+// Helper to parse JWT from Google Sign-In
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+}
 
 interface ProjectSelectorModalProps {
   isOpen: boolean;
@@ -121,14 +133,14 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi' | 'html';
-export type PreviewMode = 'iframe' | 'service-worker';
+export type PreviewMode = 'service-worker' | 'iframe';
 export type ApiKeyHandling = 'hardcode' | 'env';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
   text: string;
   plan?: string[];
-  files_to_generate?: string[];
+  files_to_generate?: { path: string, status: 'added' | 'modified' }[];
   generated_files?: string[];
 }
 
@@ -159,6 +171,7 @@ export interface ApiSecret {
 export interface UserProfile {
   name: string;
   username: string;
+  email?: string;
   profilePicture: string | null; // base64 string
 }
 
@@ -266,6 +279,7 @@ const App: React.FC = () => {
     username: 'your_username',
     profilePicture: null,
   });
+  const isLoggedIn = !!userProfile.email;
 
   // Max Agent State
   const [isMaxAgentPanelOpen, setIsMaxAgentPanelOpen] = useState(false);
@@ -285,6 +299,23 @@ const App: React.FC = () => {
   const addMaxThought = (text: string) => {
     setMaxThoughts(prev => [...prev, { text, timestamp: Date.now() }]);
   };
+
+  const handleGoogleCallback = useCallback((response: any) => {
+    const userObject = parseJwt(response.credential);
+    if (userObject) {
+        const currentUsername = userProfile.username === 'your_username' || !userProfile.username 
+            ? userObject.email.split('@')[0] 
+            : userProfile.username;
+
+        const newUserProfile: UserProfile = {
+            name: userObject.name,
+            username: currentUsername,
+            profilePicture: userObject.picture,
+            email: userObject.email,
+        };
+        setUserProfile(newUserProfile);
+    }
+  }, [userProfile.username]);
 
   useEffect(() => {
     try {
@@ -343,7 +374,8 @@ const App: React.FC = () => {
       const savedUserProfile = localStorage.getItem('silo_user_profile');
       if (savedUserProfile) {
         const profile = JSON.parse(savedUserProfile);
-        if (profile.name && !profile.profilePicture) {
+        // If the user is logged in (has an email) but no picture, don't generate an avatar
+        if (profile.name && !profile.profilePicture && !profile.email) {
             profile.profilePicture = generateAvatar(profile.name);
         }
         setUserProfile(profile);
@@ -356,6 +388,33 @@ const App: React.FC = () => {
       console.error("Failed to load data from local storage", e);
     }
   }, []);
+
+  useEffect(() => {
+    // FIX: Property 'google' does not exist on type 'Window & typeof globalThis'. Use `google` directly as it's declared as a global.
+    if (google) {
+        google.accounts.id.initialize({
+            client_id: '562922803230-8cmrm51un8rolocjjfuq5e3vdf2msmgh.apps.googleusercontent.com',
+            callback: handleGoogleCallback,
+        });
+    }
+  }, [handleGoogleCallback]);
+
+  useEffect(() => {
+      // This effect handles rendering the Google Sign-In button when the user is logged out
+      // FIX: Property 'google' does not exist on type 'Window & typeof globalThis'. Use `google` directly as it's declared as a global.
+      if (!isLoggedIn && google) {
+          const signInButtonContainer = document.getElementById('googleSignInContainer');
+          if (signInButtonContainer && signInButtonContainer.childElementCount === 0) {
+              google.accounts.id.renderButton(signInButtonContainer, {
+                  theme: 'outline',
+                  size: 'medium',
+                  type: 'standard',
+                  text: 'signin_with',
+                  shape: 'pill',
+              });
+          }
+      }
+  }, [isLoggedIn, location]); // Re-run when navigation changes to ensure button is rendered
 
   useEffect(() => {
     try {
@@ -419,28 +478,42 @@ const App: React.FC = () => {
     const oldProfile = userProfile;
     let finalProfile = { ...newProfile };
 
-    const pictureWasJustUploaded = newProfile.profilePicture !== oldProfile.profilePicture;
-
-    if (pictureWasJustUploaded) {
-        // If the user uploaded a picture, just use it.
+    // Don't auto-generate an avatar if the user is logged in with Google
+    if (finalProfile.email) {
         setUserProfile(finalProfile);
         return;
     }
 
-    // If the name was added and there wasn't one before
+    const pictureWasJustUploaded = newProfile.profilePicture !== oldProfile.profilePicture;
+
+    if (pictureWasJustUploaded) {
+        setUserProfile(finalProfile);
+        return;
+    }
     if (newProfile.name && !oldProfile.name) {
         finalProfile.profilePicture = generateAvatar(newProfile.name);
     } 
-    // If the name was cleared
     else if (!newProfile.name && oldProfile.name) {
         finalProfile.profilePicture = null;
     } 
-    // If the name changed (and a picture wasn't just uploaded)
     else if (newProfile.name !== oldProfile.name && newProfile.name) {
         finalProfile.profilePicture = generateAvatar(newProfile.name);
     }
     
     setUserProfile(finalProfile);
+  };
+
+  const handleLogout = () => {
+    if (isLoggedIn) {
+        google.accounts.id.disableAutoSelect();
+    }
+    setUserProfile({
+        name: 'Your Name',
+        username: 'your_username',
+        profilePicture: null,
+    });
+    // Navigate to home after logout
+    window.location.hash = '/home';
   };
 
   useEffect(() => {
@@ -927,11 +1000,18 @@ ${integrationsList.join('\n')}
         files_to_generate.unshift('src/App.tsx');
     }
 
+    const existingFilePaths = new Set((project?.files || []).map(f => f.path));
+    const filesWithStatus = files_to_generate.map(path => ({
+        path,
+        status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
+    }));
+
+
     addMessageToProject(projectId, { 
         actor: 'ai', 
         text: "Here's the plan:", 
         plan,
-        files_to_generate,
+        files_to_generate: filesWithStatus,
         generated_files: []
     });
     
@@ -2158,6 +2238,7 @@ Good luck!
         onDeleteProject={handleDeleteProject}
         userProfile={userProfile}
         onProfileUpdate={handleProfileUpdate}
+        onLogout={handleLogout}
       />;
     }
     if (path === '/settings') {
@@ -2286,6 +2367,7 @@ Good luck!
     <div className="flex h-screen text-black font-sans">
       <TopNavBar 
         userProfile={userProfile}
+        isLoggedIn={isLoggedIn}
         theme={isDarkPage ? 'dark' : 'light'}
         unreadCount={unreadCount}
         onToggleNotifications={handleToggleNotifications}

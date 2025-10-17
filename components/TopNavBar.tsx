@@ -3,6 +3,7 @@ import type { UserProfile } from '../App';
 
 interface TopNavBarProps {
   userProfile: UserProfile;
+  isLoggedIn: boolean;
   theme: 'light' | 'dark';
   unreadCount: number;
   onToggleNotifications: () => void;
@@ -16,10 +17,9 @@ const NavLink: React.FC<{ href: string; children: React.ReactNode; theme: 'light
     </a>
 );
 
-export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme, unreadCount, onToggleNotifications }) => {
+export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, isLoggedIn, theme, unreadCount, onToggleNotifications }) => {
     const textColor = theme === 'dark' ? 'text-white' : 'text-black';
     const iconColor = theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-800 hover:text-black';
-    const profileIconTextColor = theme === 'dark' ? 'text-gray-300' : 'text-gray-800';
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 z-50">
@@ -52,13 +52,26 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme, unread
             <a href="#/settings" title="Settings" className={`${iconColor} transition-colors`}>
                 <span className="material-symbols-outlined">settings</span>
             </a>
-             <a href="#/profile" title="Profile" className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors">
-                {userProfile.profilePicture ? (
-                    <img src={userProfile.profilePicture} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                    <span className={`material-symbols-outlined text-lg ${profileIconTextColor}`}>person</span>
-                )}
-            </a>
+             {isLoggedIn ? (
+                <a 
+                    href="#/profile" 
+                    title="Profile" 
+                    className={`flex items-center space-x-2 pl-1 pr-4 py-1 rounded-full transition-colors ${
+                        theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                    <div className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center overflow-hidden">
+                        {userProfile.profilePicture ? (
+                            <img src={userProfile.profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className={`material-symbols-outlined text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>person</span>
+                        )}
+                    </div>
+                    <span className={`text-sm font-medium truncate ${textColor}`}>{userProfile.name}</span>
+                </a>
+             ) : (
+                <div id="googleSignInContainer"></div>
+             )}
         </div>
       </div>
     </nav>

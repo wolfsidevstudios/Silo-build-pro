@@ -30,13 +30,20 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
                 <p className="font-semibold text-sm mb-2 text-gray-500">File Checklist:</p>
                 <ul className="space-y-1.5 text-sm">
                 {message.files_to_generate.map((file, i) => {
-                    const isGenerated = message.generated_files?.includes(file);
+                    const isGenerated = message.generated_files?.includes(file.path);
                     return (
-                    <li key={i} className={`flex items-center transition-colors duration-300 ${isGenerated ? 'text-green-600' : 'text-gray-500'}`}>
-                        <span className="material-symbols-outlined text-base mr-2">
-                        {isGenerated ? 'check_circle' : 'radio_button_unchecked'}
+                    <li key={i} className={`flex items-center justify-between transition-colors duration-300 ${isGenerated ? 'text-green-600' : 'text-gray-500'}`}>
+                        <div className="flex items-center">
+                            <span className="material-symbols-outlined text-base mr-2">
+                                {isGenerated ? 'check_circle' : 'radio_button_unchecked'}
+                            </span>
+                            <span className="font-mono">{file.path}</span>
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            file.status === 'added' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                            {file.status}
                         </span>
-                        <span className="font-mono">{file}</span>
                     </li>
                     );
                 })}
