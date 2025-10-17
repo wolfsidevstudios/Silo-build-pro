@@ -15,6 +15,8 @@ import { PublishModal, PublishState } from './components/PublishModal';
 import { GitHubSaveModal } from './components/GitHubSaveModal';
 import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } from './components/AppStorePublishModal';
 import { FocusTimer } from './components/FocusTimer';
+import { PricingPage } from './components/PricingPage';
+import { DocsPage } from './components/DocsPage';
 
 
 declare const Babel: any;
@@ -1767,6 +1769,12 @@ Good luck!
         />
       );
     }
+    if (path === '/pricing') {
+      return <PricingPage />;
+    }
+    if (path === '/docs') {
+      return <DocsPage />;
+    }
      if (path === '/authorized') {
       return <AuthorizedPage />;
     }
@@ -1828,6 +1836,8 @@ Good luck!
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
 
+  const path = location.startsWith('/') ? location : `/${location}`;
+  const isDarkPage = path === '/profile' || path === '/settings';
 
   return (
     <div 
@@ -1836,7 +1846,7 @@ Good luck!
              backgroundImage: 'radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%)'
         }}
     >
-      <TopNavBar userProfile={userProfile} />
+      <TopNavBar userProfile={userProfile} theme={isDarkPage ? 'dark' : 'light'} />
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderContent()}
       </div>
