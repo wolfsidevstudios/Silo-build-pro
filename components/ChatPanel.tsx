@@ -7,7 +7,6 @@ interface ChatPanelProps {
   onUserInput: (value: string) => void;
   onSend: () => void;
   isLoading: boolean;
-  progress: number | null;
   onToggleMaxAgent: () => void;
 }
 
@@ -59,21 +58,12 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   return <div className={getStyle()}>{message.text}</div>;
 };
 
-const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
-  <div className="w-full bg-gray-200 rounded-full h-1.5 my-2">
-    <div 
-      className="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-linear" 
-      style={{ width: `${progress}%` }}
-    ></div>
-  </div>
-);
-
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, progress, onToggleMaxAgent }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, onToggleMaxAgent }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, progress]);
+  }, [messages, isLoading]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -89,17 +79,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
           <ChatMessage key={index} message={msg} />
         ))}
         
-        {isLoading && progress === null && !messages.some(m => m.files_to_generate) && (
+        {isLoading && !messages.some(m => m.files_to_generate) && (
           <div className="self-start bg-white/70 backdrop-blur-lg border border-gray-200/50 p-3 rounded-lg flex items-center space-x-2 shadow-lg">
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-          </div>
-        )}
-
-        {progress !== null && (
-          <div className="self-start w-full max-w-lg">
-            <ProgressBar progress={progress} />
           </div>
         )}
 

@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -245,7 +246,6 @@ const App: React.FC = () => {
   const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [defaultStack, setDefaultStack] = useState<ProjectType>('multi');
-  const [progress, setProgress] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
   const [apiKeyHandling, setApiKeyHandling] = useState<ApiKeyHandling>('hardcode');
   
@@ -537,7 +537,6 @@ const App: React.FC = () => {
           setErrors(prev => [errorMessage, ...prev]);
           addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` });
           setIsLoading(false);
-          setProgress(null);
         }
       }
     };
@@ -657,7 +656,15 @@ const App: React.FC = () => {
     }
   };
 
-  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], filesToGenerate: string[], selectedModel: GeminiModel, projectType: ProjectType, screenshotBase64: string | null) => {
+    const generateCodeForFileStream = async (
+    prompt: string,
+    currentFiles: ProjectFile[],
+    plan: string[],
+    fileToGenerate: string,
+    selectedModel: GeminiModel,
+    projectType: ProjectType,
+    screenshotBase64: string | null
+  ) => {
     const ai = getAiClient();
     
     // START: Dynamic Integrations Prompt Generation
@@ -687,7 +694,6 @@ const App: React.FC = () => {
 
                 if (hasAllKeys) {
                     if (integration.usageInstructions) {
-                        // Replace placeholders like {{apiKey}} with actual values
                         let instructions = integration.usageInstructions;
                         integration.keys?.forEach(keyInfo => {
                             const placeholder = `{{${keyInfo.name}}}`;
@@ -761,67 +767,57 @@ ${integrationsList.join('\n')}
         case 'single':
             projectTypeInstructions = `
                 **Project Type:** Single File (React)
-                **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file. The final output MUST have only one file object in the "files" array.
+                **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file.
             `;
             break;
         case 'multi':
             projectTypeInstructions = `
                 **Project Type:** Multi-File (React)
-                **Guideline:** You MUST break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure. Do not put everything in a single file unless it is a very simple component.
+                **Guideline:** You SHOULD break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure.
             `;
             break;
         case 'html':
             projectTypeInstructions = `
                 **Project Type:** Vanilla HTML/CSS/JS
                 **Constraint:** You MUST generate a standard, static web project with three files: 'index.html', 'style.css', and 'script.js'.
-                - **index.html:** Must contain the full HTML structure. It MUST link to the other two files correctly, like this: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag. It MUST also include the Google Material Symbols font stylesheet in the <head>: \`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />\`.
-                - **style.css:** Must contain all the CSS styles.
-                - **script.js:** Must contain all the JavaScript logic.
+                - If you are generating 'index.html': It MUST contain the full HTML structure and link to the other two files correctly: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
+                - If you are generating 'style.css': It MUST contain all the CSS styles.
+                - If you are generating 'script.js': It MUST contain all the JavaScript logic.
                 **Design System & UI Guidelines:**
-                - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
-                - **Background:** The main application background MUST be white. You should set this on the 'body' element in 'style.css'.
-                - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners, e.g., \`border-radius: 9999px;\`). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin black border.
-                - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The font is already linked in the HTML. Example usage in HTML: \`<span class="material-symbols-outlined">icon_name</span>\`.
-                - **Navigation Bars:** If a navigation bar is needed, it should be pill-shaped, floating, and have a frosted glass effect (e.g., using \`background-color: rgba(255, 255, 255, 0.5);\` and \`backdrop-filter: blur(10px);\`).
-                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. Write plain HTML, CSS, and JavaScript. DO NOT use Tailwind CSS; write standard CSS rules. The final output MUST have exactly three file objects in the "files" array for these files.
+                - **Overall Style:** Modern, clean, and aesthetically pleasing. Main background MUST be white.
+                - **Buttons:** MUST be pill-shaped (fully rounded). Primary buttons are solid black with white text. Secondary buttons are outlined with a thin black border.
+                - **Icons:** MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
+                - **Nav Bars:** If needed, should be pill-shaped, floating, with a frosted glass effect (\`backdrop-filter: blur(10px);\`).
+                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. Write plain HTML, CSS, and JavaScript. DO NOT use Tailwind CSS.
             `;
             break;
     }
 
     const reactStylingGuidelines = `
       **Design System & UI Guidelines (for React Projects):**
-      - **Overall Style:** Create modern, clean, and aesthetically pleasing interfaces.
-      - **Background:** The main application background MUST be white.
-      - **Buttons:** All buttons MUST be pill-shaped (fully rounded corners). Primary call-to-action buttons should be solid black with white text. Secondary buttons should be outlined with a thin border.
-      - **Icons:** You MUST use icons from the Google Material Symbols library (the 'outlined' style). The library is already available. Example: \`<span className="material-symbols-outlined">icon_name</span>\`.
-      - **Navigation Bars:** If a navigation bar or header is requested or necessary for the application's functionality, it should be pill-shaped, floating, and have a frosted glass effect (using Tailwind CSS for backdrop blur and semi-transparent backgrounds, e.g., \`bg-white/50 backdrop-blur-md\`). Do not add a navigation bar unless it is explicitly requested or is essential for the app's core features.
-      - **Styling:** You MUST use Tailwind CSS for all styling. Do not generate a \`tailwind.config.js\` file; all necessary classes are available via the CDN.
-      - **CRITICAL STYLING RULE:** You MUST NOT generate any CSS files (e.g., 'App.css', 'index.css'). You MUST NOT include any CSS import statements in your TSX/JS files (e.g., \`import './App.css'\`). All styling MUST be done exclusively with Tailwind CSS classes applied directly to the JSX elements.
+      - **Overall Style:** Modern, clean, and aesthetically pleasing. Main background MUST be white.
+      - **Buttons:** MUST be pill-shaped (fully rounded). Primary buttons are solid black with white text. Secondary buttons are outlined.
+      - **Icons:** MUST use Google Material Symbols (outlined style), e.g., \`<span className="material-symbols-outlined">icon_name</span>\`.
+      - **Nav Bars:** If needed, should be pill-shaped, floating, with a frosted glass effect (\`bg-white/50 backdrop-blur-md\`).
+      - **Styling:** You MUST use Tailwind CSS for all styling. DO NOT generate any CSS files or use CSS imports.
     `;
 
      const reactFileRules = `
       **File Generation Rules (for React Projects):**
-      - Your output MUST be a JSON object containing a single key "files", which is an array of file objects.
-      - Each file object must have two keys: "path" (e.g., "src/App.tsx", "src/components/Button.tsx") and "code" (the full file content as a string).
-      - You MUST provide the full code for ALL files specified in the "Files to Generate" section above. Do not omit files.
-      - The main application component that should be rendered MUST be the default export of "src/App.tsx".
-      - Do NOT generate an \`index.html\`, \`public/index.html\`, \`main.tsx\`, or any other entry-point HTML or JS file. The preview environment handles this automatically. Focus only on creating React components and related modules inside the \`src/\` directory.
-      - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`). This is required for the in-browser module resolver to work.
+      - The main application component MUST be the default export of "src/App.tsx".
+      - Do NOT generate an \`index.html\`, \`main.tsx\`, or other entry-point files.
+      - Use ES Modules for imports/exports. Crucially, you MUST include the full file extension in your import paths (e.g., \`import Button from './components/Button.tsx'\`).
      `;
 
     const fullPrompt = `
-      You are an expert web developer. Your task is to generate the complete code for a set of specified files based on the user's request, a plan, and the current file structure.
+      You are an expert web developer. Your task is to generate the complete code for a single specified file.
       ${screenshotBase64 ? '\n**CONTEXT:** An image has been provided. You MUST analyze it and use it as a primary reference for the UI, layout, and content of the application you generate.' : ''}
 
-      **CRITICAL INSTRUCTION:** You MUST generate code for EVERY file listed below. Do not add, omit, or rename any files from this list. The "files" array in your JSON response must contain an entry for each and every one of these paths.
-      
-      **Files to Generate:**
-      ${JSON.stringify(filesToGenerate)}
+      **CRITICAL INSTRUCTION:** You MUST generate the complete, raw code for ONLY the following file: \`${fileToGenerate}\`.
+      Your output must contain ONLY the code for this file. Do not include JSON, markdown, file paths, or any other explanatory text.
 
       ${projectTypeInstructions}
-
       ${projectType !== 'html' ? reactStylingGuidelines : ''}
-      
       ${projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
@@ -833,10 +829,10 @@ ${integrationsList.join('\n')}
       **The user's request is:** "${prompt}".
       **The plan is:**
       - ${plan.join('\n- ')}
-      **The current files are:**
+      **The current project files are:**
       ${JSON.stringify(currentFiles, null, 2)}
 
-      Your response MUST contain ONLY the JSON object, with no other text or markdown formatting.
+      Again, your entire response should be only the raw code for \`${fileToGenerate}\`.
     `;
     
     const contentParts: any[] = [{ text: fullPrompt }];
@@ -849,54 +845,18 @@ ${integrationsList.join('\n')}
       });
     }
 
-    const response = await ai.models.generateContent({
-      model: selectedModel,
-      contents: { parts: contentParts },
-      config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                  files: {
-                      type: Type.ARRAY,
-                      items: {
-                          type: Type.OBJECT,
-                          properties: {
-                              path: { type: Type.STRING },
-                              code: { type: Type.STRING },
-                          },
-                          required: ['path', 'code']
-                      }
-                  }
-              },
-              required: ['files']
-          },
-      }
-    });
-
-    if (!response.text || response.promptFeedback?.blockReason) {
-        throw new Error(`The AI response was blocked. Reason: ${response.promptFeedback?.blockReason || 'No content returned'}. Please modify your prompt and try again.`);
-    }
-
     try {
-        const parsed = JSON.parse(response.text);
-        if (!parsed.files || !Array.isArray(parsed.files)) {
-            throw new Error("AI response is missing the 'files' array.");
-        }
-        
-        // If using .env mode, inject the .env.local file if the AI didn't
-        if (apiKeyHandling === 'env' && apiSecrets.length > 0 && !parsed.files.some((f: ProjectFile) => f.path === '.env.local')) {
-            const envContent = apiSecrets.map(s => `${s.key}="${s.value}"`).join('\n');
-            parsed.files.push({ path: '.env.local', code: envContent });
-        }
-
-        return parsed.files;
-    } catch (e) {
-        console.error("Failed to parse AI code response:", response.text);
-        throw new Error("The AI did not return valid JSON for the file structure. Please try again.");
+        const response = await ai.models.generateContentStream({
+          model: selectedModel,
+          contents: { parts: contentParts },
+        });
+        return response;
+    } catch (e: any) {
+        console.error("Error starting stream for file generation:", e);
+        throw new Error(`The AI failed to start generating code for ${fileToGenerate}. Error: ${e.message}`);
     }
   };
-  
+
   const updateProjectState = (projectId: string, updates: Partial<Project>) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   };
@@ -925,7 +885,6 @@ ${integrationsList.join('\n')}
 
     const { plan, sql, files_to_generate } = await generatePlan(finalPrompt, model, projectType, screenshotBase64);
     
-    // FIX: Ensure src/App.tsx is always in the list for React projects.
     if (projectType !== 'html' && !files_to_generate.some(f => f === 'src/App.tsx')) {
         files_to_generate.unshift('src/App.tsx');
     }
@@ -938,110 +897,92 @@ ${integrationsList.join('\n')}
         generated_files: []
     });
     
-    let filesForCodeGeneration = project?.files ? [...project.files] : [...baseFiles];
-    if (sql) {
-      const sqlFileIndex = filesForCodeGeneration.findIndex(f => f.path === 'app.sql');
-      if (sqlFileIndex > -1) {
-        filesForCodeGeneration[sqlFileIndex] = { ...filesForCodeGeneration[sqlFileIndex], code: sql };
-      } else {
-        filesForCodeGeneration.push({ path: 'app.sql', code: sql });
-      }
-    } else {
-      // If no SQL is returned, remove any existing app.sql
-      filesForCodeGeneration = filesForCodeGeneration.filter(f => f.path !== 'app.sql');
-    }
-    // Update the project state immediately so the change is reflected and passed to generateCode
-    updateProjectState(projectId, { files: filesForCodeGeneration });
-
-    setProgress(0);
-    const codePromise = generateCode(finalPrompt, filesForCodeGeneration, plan, files_to_generate, model, projectType, screenshotBase64);
-
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev === null) return null;
-        if (prev >= 95) {
-          clearInterval(interval);
-          return prev;
-        }
-        const increment = prev < 70 ? 5 : 2;
-        return Math.min(prev + increment, 95);
-      });
-    }, 400);
-
-    const newFiles: ProjectFile[] = await codePromise;
-    clearInterval(interval);
-    setProgress(null); // Hide progress bar; checklist will show progress now.
-
-    if (projectType === 'html') {
-        const expectedFiles = ['index.html', 'style.css', 'script.js'];
-        const receivedFiles = newFiles.map(f => f.path);
-        if (expectedFiles.some(f => !receivedFiles.includes(f)) || receivedFiles.length !== expectedFiles.length) {
-            throw new Error(`The AI failed to generate the required HTML/CSS/JS files. Expected: ${expectedFiles.join(', ')}. Received: ${receivedFiles.join(', ')}. Please try again.`);
-        }
-    }
+    let projectForGeneration = projects.find(p => p.id === projectId)!;
 
     if (isInitialBuild) {
-        if (projectType !== 'html' && (!newFiles || !newFiles.some(f => f.path === 'src/App.tsx'))) {
-            throw new Error("The AI failed to generate the main 'src/App.tsx' file. The project build has been cancelled to prevent errors. Please try rephrasing your request.");
-        }
-
-        const sqlFile = filesForCodeGeneration.find(f => f.path === 'app.sql');
-        
-        // Start with a clean slate, keeping only the SQL file if it exists
-        updateProjectState(projectId, { files: sqlFile ? [sqlFile] : [] });
-        await new Promise(resolve => setTimeout(resolve, 50)); // ensure state update propagates
-
-        for (const file of newFiles) {
-            setProjects(prev => prev.map(p => {
-                if (p.id === projectId) {
-                    // Add the new file
-                    const updatedFiles = [...p.files, file];
-
-                    // Update the message checklist
-                    const messages = [...p.messages];
-                    const lastMessage = messages[messages.length - 1];
-                    if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
-                        const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
-                        messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
-                    }
-                    
-                    return { ...p, files: updatedFiles, messages };
-                }
-                return p;
-            }));
-            await new Promise(resolve => setTimeout(resolve, 150));
-        }
+        const initialFiles: ProjectFile[] = sql ? [{ path: 'app.sql', code: sql }] : [];
+        updateProjectState(projectId, { files: initialFiles });
+        projectForGeneration = { ...projectForGeneration, files: initialFiles };
     } else {
-        for (const file of newFiles) {
-            setProjects(prev => prev.map(p => {
-                if (p.id === projectId) {
-                    // 1. Update project files
-                    const existingFileIndex = p.files.findIndex(f => f.path === file.path);
-                    const updatedFiles = [...p.files];
-                    if (existingFileIndex > -1) {
-                        updatedFiles[existingFileIndex] = file;
-                    } else {
-                        updatedFiles.push(file);
-                    }
-
-                    // 2. Update message to mark file as generated
-                    const messages = [...p.messages];
-                    const lastMessage = messages[messages.length - 1];
-                    if (lastMessage.actor === 'ai' && lastMessage.files_to_generate) {
-                        const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), file.path]));
-                        messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
-                    }
-                    
-                    return { ...p, files: updatedFiles, messages };
-                }
-                return p;
-            }));
-            await new Promise(resolve => setTimeout(resolve, 150)); // small delay for visual effect
+        if (sql) {
+            const sqlFileIndex = projectForGeneration.files.findIndex(f => f.path === 'app.sql');
+            if (sqlFileIndex > -1) {
+                projectForGeneration.files[sqlFileIndex] = { ...projectForGeneration.files[sqlFileIndex], code: sql };
+            } else {
+                projectForGeneration.files.push({ path: 'app.sql', code: sql });
+            }
+        } else {
+            projectForGeneration.files = projectForGeneration.files.filter(f => f.path !== 'app.sql');
         }
+        updateProjectState(projectId, { files: projectForGeneration.files });
     }
 
+    for (const filePath of files_to_generate) {
+        setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+                const files = [...p.files];
+                const existingIndex = files.findIndex(f => f.path === filePath);
+                if (existingIndex > -1) {
+                    files[existingIndex] = { path: filePath, code: '' };
+                } else {
+                    files.push({ path: filePath, code: '' });
+                }
+                return { ...p, files };
+            }
+            return p;
+        }));
 
-    addMessageToProject(projectId, { actor: 'ai', text: 'I have created the code for you. Check it out and let me know what to do next!' });
+        const stream = await generateCodeForFileStream(
+            finalPrompt,
+            [...projectForGeneration.files],
+            plan,
+            filePath,
+            model,
+            projectType,
+            screenshotBase64
+        );
+
+        let newFileContent = '';
+        for await (const chunk of stream) {
+            const chunkText = chunk.text;
+            if (chunkText) {
+                newFileContent += chunkText;
+                setProjects(prev => prev.map(p => {
+                    if (p.id === projectId) {
+                        const files = [...p.files];
+                        const fileIndex = files.findIndex(f => f.path === filePath);
+                        if (fileIndex !== -1) {
+                            files[fileIndex].code += chunkText;
+                            return { ...p, files: [...files] };
+                        }
+                    }
+                    return p;
+                }));
+            }
+        }
+
+        const fileIdx = projectForGeneration.files.findIndex(f => f.path === filePath);
+        if (fileIdx > -1) {
+            projectForGeneration.files[fileIdx].code = newFileContent;
+        } else {
+            projectForGeneration.files.push({ path: filePath, code: newFileContent });
+        }
+
+        setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+                const messages = [...p.messages];
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage?.actor === 'ai' && lastMessage.files_to_generate) {
+                    const updatedGeneratedFiles = Array.from(new Set([...(lastMessage.generated_files || []), filePath]));
+                    messages[messages.length - 1] = { ...lastMessage, generated_files: updatedGeneratedFiles };
+                    return { ...p, messages };
+                }
+            }
+            return p;
+        }));
+    }
+
+    addMessageToProject(projectId, { actor: 'ai', text: 'I have finished generating the code. Let me know what to do next!' });
     
     setIsLoading(false);
   };
@@ -1079,7 +1020,6 @@ ${integrationsList.join('\n')}
       setErrors(prev => [errorMessage, ...prev]);
       addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
       setIsLoading(false);
-      setProgress(null);
     }
   };
 
@@ -1260,7 +1200,6 @@ ${integrationsList.join('\n')}
     if (!activeProject) return;
 
     setIsLoading(true);
-    setProgress(0);
     
     const fixPrompt = `
       An error occurred in the application: "${errorToFix}". 
@@ -1271,15 +1210,36 @@ ${integrationsList.join('\n')}
     try {
       const plan = [`Identify the cause of the error: "${errorToFix}"`, "Correct the code in the appropriate file(s).", "Ensure the application still meets the original requirements."];
       
-      const interval = setInterval(() => {
-        setProgress(prev => Math.min((prev ?? 0) + 5, 95));
-      }, 400);
-
       const filesToModify = activeProject.files.map(f => f.path);
-      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType, null);
-      
-      clearInterval(interval);
-      setProgress(100);
+      // This is a placeholder for where a streaming version of `generateCode` would go.
+      // For now, we'll keep the non-streaming fix.
+      const ai = getAiClient();
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              files: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    path: { type: Type.STRING },
+                    code: { type: Type.STRING },
+                  },
+                  required: ['path', 'code']
+                }
+              }
+            },
+            required: ['files']
+          },
+        }
+      });
+      const parsed = JSON.parse(response.text);
+      const newFiles = parsed.files;
 
       updateProjectState(activeProject.id, { files: newFiles });
       setErrors(prev => prev.filter(e => e !== errorToFix)); 
@@ -1291,10 +1251,7 @@ ${integrationsList.join('\n')}
       setErrors(prev => [errorMessage, ...prev]);
       addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error while trying to apply a fix.` });
     } finally {
-      setTimeout(() => {
-        setProgress(null);
         setIsLoading(false);
-      }, 500);
     }
   };
 
@@ -1302,7 +1259,6 @@ ${integrationsList.join('\n')}
     if (!activeProject || errors.length === 0) return;
 
     setIsLoading(true);
-    setProgress(0);
 
     const combinedErrors = errors.join('\n- ');
     const fixPrompt = `
@@ -1316,16 +1272,35 @@ ${integrationsList.join('\n')}
     try {
       const plan = ["Analyze all reported errors.", "Identify the root causes in the codebase.", "Correct the code in all affected files.", "Ensure the fixes do not introduce new issues."];
       
-      const interval = setInterval(() => {
-        setProgress(prev => Math.min((prev ?? 0) + 5, 95));
-      }, 400);
-
       const filesToModify = activeProject.files.map(f => f.path);
-      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType, null);
+       const ai = getAiClient();
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
+         config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              files: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    path: { type: Type.STRING },
+                    code: { type: Type.STRING },
+                  },
+                  required: ['path', 'code']
+                }
+              }
+            },
+            required: ['files']
+          },
+        }
+      });
+      const parsed = JSON.parse(response.text);
+      const newFiles = parsed.files;
       
-      clearInterval(interval);
-      setProgress(100);
-
       updateProjectState(activeProject.id, { files: newFiles });
       setErrors([]); // Clear all errors on success
       
@@ -1335,10 +1310,7 @@ ${integrationsList.join('\n')}
       setErrors(prev => [errorMessage, ...prev]);
       addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error while trying to fix the errors.` });
     } finally {
-      setTimeout(() => {
-        setProgress(null);
         setIsLoading(false);
-      }, 500);
     }
   };
 
@@ -2171,7 +2143,6 @@ Good luck!
                 onUserInput={setUserInput}
                 onSend={handleSend}
                 isLoading={isLoading}
-                progress={progress}
                 onToggleMaxAgent={() => setIsMaxAgentPanelOpen(p => !p)}
               />
             </div>
