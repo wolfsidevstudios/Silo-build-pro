@@ -6,9 +6,9 @@ import { useDebounce } from './hooks/useDebounce';
 import { DEFAULT_CODE, DEFAULT_HTML_FILES } from './constants';
 import { ChatPanel } from './components/ChatPanel';
 import { Workspace } from './components/Workspace';
-import { FloatingNav } from './components/FloatingNav';
+import { TopNavBar } from './components/TopNavBar';
 import { HomePage } from './components/HomePage';
-import { ProjectsPage } from './components/ProjectsPage';
+import { ProfilePage } from './components/ProfilePage';
 import { SettingsPage } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
 import DebugAssistPanel from './components/DebugAssistPanel';
@@ -145,6 +145,12 @@ export interface ApiSecret {
   value: string;
 }
 
+export interface UserProfile {
+  name: string;
+  username: string;
+  profilePicture: string | null; // base64 string
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -177,6 +183,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
+  const [defaultStack, setDefaultStack] = useState<ProjectType>('multi');
   const [progress, setProgress] = useState<number | null>(null);
   // Default to service-worker mode for better reliability and performance.
   const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
@@ -194,6 +201,11 @@ const App: React.FC = () => {
   const [appStorePublishState, setAppStorePublishState] = useState<AppStorePublishState>({ status: 'idle' });
   const [apiSecrets, setApiSecrets] = useState<ApiSecret[]>([]);
   const [isFocusTimerOpen, setIsFocusTimerOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: 'Your Name',
+    username: 'your_username',
+    profilePicture: null,
+  });
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -240,6 +252,14 @@ const App: React.FC = () => {
       if (savedApiSecrets) {
         setApiSecrets(JSON.parse(savedApiSecrets));
       }
+      const savedUserProfile = localStorage.getItem('silo_user_profile');
+      if (savedUserProfile) {
+        setUserProfile(JSON.parse(savedUserProfile));
+      }
+       const savedDefaultStack = localStorage.getItem('silo_default_stack') as ProjectType;
+      if (savedDefaultStack) {
+        setDefaultStack(savedDefaultStack);
+      }
     } catch (e) {
       console.error("Failed to load data from local storage", e);
     }
@@ -260,6 +280,15 @@ const App: React.FC = () => {
   useEffect(() => {
       localStorage.setItem('silo_api_secrets', JSON.stringify(apiSecrets));
   }, [apiSecrets]);
+
+  useEffect(() => {
+    localStorage.setItem('silo_user_profile', JSON.stringify(userProfile));
+  }, [userProfile]);
+
+  const handleSetDefaultStack = (stack: ProjectType) => {
+    setDefaultStack(stack);
+    localStorage.setItem('silo_default_stack', stack);
+  };
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -1639,6 +1668,7 @@ Good luck!
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(blob);
     } catch (err: any) {
         console.error("Failed to export project:", err);
         setErrors(prev => [`Failed to create project ZIP. ${err.message}`, ...prev]);
@@ -1649,17 +1679,25 @@ Good luck!
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
 
-    if (path === '/home') {
-      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
+    if (path === '/home' || path === '/') {
+      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} />;
     }
-    if (path === '/projects') {
-      return <ProjectsPage projects={projects} onSelectProject={handleSelectProject} onDeleteProject={handleDeleteProject} />;
+    if (path === '/profile') {
+      return <ProfilePage 
+        projects={projects} 
+        onSelectProject={handleSelectProject} 
+        onDeleteProject={handleDeleteProject}
+        userProfile={userProfile}
+        onProfileUpdate={setUserProfile}
+      />;
     }
     if (path === '/settings') {
       return (
         <SettingsPage 
           selectedModel={model} 
           onModelChange={handleModelChange}
+          defaultStack={defaultStack}
+          onDefaultStackChange={handleSetDefaultStack}
           supabaseConfig={supabaseConfig}
           onSupabaseAuthorize={handleSupabaseAuthorize}
           onSupabaseManualConnect={handleManualSupabaseConnect}
@@ -1680,8 +1718,8 @@ Good luck!
     if (projectMatch && activeProject) {
       return (
         <>
-          <main className="flex flex-1 overflow-hidden">
-            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-900">
+          <main className="flex flex-1 overflow-hidden pt-24">
+            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-900 bg-black/50">
               <ChatPanel
                 messages={activeProject.messages}
                 userInput={userInput}
@@ -1720,14 +1758,14 @@ Good luck!
     }
      if (projectMatch && !activeProject && projects.length > 0) {
        return (
-           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+           <div className="flex flex-col items-center justify-center h-full p-8 text-center pt-20">
               <h1 className="text-4xl font-bold text-gray-400">Loading Project...</h1>
               <p className="text-gray-500 mt-2">If this takes too long, the project might not exist.</p>
           </div>
       );
     }
 
-    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} />;
+    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} />;
   };
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
@@ -1735,9 +1773,9 @@ Good luck!
 
 
   return (
-    <div className="flex h-screen bg-black text-white font-sans">
-      <FloatingNav currentPath={location} />
-      <div className="flex-1 flex flex-col overflow-hidden ml-20">
+    <div className="flex h-screen text-white font-sans bg-cover bg-center" style={{ backgroundImage: 'url(https://iili.io/KvdfcdP.md.png)'}}>
+      <TopNavBar currentPath={location} />
+      <div className="flex-1 flex flex-col overflow-hidden">
         {renderContent()}
       </div>
        <ProjectSelectorModal

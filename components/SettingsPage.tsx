@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
@@ -134,6 +134,8 @@ const TokenInput: React.FC<{
 interface SettingsPageProps {
   selectedModel: GeminiModel;
   onModelChange: (model: GeminiModel) => void;
+  defaultStack: ProjectType;
+  onDefaultStackChange: (stack: ProjectType) => void;
   supabaseConfig: SupabaseConfig | null;
   onSupabaseAuthorize: () => void;
   onSupabaseManualConnect: (url: string, anonKey: string) => void;
@@ -145,7 +147,7 @@ interface SettingsPageProps {
   onApiSecretsChange: (secrets: ApiSecret[]) => void;
 }
 
-const SupabaseSettings: React.FC<Omit<SettingsPageProps, 'selectedModel' | 'onModelChange' | 'previewMode' | 'onPreviewModeChange' | 'apiSecrets' | 'onApiSecretsChange'>> = ({
+const SupabaseSettings: React.FC<Pick<SettingsPageProps, 'supabaseConfig' | 'onSupabaseAuthorize' | 'onSupabaseManualConnect' | 'onSupabaseDisconnect' | 'isLoading'>> = ({
   supabaseConfig,
   onSupabaseAuthorize,
   onSupabaseManualConnect,
@@ -341,7 +343,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
             const keysToBackup = [
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
                 'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
-                'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token'
+                'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
+                'silo_default_stack'
             ];
             const backupData: { [key: string]: any } = { version: 1 };
             keysToBackup.forEach(key => {
@@ -440,6 +443,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                     className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.selectedModel === 'gemini-2.5-pro' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
                                 >
                                     Pro
+                                </button>
+                            </div>
+                        </SettingSection>
+                         <SettingSection title="Default Stack Mode" description="Choose the default project type for new builds.">
+                            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                                <button
+                                    onClick={() => props.onDefaultStackChange('html')}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                >
+                                    HTML/JS
+                                </button>
+                                <button
+                                    onClick={() => props.onDefaultStackChange('single')}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                >
+                                    React (Single)
+                                </button>
+                                 <button
+                                    onClick={() => props.onDefaultStackChange('multi')}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                >
+                                    React (Multi)
                                 </button>
                             </div>
                         </SettingSection>

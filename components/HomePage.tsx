@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 
 interface HomePageProps {
   onStartBuild: (prompt: string, projectType: ProjectType) => void;
   isLoading: boolean;
+  defaultStack: ProjectType;
 }
 
 const BASIC_PROMPTS = [
@@ -88,11 +89,35 @@ const CountdownTimer = () => {
   );
 };
 
+const projectTypeLabels: Record<ProjectType, string> = {
+    'html': 'HTML/CSS/JS',
+    'single': 'React (Single File)',
+    'multi': 'React (Multi-File)',
+};
 
-export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) => {
+
+export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
-  const [projectType, setProjectType] = useState<ProjectType>('multi');
+  const [projectType, setProjectType] = useState<ProjectType>(defaultStack);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    setProjectType(defaultStack);
+  }, [defaultStack]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target as Node)) {
+            setIsModeDropdownOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,54 +130,44 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
     setPrompt(suggestion);
     onStartBuild(suggestion, projectType);
   };
+  
+  const handleModeChange = (mode: ProjectType) => {
+      setProjectType(mode);
+      setIsModeDropdownOpen(false);
+  };
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center bg-black overflow-y-auto">
-      {/* Centered circular gradient blob */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-tr from-cyan-600/20 to-blue-600/20 rounded-full blur-[200px] pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col items-center justify-center w-full pt-8 md:pt-16">
-        <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
+    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
+        <h1 className="text-5xl md:text-6xl font-bold mb-4 text-black">
           Build anything with Silo
         </h1>
-        <p className="text-gray-400 text-lg mb-8 max-w-2xl">
-          Describe the application or component you want to create, and watch it come to life in real-time.
+        <p className="text-gray-600 text-lg mb-8 max-w-2xl">
+          Create apps and websites by chatting with AI.
         </p>
-
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full p-1">
-               <button
-                onClick={() => setProjectType('html')}
+        
+        <div className="relative mb-6" ref={modeDropdownRef}>
+            <button
+                onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
                 disabled={isLoading}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    projectType === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
-                }`}
-                >
-                HTML/CSS/JS
-              </button>
-              <button
-              onClick={() => setProjectType('single')}
-              disabled={isLoading}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  projectType === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
-              }`}
-              >
-              React (Single File)
-              </button>
-              <button
-              onClick={() => setProjectType('multi')}
-              disabled={isLoading}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center justify-center ${
-                  projectType === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-white/10'
-              }`}
-              >
-              React (Multi-File)
-              <span className="ml-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">
-                Beta
-              </span>
-              </button>
-          </div>
+                className="flex items-center justify-center space-x-2 bg-white/30 backdrop-blur-md border border-black/20 rounded-full py-2 px-5 text-sm text-black hover:bg-white/50 transition-colors"
+            >
+                <span>Mode: <strong>{projectTypeLabels[projectType]}</strong></span>
+                <span className={`material-symbols-outlined text-base transition-transform ${isModeDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
+    
+            {isModeDropdownOpen && (
+                <div className="absolute top-full mt-2 w-56 bg-zinc-900/80 backdrop-blur-lg border border-gray-700 rounded-xl shadow-lg p-1.5 z-20 origin-top animate-in fade-in-0 zoom-in-95">
+                    <button onClick={() => handleModeChange('html')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors">HTML/CSS/JS</button>
+                    <button onClick={() => handleModeChange('single')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors">React (Single File)</button>
+                    <button onClick={() => handleModeChange('multi')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors flex items-center justify-between">
+                        <span>React (Multi-File)</span>
+                        <span className="bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">Beta</span>
+                    </button>
+                </div>
+            )}
         </div>
+
 
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
           <div className="relative w-full">
@@ -160,16 +175,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., a real-time crypto price tracker with a dark theme"
-              className="w-full p-5 pr-40 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-lg resize-none"
+              className="w-full p-5 pr-20 bg-white border border-gray-300 rounded-2xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none shadow-lg"
               rows={4}
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={isLoading || !prompt.trim()}
-              className="absolute bottom-4 right-4 px-6 py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              className="absolute bottom-4 right-4 w-12 h-12 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-all duration-300 ease-in-out disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center shadow-lg hover:scale-105 active:scale-100"
+              aria-label="Start Building"
             >
-              {isLoading ? 'Building...' : 'Start Building'}
+              {isLoading ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                    <span className="material-symbols-outlined text-2xl">arrow_upward</span>
+              )}
             </button>
           </div>
         </form>
@@ -180,7 +200,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               key={suggestion}
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-full text-black hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
             >
               {suggestion}
             </button>
@@ -190,7 +210,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               key={suggestion}
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-full text-black hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
             >
               {suggestion}
             </button>
@@ -198,7 +218,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
           <button
               onClick={() => setShowAdvanced(!showAdvanced)}
               disabled={isLoading}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-gray-300 hover:bg-white/20 hover:border-white/30 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-full text-black hover:bg-gray-200 transition-colors text-sm disabled:opacity-50 flex items-center space-x-2"
             >
               <span className="material-symbols-outlined text-base">
                 {showAdvanced ? 'remove' : 'add'}
