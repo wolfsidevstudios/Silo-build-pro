@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { AppStoreSubmission } from '../App';
 
@@ -14,11 +15,13 @@ interface PublishModalProps {
   onClose: () => void;
   onPublishToWeb: (platform: 'netlify' | 'vercel') => void;
   onInitiateAppStorePublish: () => void;
+  onInitiateCommunityPublish: () => void;
   publishState: PublishState;
   projectName: string;
   isRedeploy: boolean;
   isNetlifyConfigured: boolean;
   isVercelConfigured: boolean;
+  isCommunityConfigured: boolean;
   projectUrls?: {
     netlify?: string;
     vercel?: string;
@@ -49,11 +52,13 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   onClose,
   onPublishToWeb,
   onInitiateAppStorePublish,
+  onInitiateCommunityPublish,
   publishState,
   projectName,
   isRedeploy,
   isNetlifyConfigured,
   isVercelConfigured,
+  isCommunityConfigured,
   projectUrls,
   appStoreStatus,
 }) => {
@@ -132,26 +137,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           </>
         );
       case 'idle':
-        if (!isNetlifyConfigured && !isVercelConfigured) {
-          return (
-             <>
-                <div className="text-center">
-                    <span className="material-symbols-outlined text-6xl text-yellow-400">token</span>
-                    <h2 className="text-2xl font-bold mt-4">Deployment Not Configured</h2>
-                    <p className="text-gray-400 mt-2">To publish your project, please add a Netlify or Vercel access token in the settings.</p>
-                </div>
-                <div className="mt-8 flex space-x-4 w-full">
-                    <button onClick={onClose} className="w-full py-3 text-center bg-zinc-800 rounded-lg font-semibold hover:bg-zinc-700 transition-colors">
-                        Cancel
-                    </button>
-                    <a href="#/settings" onClick={onClose} className="w-full py-3 text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                        Go to Settings
-                    </a>
-                </div>
-             </>
-          );
-        }
-
         return (
             <>
               <div className="text-center">
@@ -161,9 +146,18 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               </div>
 
               <div className="mt-6 w-full space-y-4">
+                 {/* Community Publish */}
+                <div className="bg-zinc-800/50 p-4 rounded-lg border border-gray-700">
+                    <h3 className="font-semibold text-lg mb-2">Silo Community</h3>
+                     {!isCommunityConfigured && <p className="text-xs text-yellow-400 mb-3">Please connect to Supabase in Settings to publish to the community.</p>}
+                    <button onClick={onInitiateCommunityPublish} disabled={!isCommunityConfigured} className="w-full py-2.5 text-center bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed">
+                        Publish to Community
+                    </button>
+                </div>
                 {/* Web Deployments */}
                 <div className="bg-zinc-800/50 p-4 rounded-lg border border-gray-700">
                     <h3 className="font-semibold text-lg mb-2">Web Deployment</h3>
+                     {(!isNetlifyConfigured && !isVercelConfigured) && <p className="text-xs text-yellow-400 mb-3">Add a Netlify or Vercel token in Settings to deploy.</p>}
                     {projectUrls?.netlify && (
                         <div className="text-xs text-gray-400 mb-2">Netlify: <a href={projectUrls.netlify} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Live</a></div>
                     )}
@@ -171,8 +165,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                         <div className="text-xs text-gray-400 mb-2">Vercel: <a href={projectUrls.vercel} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Live</a></div>
                     )}
                     <div className="flex flex-col space-y-2 mt-3">
-                        {isNetlifyConfigured && <button onClick={() => onPublishToWeb('netlify')} className="w-full py-2.5 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors text-sm">Deploy to Netlify</button>}
-                        {isVercelConfigured && <button onClick={() => onPublishToWeb('vercel')} className="w-full py-2.5 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm">Deploy to Vercel</button>}
+                        <button onClick={() => onPublishToWeb('netlify')} disabled={!isNetlifyConfigured} className="w-full py-2.5 text-center bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed">Deploy to Netlify</button>
+                        <button onClick={() => onPublishToWeb('vercel')} disabled={!isVercelConfigured} className="w-full py-2.5 text-center bg-white text-black rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed">Deploy to Vercel</button>
                     </div>
                 </div>
 

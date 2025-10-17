@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -27,11 +28,15 @@ import { NotificationsPanel, Notification } from './components/NotificationsPane
 import { DeveloperPortalPage } from './components/DeveloperPortalPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { TermsOfServicePage } from './components/TermsOfServicePage';
+import { PublishToCommunityModal, CommunityPublishState } from './components/PublishToCommunityModal';
+import { CommunityPage } from './components/CommunityPage';
+import { CommunityAppViewerPage } from './components/CommunityAppViewerPage';
 
 
 declare const Babel: any;
 declare const JSZip: any;
 declare const google: any;
+declare const supabase: any;
 
 
 // Helper to parse JWT from Google Sign-In
@@ -280,6 +285,10 @@ const App: React.FC = () => {
     profilePicture: null,
   });
   const isLoggedIn = !!userProfile.email;
+
+  // Community Publish State
+  const [isPublishCommunityModalOpen, setIsPublishCommunityModalOpen] = useState(false);
+  const [communityPublishState, setCommunityPublishState] = useState<CommunityPublishState>({ status: 'idle' });
 
   // Max Agent State
   const [isMaxAgentPanelOpen, setIsMaxAgentPanelOpen] = useState(false);
@@ -2049,6 +2058,38 @@ Good luck!
         setErrors(prev => [`Failed to create project ZIP. ${err.message}`, ...prev]);
     }
   };
+
+  const handlePublishToCommunity = async (appName: string, description: string) => {
+    if (!activeProject || !supabaseConfig) return;
+
+    const sanitizedAppName = appName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    setCommunityPublishState({ status: 'loading' });
+    try {
+        const supabaseClient = supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const { error } = await supabaseClient
+            .from('community_apps')
+            .insert({
+                name: sanitizedAppName,
+                description,
+                project_files: activeProject.files,
+                project_type: activeProject.projectType,
+            });
+
+        if (error) {
+            if (error.code === '23505') { // unique constraint violation
+                throw new Error(`An app named "${sanitizedAppName}" already exists. Please choose a different name.`);
+            }
+            throw error;
+        }
+
+        const appUrl = `${window.location.origin}${window.location.pathname}#/community/${sanitizedAppName}`;
+        setCommunityPublishState({ status: 'success', url: appUrl });
+
+    } catch (err: any) {
+        setCommunityPublishState({ status: 'error', error: err.message });
+    }
+  };
   
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -2287,6 +2328,14 @@ Good luck!
     if (path === '/terms') {
         return <TermsOfServicePage />;
     }
+    if (path === '/community') {
+        return <CommunityPage supabaseConfig={supabaseConfig} />;
+    }
+    const communityAppMatch = path.match(/^\/community\/([^/]+)$/);
+    if (communityAppMatch) {
+        const appName = communityAppMatch[1];
+        return <CommunityAppViewerPage appName={appName} supabaseConfig={supabaseConfig} />;
+    }
      if (path === '/authorized') {
       return <AuthorizedPage />;
     }
@@ -2359,6 +2408,7 @@ Good luck!
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
+  const isCommunityConfigured = !!supabaseConfig;
 
   const path = location.startsWith('/') ? location : `/${location}`;
   const isDarkPage = path === '/profile';
@@ -2395,11 +2445,17 @@ Good luck!
             setAppStorePublishState({ status: 'idle' });
             setIsAppStorePublishModalOpen(true);
         }}
+        onInitiateCommunityPublish={() => {
+            setIsPublishModalOpen(false);
+            setCommunityPublishState({ status: 'idle' });
+            setIsPublishCommunityModalOpen(true);
+        }}
         publishState={publishState}
         projectName={activeProject?.name || ''}
         isRedeploy={!!activeProject?.netlifySiteId || !!activeProject?.vercelProjectId}
         isNetlifyConfigured={isNetlifyConfigured}
         isVercelConfigured={isVercelConfigured}
+        isCommunityConfigured={isCommunityConfigured}
         projectUrls={{
             netlify: activeProject?.netlifyUrl,
             vercel: activeProject?.vercelUrl,
@@ -2412,6 +2468,13 @@ Good luck!
         onSave={handleCreateRepoAndPush}
         isLoading={isLoading}
         projectName={activeProject?.name || ''}
+      />
+      <PublishToCommunityModal
+          isOpen={isPublishCommunityModalOpen}
+          onClose={() => setIsPublishCommunityModalOpen(false)}
+          onSubmit={handlePublishToCommunity}
+          publishState={communityPublishState}
+          projectName={activeProject?.name || ''}
       />
       {activeProject && (
         <AppStorePublishModal
