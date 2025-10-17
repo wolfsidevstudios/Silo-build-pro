@@ -25,6 +25,7 @@ interface PublishModalProps {
   projectUrls?: {
     netlify?: string;
     vercel?: string;
+    community?: string;
   };
   appStoreStatus?: AppStoreSubmission['status'];
 }
@@ -149,9 +150,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                  {/* Community Publish */}
                 <div className="bg-zinc-800/50 p-4 rounded-lg border border-gray-700">
                     <h3 className="font-semibold text-lg mb-2">Silo Community</h3>
-                     {!isCommunityConfigured && <p className="text-xs text-yellow-400 mb-3">Please connect to Supabase in Settings to publish to the community.</p>}
+                     {projectUrls?.community && (
+                        <div className="text-xs text-gray-400 mb-2">Community: <a href={projectUrls.community} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Live</a></div>
+                    )}
                     <button onClick={onInitiateCommunityPublish} disabled={!isCommunityConfigured} className="w-full py-2.5 text-center bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed">
-                        Publish to Community
+                        {projectUrls?.community ? 'Update Community App' : 'Publish to Community'}
                     </button>
                 </div>
                 {/* Web Deployments */}

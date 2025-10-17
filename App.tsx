@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -194,6 +192,7 @@ export interface Project {
   githubRepo?: string;
   commits?: Commit[];
   appStoreSubmission?: AppStoreSubmission;
+  communityUrl?: string;
 }
 
 export interface SupabaseConfig {
@@ -357,6 +356,7 @@ const App: React.FC = () => {
                 githubRepo: p.githubRepo,
                 commits: p.commits || [],
                 appStoreSubmission: p.appStoreSubmission || undefined,
+                communityUrl: (p as any).communityUrl || undefined,
             };
             return migratedProject;
         });
@@ -2081,16 +2081,35 @@ Good luck!
                 project_files: activeProject.files,
                 project_type: activeProject.projectType,
             });
+        
+        const appUrl = `${window.location.origin}${window.location.pathname}#/community/${sanitizedAppName}`;
 
         if (error) {
-            if (error.code === '23505') { // unique constraint violation
-                throw new Error(`An app named "${sanitizedAppName}" already exists. Please choose a different name.`);
+            if (error.code === '23505') { // unique constraint violation, meaning it exists
+                // If it exists, let's update it.
+                const { error: updateError } = await supabaseClient
+                    .from('community_apps')
+                    .update({ 
+                        description,
+                        project_files: activeProject.files,
+                        project_type: activeProject.projectType,
+                     })
+                    .eq('name', sanitizedAppName);
+
+                if (updateError) {
+                    throw updateError;
+                }
+                // If update is successful
+                setCommunityPublishState({ status: 'success', url: appUrl });
+                updateProjectState(activeProject.id, { communityUrl: appUrl });
+                return;
             }
-            throw error;
+            throw error; // Other errors
         }
 
-        const appUrl = `${window.location.origin}${window.location.pathname}#/community/${sanitizedAppName}`;
+        // If insert was successful
         setCommunityPublishState({ status: 'success', url: appUrl });
+        updateProjectState(activeProject.id, { communityUrl: appUrl });
 
     } catch (err: any) {
         setCommunityPublishState({ status: 'error', error: err.message });
@@ -2465,6 +2484,7 @@ Good luck!
         projectUrls={{
             netlify: activeProject?.netlifyUrl,
             vercel: activeProject?.vercelUrl,
+            community: activeProject?.communityUrl,
         }}
         appStoreStatus={activeProject?.appStoreSubmission?.status}
       />
