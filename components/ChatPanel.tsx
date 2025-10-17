@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import type { Message } from '../App';
 
@@ -115,8 +114,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
             onKeyPress={handleKeyPress}
             placeholder={"a real-time crypto price\ntracker"}
             className="w-full bg-transparent text-black placeholder-gray-500 border-none outline-none resize-none p-5 pr-20"
-            style={{ minHeight: '5.5rem', maxHeight: '15rem' }}
-            rows={2}
+            style={{ minHeight: '6.5rem', maxHeight: '15rem' }}
+            rows={3}
             disabled={isLoading}
           />
           <div className="absolute left-4 bottom-4 hidden md:block">

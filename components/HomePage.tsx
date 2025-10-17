@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon } from './icons';
@@ -46,6 +45,66 @@ const CompatibilityWarningModal: React.FC<{ onClose: () => void }> = ({ onClose 
     </div>
   );
 
+const ImportModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
+  placeholder: string;
+  onImport: (url: string) => void;
+}> = ({ isOpen, onClose, title, description, placeholder, onImport }) => {
+    const [url, setUrl] = useState('');
+    if (!isOpen) return null;
+
+    const handleImport = () => {
+      if (url.trim()) {
+        onImport(url.trim());
+      }
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center" onClick={onClose}>
+          <div className="bg-zinc-900 border border-gray-800 rounded-2xl p-8 w-full max-w-lg relative text-white" onClick={(e) => e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+    
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold">{title}</h2>
+              <p className="text-gray-400 mt-2">{description}</p>
+            </div>
+    
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="import-url" className="block text-sm font-medium text-gray-400 mb-2">
+                  URL
+                </label>
+                <input
+                  id="import-url"
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={placeholder}
+                  className="w-full p-3 bg-zinc-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+    
+            <div className="mt-8">
+              <button
+                onClick={handleImport}
+                disabled={!url.trim()}
+                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+    );
+};
+
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -56,9 +115,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const [isIntegrationsPanelOpen, setIsIntegrationsPanelOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
   const [integrationSearch, setIntegrationSearch] = useState('');
+  const [isFigmaModalOpen, setIsFigmaModalOpen] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
+  const [figmaUrl, setFigmaUrl] = useState<string | null>(null);
+  const [githubUrl, setGithubUrl] = useState<string | null>(null);
 
 
   const banners = [
+     {
+      id: 'silo-1.5',
+      icon: <span className="material-symbols-outlined text-4xl text-blue-500">rocket_launch</span>,
+      title: 'Introducing Silo Build 1.5',
+      description: 'Now with Figma & GitHub imports, a new dev portal, and more!',
+      link: '#/developer-portal',
+      linkLabel: 'Learn More',
+    },
     {
       id: 'pexels',
       icon: <PexelsIcon />,
@@ -133,7 +204,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    if (value.endsWith('/')) {
+    if (value.endsWith('/figma')) {
+        setPrompt(value.slice(0, -6));
+        setIsFigmaModalOpen(true);
+    } else if (value.endsWith('/git')) {
+        setPrompt(value.slice(0, -4));
+        setIsGitHubModalOpen(true);
+    } else if (value.endsWith('/')) {
         setPrompt(value.slice(0, -1));
         setIsIntegrationsPanelOpen(true);
     } else {
@@ -149,20 +226,58 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim()) {
-      onStartBuild(prompt, defaultStack, screenshot, selectedIntegration);
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt && !figmaUrl && !githubUrl) return;
+
+    let finalPrompt = trimmedPrompt;
+    if (figmaUrl) {
+      finalPrompt = `Build a web application based on this Figma design: ${figmaUrl}. Additional instructions: ${trimmedPrompt}`;
+    } else if (githubUrl) {
+      finalPrompt = `Analyze this GitHub repository: ${githubUrl} and apply the following instructions: ${trimmedPrompt}`;
+    }
+    
+    // Ensure we have a prompt to send, even if it's just from the import context
+    if (finalPrompt.trim()) {
+        onStartBuild(finalPrompt.trim(), defaultStack, screenshot, selectedIntegration);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
     setSelectedIntegration(null);
+    setFigmaUrl(null);
+    setGithubUrl(null);
     onStartBuild(suggestion, defaultStack, null, null);
   };
 
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-8 text-center">
       {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
+      <ImportModal
+        isOpen={isFigmaModalOpen}
+        onClose={() => setIsFigmaModalOpen(false)}
+        title="Import from Figma"
+        description="Paste your Figma file URL to have the AI build the design."
+        placeholder="https://www.figma.com/file/..."
+        onImport={(url) => {
+            setFigmaUrl(url);
+            setGithubUrl(null); // Ensure only one import source
+            setIsFigmaModalOpen(false);
+        }}
+    />
+    <ImportModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
+        title="Import from GitHub"
+        description="Paste a public GitHub repository URL to use as context."
+        placeholder="https://github.com/owner/repo"
+        onImport={(url) => {
+            setGithubUrl(url);
+            setFigmaUrl(null); // Ensure only one import source
+            setIsGitHubModalOpen(false);
+        }}
+    />
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <div className="w-full max-w-4xl mx-auto mb-8 h-24">
             <div className="relative w-full h-full overflow-hidden rounded-2xl">
@@ -214,7 +329,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
               ref={textareaRef}
               value={prompt}
               onChange={handlePromptChange}
-              placeholder="Describe your app, or type '/' for integrations..."
+              placeholder="Describe your app, or type '/figma' or '/git'..."
               className="w-full p-3 pl-4 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
               rows={4}
               disabled={isLoading}
@@ -243,6 +358,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     </button>
                   </div>
                 )}
+                {figmaUrl && (
+                    <div className="flex items-center space-x-2 bg-purple-100 text-purple-800 px-3 py-1.5 rounded-full text-sm font-medium animate-fade-in">
+                        <span className="material-symbols-outlined text-base">brush</span>
+                        <span className="font-semibold truncate max-w-[120px]">{figmaUrl}</span>
+                        <button type="button" onClick={() => setFigmaUrl(null)} className="p-1 rounded-full hover:bg-purple-200" aria-label="Remove Figma URL"><span className="material-symbols-outlined text-base">close</span></button>
+                    </div>
+                )}
+                {githubUrl && (
+                    <div className="flex items-center space-x-2 bg-gray-200 text-gray-800 px-3 py-1.5 rounded-full text-sm font-medium animate-fade-in">
+                        <span className="font-semibold truncate max-w-[120px]">{githubUrl}</span>
+                        <button type="button" onClick={() => setGithubUrl(null)} className="p-1 rounded-full hover:bg-gray-300" aria-label="Remove GitHub URL"><span className="material-symbols-outlined text-base">close</span></button>
+                    </div>
+                )}
                 {selectedIntegration && (
                     <div className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium animate-fade-in">
                         <div className="w-5 h-5 flex items-center justify-center">{selectedIntegration.icon}</div>
@@ -260,7 +388,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
             </div>
             <button
               type="submit"
-              disabled={isLoading || !prompt.trim()}
+              disabled={isLoading || (!prompt.trim() && !figmaUrl && !githubUrl)}
               className="absolute bottom-4 right-4 w-12 h-12 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-all duration-300 ease-in-out disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center shadow-lg hover:scale-105 active:scale-100"
               aria-label="Start Building"
             >
