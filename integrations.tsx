@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -177,5 +177,14 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_shopify',
         keys: [{ name: 'storefrontAccessToken', label: 'Storefront Access Token' }, { name: 'storeDomain', label: 'Store Domain (e.g., your-store.myshopify.com)' }],
         usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.'
+    },
+    {
+        id: 'giphy',
+        name: 'GIPHY',
+        icon: <GiphyIcon />,
+        description: "Access the world's largest library of animated GIFs and stickers.",
+        storageKey: 'silo_integration_giphy',
+        keys: [{ name: 'apiKey', label: 'GIPHY API Key' }],
+        usageInstructions: "Use the GIPHY API. The endpoint is `https://api.giphy.com/v1/`. Append `&api_key={{apiKey}}` to your requests for authentication."
     },
 ];
