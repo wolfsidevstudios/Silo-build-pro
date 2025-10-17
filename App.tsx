@@ -15,6 +15,7 @@ import DebugAssistPanel from './components/DebugAssistPanel';
 import { PublishModal, PublishState } from './components/PublishModal';
 import { GitHubSaveModal } from './components/GitHubSaveModal';
 import { AppStorePublishModal, AppStorePublishState, AppStoreSubmissionData } from './components/AppStorePublishModal';
+import { FocusTimer } from './components/FocusTimer';
 
 
 declare const Babel: any;
@@ -192,6 +193,7 @@ const App: React.FC = () => {
   const [isAppStorePublishModalOpen, setIsAppStorePublishModalOpen] = useState(false);
   const [appStorePublishState, setAppStorePublishState] = useState<AppStorePublishState>({ status: 'idle' });
   const [apiSecrets, setApiSecrets] = useState<ApiSecret[]>([]);
+  const [isFocusTimerOpen, setIsFocusTimerOpen] = useState(false);
 
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -500,6 +502,49 @@ const App: React.FC = () => {
 ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     ` : '';
     
+    const productHuntToken = localStorage.getItem('silo_product_hunt_token');
+    const productHuntApiPrompt = productHuntToken ? `
+      **Product Hunt API Integration:**
+      - The user has provided a Product Hunt Developer Token. If the user's request involves fetching data from Product Hunt (e.g., "show latest products"), you MUST use this API.
+      - Developer Token: "${productHuntToken}"
+      - You MUST use this token to interact with the Product Hunt API v2 (GraphQL).
+      - The API endpoint is: \`https://api.producthunt.com/v2/api/graphql\`.
+      - When making requests, include the token in the 'Authorization' header like this: \`Authorization: Bearer ${productHuntToken}\`.
+      - Example GraphQL query using fetch to get the top 10 posts:
+        \`\`\`javascript
+        const response = await fetch('https://api.producthunt.com/v2/api/graphql', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${productHuntToken}',
+          },
+          body: JSON.stringify({
+            query: \`
+              query GetLatestPosts {
+                posts(first: 10) {
+                  edges {
+                    node {
+                      id
+                      name
+                      tagline
+                      url
+                      thumbnail {
+                        url
+                      }
+                      votesCount
+                    }
+                  }
+                }
+              }
+            \`
+          }),
+        });
+        const productHuntData = await response.json();
+        // Now you can use productHuntData.data.posts.edges to display the products
+        \`\`\`
+    ` : '';
+    
     let projectTypeInstructions = '';
     switch (projectType) {
         case 'single':
@@ -569,6 +614,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
       ${supabaseIntegrationPrompt}
       ${customSqlPrompt}
+      ${productHuntApiPrompt}
       ${apiSecretsPrompt}
       
       **The user's request is:** "${prompt}".
@@ -1662,22 +1708,6 @@ Good luck!
             </div>
           </main>
           <ErrorDisplay error={errors[0] || null} onClose={() => setErrors(prev => prev.slice(1))} />
-           <button
-            onClick={() => setIsDebugAssistOpen(true)}
-            title="Open Debug Assist"
-            className="fixed bottom-8 right-8 w-14 h-14 z-40 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
-            >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" height="24" width="24">
-                <defs>
-                <linearGradient id="paint0_linear_14402_15643_fab" x1="2.288" x2="13.596" y1="2.692" y2="8.957" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#8425cc"></stop>
-                    <stop offset="1" stop-color="#2599cc"></stop>
-                </linearGradient>
-                </defs>
-                <path fill="url(#paint0_linear_14402_15643_fab)" fill-rule="evenodd" d="M9.56049.6564C9.74797-.214503 10.9808-.220724 11.176.649356l.0252.112754c.2386 1.06349 1.0796 1.87059 2.1254 2.0556.8979.15883.8979 1.45575 0 1.61458-1.0458.18501-1.8868.99211-2.1254 2.0556l-.0252.11276c-.1952.87008-1.42803.86385-1.61551-.00705l-.02083-.09675c-.22983-1.06762-1.06995-1.88082-2.1176-2.06615-.89608-.15853-.89608-1.45287 0-1.61139 1.04765-.18534 1.88777-.99854 2.1176-2.066158L9.56049.6564ZM11.5 8.18049V12.25c0 .1381-.1119.25-.25.25h-9.5c-.13807 0-.25-.1119-.25-.25V6h6.38531c-.19048-.17448-.42601-.2933-.681-.33841C5.30951 5.32639 4.99463 2.99769 6.25976 2H1.75C.783502 2 0 2.7835 0 3.75v8.5C0 13.2165.783501 14 1.75 14h9.5c.9665 0 1.75-.7835 1.75-1.75V5.88959c-.2829.19769-.4962.50254-.5791.87189l-.0253.11275c-.1354.60388-.4711 1.03901-.8956 1.30626Zm-7.54414-.66174c-.24408-.24408-.63981-.24408-.88389 0-.24407.24408-.24407.63981 0 .88389l1.05806 1.05805-1.05806 1.05811c-.24407.244-.24407.6398 0 .8838.24408.2441.63981.2441.88389 0l1.5-1.49996c.24408-.24408.24408-.63981 0-.88389l-1.5-1.5Zm2.55806 2.81695c-.34518 0-.625.2798-.625.625s.27982.625.625.625h1.5c.34517 0 .625-.2798.625-.625s-.27983-.625-.625-.625h-1.5Z" clip-rule="evenodd"></path>
-            </svg>
-            </button>
-
             <DebugAssistPanel
                 isOpen={isDebugAssistOpen}
                 onClose={() => setIsDebugAssistOpen(false)}
@@ -1752,6 +1782,35 @@ Good luck!
             projectName={activeProject.name}
         />
       )}
+      <FocusTimer isOpen={isFocusTimerOpen} onClose={() => setIsFocusTimerOpen(false)} />
+      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-4">
+        {activeProject && (
+          <>
+            <button
+                onClick={() => setIsFocusTimerOpen(true)}
+                title="Open Focus Timer"
+                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+            >
+                <span className="material-symbols-outlined">timer</span>
+            </button>
+            <button
+                onClick={() => setIsDebugAssistOpen(true)}
+                title="Open Debug Assist"
+                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" height="24" width="24">
+                    <defs>
+                    <linearGradient id="paint0_linear_14402_15643_fab" x1="2.288" x2="13.596" y1="2.692" y2="8.957" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#8425cc"></stop>
+                        <stop offset="1" stop-color="#2599cc"></stop>
+                    </linearGradient>
+                    </defs>
+                    <path fill="url(#paint0_linear_14402_15643_fab)" fill-rule="evenodd" d="M9.56049.6564C9.74797-.214503 10.9808-.220724 11.176.649356l.0252.112754c.2386 1.06349 1.0796 1.87059 2.1254 2.0556.8979.15883.8979 1.45575 0 1.61458-1.0458.18501-1.8868.99211-2.1254 2.0556l-.0252.11276c-.1952.87008-1.42803.86385-1.61551-.00705l-.02083-.09675c-.22983-1.06762-1.06995-1.88082-2.1176-2.06615-.89608-.15853-.89608-1.45287 0-1.61139 1.04765-.18534 1.88777-.99854 2.1176-2.066158L9.56049.6564ZM11.5 8.18049V12.25c0 .1381-.1119.25-.25.25h-9.5c-.13807 0-.25-.1119-.25-.25V6h6.38531c-.19048-.17448-.42601-.2933-.681-.33841C5.30951 5.32639 4.99463 2.99769 6.25976 2H1.75C.783502 2 0 2.7835 0 3.75v8.5C0 13.2165.783501 14 1.75 14h9.5c.9665 0 1.75-.7835 1.75-1.75V5.88959c-.2829.19769-.4962.50254-.5791.87189l-.0253.11275c-.1354.60388-.4711 1.03901-.8956 1.30626Zm-7.54414-.66174c-.24408-.24408-.63981-.24408-.88389 0-.24407.24408-.24407.63981 0 .88389l1.05806 1.05805-1.05806 1.05811c-.24407.244-.24407.6398 0 .8838.24408.2441.63981.2441.88389 0l1.5-1.49996c.24408-.24408.24408-.63981 0-.88389l-1.5-1.5Zm2.55806 2.81695c-.34518 0-.625.2798-.625.625s.27982.625.625.625h1.5c.34517 0 .625-.2798.625-.625s-.27983-.625-.625-.625h-1.5Z" clip-rule="evenodd"></path>
+                </svg>
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };

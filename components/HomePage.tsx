@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import type { ProjectType } from '../App';
 
 interface HomePageProps {
@@ -22,6 +23,72 @@ const ADVANCED_PROMPTS = [
   'A recipe finder that uses a public API'
 ];
 
+
+const CountdownUnit: React.FC<{ value: number; label: string }> = ({ value, label }) => (
+  <div className="flex flex-col items-center w-20">
+    <span className="text-4xl md:text-5xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">{String(value).padStart(2, '0')}</span>
+    <span className="text-xs text-gray-500 uppercase tracking-widest mt-1">{label}</span>
+  </div>
+);
+
+const CountdownTimer = () => {
+  const calculateTimeLeft = () => {
+    const year = new Date().getFullYear();
+    // Use a UTC date to avoid timezone issues. Month is 0-indexed, so 9 is October.
+    const launchDate = new Date(Date.UTC(year, 9, 17, 0, 0, 0)); 
+    const difference = +launchDate - +new Date();
+    
+    let timeLeft = {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isLive: false,
+    };
+
+    if (difference > 0) {
+      timeLeft = {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+        isLive: false,
+      };
+    } else {
+        timeLeft.isLive = true;
+    }
+    return timeLeft;
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  if (timeLeft.isLive) {
+      return (
+        <div className="text-3xl font-bold text-green-400 animate-pulse">
+            We Are Live!
+        </div>
+      )
+  }
+
+  return (
+    <div className="flex items-center justify-center space-x-2 md:space-x-6">
+      <CountdownUnit value={timeLeft.days} label="Days" />
+      <CountdownUnit value={timeLeft.hours} label="Hours" />
+      <CountdownUnit value={timeLeft.minutes} label="Minutes" />
+      <CountdownUnit value={timeLeft.seconds} label="Seconds" />
+    </div>
+  );
+};
+
+
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) => {
   const [prompt, setPrompt] = useState('');
   const [projectType, setProjectType] = useState<ProjectType>('multi');
@@ -40,11 +107,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-full p-8 text-center bg-black overflow-hidden">
+    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center bg-black overflow-y-auto">
       {/* Centered circular gradient blob */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-tr from-cyan-600/20 to-blue-600/20 rounded-full blur-[200px] pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center w-full">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full pt-8 md:pt-16">
         <h1 className="text-6xl md:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-300 to-gray-600">
           Build anything with Silo
         </h1>
@@ -138,6 +205,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading }) =
               </span>
               <span>{showAdvanced ? 'Show less' : 'More examples'}</span>
           </button>
+        </div>
+      </div>
+      
+      <div className="relative z-10 w-full max-w-4xl mt-8 pt-8 pb-4">
+        <div className="bg-zinc-900/50 backdrop-blur-md border border-gray-700 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/30">
+          <h2 className="text-2xl font-bold text-gray-200 mb-2">The Countdown Has Begun</h2>
+          <p className="text-gray-400 mb-6">We're officially launching on October 17th. Get ready!</p>
+          <CountdownTimer />
         </div>
       </div>
     </div>

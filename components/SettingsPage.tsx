@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret } from '../App';
 
@@ -6,6 +7,7 @@ const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
 const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
+const PRODUCT_HUNT_TOKEN_STORAGE_KEY = 'silo_product_hunt_token';
 
 type SettingsTab = 'general' | 'appearance' | 'integrations' | 'deployments' | 'developer' | 'appstore' | 'safety' | 'about';
 
@@ -339,7 +341,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
             const keysToBackup = [
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
                 'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
-                'gemini_model', 'silo_preview_mode', 'silo_editor_font_size'
+                'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token'
             ];
             const backupData: { [key: string]: any } = { version: 1 };
             keysToBackup.forEach(key => {
@@ -491,6 +493,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                          <SettingSection title="Supabase" description="Connect your Supabase account to enable backend features for all projects.">
                             <SupabaseSettings {...props} />
+                        </SettingSection>
+                        <SettingSection title="Product Hunt" description="Build apps that use the Product Hunt API.">
+                           <TokenInput 
+                                id="product-hunt-token" 
+                                label="Product Hunt Developer Token" 
+                                placeholder="Enter your Product Hunt token" 
+                                storageKey={PRODUCT_HUNT_TOKEN_STORAGE_KEY} 
+                                helpText=""
+                                helpLink={{ href: 'https://www.producthunt.com/v2/oauth/applications', text: 'Get your developer token' }}
+                           />
                         </SettingSection>
                     </>
                 )}
