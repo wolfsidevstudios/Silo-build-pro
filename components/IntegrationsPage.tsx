@@ -58,7 +58,7 @@ export const IntegrationsPage: React.FC = () => {
                     <p className="text-lg text-gray-600">Connect your favorite tools to build powerful apps.</p>
                 </header>
 
-                <div className="sticky top-[-32px] z-10 py-6 bg-white/80 backdrop-blur-md">
+                <div className="sticky top-20 z-10 py-6">
                     <div className="relative max-w-2xl mx-auto">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
