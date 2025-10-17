@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -83,5 +83,99 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_producthunt',
         keys: [{ name: 'developerToken', label: 'Product Hunt Developer Token' }],
         usageInstructions: "Use the Product Hunt API v2 (GraphQL). The endpoint is `https://api.producthunt.com/v2/api/graphql`. When making requests, include the token in the 'Authorization' header like this: `Authorization: Bearer {{developerToken}}`."
-    }
+    },
+    {
+        id: 'twilio',
+        name: 'Twilio',
+        icon: <TwilioIcon />,
+        description: 'Build apps with SMS, voice, and video capabilities.',
+        storageKey: 'silo_integration_twilio',
+        keys: [{ name: 'accountSid', label: 'Twilio Account SID' }, { name: 'authToken', label: 'Twilio Auth Token' }],
+        usageInstructions: 'Use the Twilio REST API. The Account SID is `{{accountSid}}`. The Auth Token `{{authToken}}` is secret and should be used on a backend; assume a backend exists that uses it for authenticated requests.'
+    },
+    {
+        id: 'discord',
+        name: 'Discord',
+        icon: <DiscordIcon />,
+        description: 'Create Discord bots to interact with servers and users.',
+        storageKey: 'silo_integration_discord',
+        keys: [{ name: 'botToken', label: 'Discord Bot Token' }],
+        usageInstructions: 'Use the Discord API. Authenticate requests with the bot token in the header: `Authorization: Bot {{botToken}}`.'
+    },
+    {
+        id: 'x_twitter',
+        name: 'X (Twitter)',
+        icon: <XIcon />,
+        description: 'Integrate with the X API to post tweets, fetch timelines, and more.',
+        storageKey: 'silo_integration_x_twitter',
+        keys: [
+            { name: 'apiKey', label: 'API Key' },
+            { name: 'apiSecretKey', label: 'API Secret Key' },
+            { name: 'bearerToken', label: 'Bearer Token' }
+        ],
+        usageInstructions: 'Use the X API v2. For app-only authentication, use the Bearer Token `{{bearerToken}}` in the header: `Authorization: Bearer {{bearerToken}}`. The API Key and Secret are for user-based OAuth flows.'
+    },
+    {
+        id: 'sendgrid',
+        name: 'SendGrid',
+        icon: <SendGridIcon />,
+        description: 'Add reliable email delivery for notifications and marketing.',
+        storageKey: 'silo_integration_sendgrid',
+        keys: [{ name: 'apiKey', label: 'SendGrid API Key' }],
+        usageInstructions: 'Use the SendGrid Mail Send API. The endpoint is `https://api.sendgrid.com/v3/mail/send`. Authenticate using the `Authorization: Bearer {{apiKey}}` header.'
+    },
+    {
+        id: 'openweather',
+        name: 'OpenWeather',
+        icon: <OpenWeatherIcon />,
+        description: 'Integrate real-time and forecasted weather data into your apps.',
+        storageKey: 'silo_integration_openweather',
+        keys: [{ name: 'apiKey', label: 'OpenWeather API Key' }],
+        usageInstructions: 'Use the OpenWeather One Call API 3.0. The endpoint is `https://api.openweathermap.org/data/3.0/onecall`. Append `&appid={{apiKey}}` to your requests.'
+    },
+    {
+        id: 'pexels',
+        name: 'Pexels',
+        icon: <PexelsIcon />,
+        description: 'Access a vast library of free, high-quality stock photos and videos.',
+        storageKey: 'silo_integration_pexels',
+        keys: [{ name: 'apiKey', label: 'Pexels API Key' }],
+        usageInstructions: 'Use the Pexels API. The endpoint is `https://api.pexels.com/v1/`. Authenticate using the `Authorization: {{apiKey}}` header.'
+    },
+    {
+        id: 'unsplash',
+        name: 'Unsplash',
+        icon: <UnsplashIcon />,
+        description: "Integrate beautiful, free images from the world's leading photo community.",
+        storageKey: 'silo_integration_unsplash',
+        keys: [{ name: 'accessKey', label: 'Unsplash Access Key' }],
+        usageInstructions: 'Use the Unsplash API. The endpoint is `https://api.unsplash.com/`. Authenticate using the `Authorization: Client-ID {{accessKey}}` header.'
+    },
+    {
+        id: 'notion',
+        name: 'Notion',
+        icon: <NotionIcon />,
+        description: 'Read from and write to Notion pages and databases.',
+        storageKey: 'silo_integration_notion',
+        keys: [{ name: 'apiToken', label: 'Notion Integration Token' }],
+        usageInstructions: 'Use the Notion API v1. The endpoint is `https://api.notion.com/v1/`. Authenticate using the `Authorization: Bearer {{apiToken}}` header. You must also include the `Notion-Version: 2022-06-28` header.'
+    },
+    {
+        id: 'airtable',
+        name: 'Airtable',
+        icon: <AirtableIcon />,
+        description: 'Use flexible, powerful Airtable bases as a backend for your apps.',
+        storageKey: 'silo_integration_airtable',
+        keys: [{ name: 'personalAccessToken', label: 'Personal Access Token' }, { name: 'baseId', label: 'Base ID' }],
+        usageInstructions: 'Use the Airtable API. The endpoint is `https://api.airtable.com/v0/{{baseId}}/`. Authenticate using the `Authorization: Bearer {{personalAccessToken}}` header.'
+    },
+    {
+        id: 'shopify',
+        name: 'Shopify',
+        icon: <ShopifyIcon />,
+        description: 'Build custom storefronts and manage store data.',
+        storageKey: 'silo_integration_shopify',
+        keys: [{ name: 'storefrontAccessToken', label: 'Storefront Access Token' }, { name: 'storeDomain', label: 'Store Domain (e.g., your-store.myshopify.com)' }],
+        usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.'
+    },
 ];
