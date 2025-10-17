@@ -24,6 +24,7 @@ import { INTEGRATION_DEFINITIONS } from './integrations';
 import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
 import { MaxCursor } from './components/MaxCursor';
 import { NotificationsPanel, Notification } from './components/NotificationsPanel';
+import { DeveloperPortalPage } from './components/DeveloperPortalPage';
 
 
 declare const Babel: any;
@@ -2078,6 +2079,9 @@ Good luck!
     }
      if (path === '/integrations') {
       return <IntegrationsPage />;
+    }
+    if (path === '/developer-portal') {
+      return <DeveloperPortalPage />;
     }
      if (path === '/authorized') {
       return <AuthorizedPage />;
