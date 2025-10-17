@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -9,6 +9,7 @@ export interface Integration {
     storageKey: string;
     keys: { name: string; label: string }[];
     usageInstructions?: string;
+    category?: string;
 }
 
 export const INTEGRATION_DEFINITIONS: Integration[] = [
@@ -19,7 +20,68 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         description: 'Build apps that can search videos, manage playlists, and more.',
         storageKey: 'silo_integration_youtube',
         keys: [{ name: 'apiKey', label: 'YouTube Data API Key v3' }],
-        usageInstructions: 'Use the YouTube Data API v3. The endpoint is `https://www.googleapis.com/youtube/v3/`. Append `&key={{apiKey}}` to your requests for authentication.'
+        usageInstructions: 'Use the YouTube Data API v3. The endpoint is `https://www.googleapis.com/youtube/v3/`. Append `&key={{apiKey}}` to your requests for authentication.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-analytics',
+        name: 'Google Analytics',
+        icon: <GoogleAnalyticsIcon />,
+        description: 'Integrate analytics to track user interactions and traffic.',
+        storageKey: 'silo_integration_google_analytics',
+        keys: [{ name: 'measurementId', label: 'Measurement ID (G-)' }],
+        usageInstructions: 'Use the Google Analytics Data API or gtag.js. The Measurement ID `{{measurementId}}` is used to send data to your property.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-gmail',
+        name: 'Google Gmail',
+        icon: <GoogleGmailIcon />,
+        description: 'Read, send, and manage emails through the Gmail API.',
+        storageKey: 'silo_integration_google_gmail',
+        keys: [{ name: 'apiKey', label: 'Gmail API Key' }, { name: 'clientId', label: 'OAuth 2.0 Client ID' }],
+        usageInstructions: 'Use the Gmail API. Requires an OAuth 2.0 flow with your Client ID `{{clientId}}` to get user consent and an access token.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-calendar',
+        name: 'Google Calendar',
+        icon: <GoogleCalendarIcon />,
+        description: 'Integrate event scheduling and calendar management.',
+        storageKey: 'silo_integration_google_calendar',
+        keys: [{ name: 'apiKey', label: 'Calendar API Key' }, { name: 'clientId', label: 'OAuth 2.0 Client ID' }],
+        usageInstructions: 'Use the Google Calendar API. Requires an OAuth 2.0 flow with your Client ID `{{clientId}}` to get user consent and an access token.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-pay',
+        name: 'Google Pay',
+        icon: <GooglePayIcon />,
+        description: 'Enable fast, simple, and secure payments in your app.',
+        storageKey: 'silo_integration_google_pay',
+        keys: [{ name: 'merchantId', label: 'Google Pay Merchant ID' }],
+        usageInstructions: 'Use the Google Pay API for web. Use the Merchant ID `{{merchantId}}` when configuring your payment requests.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-adsense',
+        name: 'Google AdSense',
+        icon: <GoogleAdsenseIcon />,
+        description: 'Monetize your application by displaying ads from Google.',
+        storageKey: 'silo_integration_google_adsense',
+        keys: [{ name: 'publisherId', label: 'AdSense Publisher ID (pub-)' }],
+        usageInstructions: 'Use the Google AdSense code snippet with your Publisher ID `{{publisherId}}` to display ads.',
+        category: 'Google Services',
+    },
+    {
+        id: 'google-gemini',
+        name: 'Google Gemini',
+        icon: <GoogleGeminiIcon />,
+        description: 'Integrate powerful generative AI models for various tasks.',
+        storageKey: 'silo_integration_google_gemini',
+        keys: [{ name: 'apiKey', label: 'Gemini API Key' }],
+        usageInstructions: 'Use the Google AI SDK. Authenticate your requests with the API Key `{{apiKey}}`.',
+        category: 'Google Services',
     },
     {
         id: 'openai',
@@ -28,25 +90,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         description: 'Integrate ChatGPT and other OpenAI models into your applications.',
         storageKey: 'silo_integration_openai',
         keys: [{ name: 'apiKey', label: 'OpenAI API Key' }],
-        usageInstructions: 'Use the OpenAI API. The endpoint is `https://api.openai.com/v1/`. Use the token in the `Authorization: Bearer {{apiKey}}` header.'
-    },
-    {
-        id: 'spotify',
-        name: 'Spotify',
-        icon: <SpotifyIcon />,
-        description: 'Access music data, create playlists, and control playback.',
-        storageKey: 'silo_integration_spotify',
-        keys: [{ name: 'clientId', label: 'Spotify Client ID' }, { name: 'clientSecret', label: 'Spotify Client Secret' }],
-        usageInstructions: 'Use the Spotify Web API. You will need to perform an OAuth flow or use the Client Credentials flow with your Client ID `{{clientId}}` and Client Secret `{{clientSecret}}` to get an access token.'
-    },
-    {
-        id: 'stripe',
-        name: 'Stripe',
-        icon: <StripeIcon />,
-        description: 'Build payment and e-commerce functionalities into your apps.',
-        storageKey: 'silo_integration_stripe',
-        keys: [{ name: 'publicKey', label: 'Stripe Public Key' }, { name: 'secretKey', label: 'Stripe Secret Key' }],
-        usageInstructions: 'For frontend code, use the Public Key `{{publicKey}}` to initialize Stripe.js. The Secret Key `{{secretKey}}` is for backend operations and should not be exposed in frontend code; assume a backend exists that uses it.'
+        usageInstructions: 'Use the OpenAI API. The endpoint is `https://api.openai.com/v1/`. Use the token in the `Authorization: Bearer {{apiKey}}` header.',
+        category: 'AI & Developer Tools',
     },
     {
         id: 'github',
@@ -55,54 +100,20 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         description: 'Interact with repositories, users, and issues on GitHub.',
         storageKey: 'silo_integration_github',
         keys: [{ name: 'pat', label: 'GitHub Personal Access Token' }],
-        usageInstructions: 'Use the GitHub REST API. The endpoint is `https://api.github.com/`. Authenticate using the `Authorization: Bearer {{pat}}` header.'
+        usageInstructions: 'Use the GitHub REST API. The endpoint is `https://api.github.com/`. Authenticate using the `Authorization: Bearer {{pat}}` header.',
+        category: 'AI & Developer Tools',
     },
     {
-        id: 'paypal',
-        name: 'PayPal',
-        icon: <PayPalIcon />,
-        description: 'Integrate PayPal for payments and checkouts.',
-        storageKey: 'silo_integration_paypal',
-        keys: [{ name: 'clientId', label: 'PayPal Client ID' }],
-        usageInstructions: 'Use the PayPal JavaScript SDK. Initialize it by adding the script: `<script src="https://www.paypal.com/sdk/js?client-id={{clientId}}"></script>`. Then render the PayPal buttons.'
+        id: 'spotify',
+        name: 'Spotify',
+        icon: <SpotifyIcon />,
+        description: 'Access music data, create playlists, and control playback.',
+        storageKey: 'silo_integration_spotify',
+        keys: [{ name: 'clientId', label: 'Spotify Client ID' }, { name: 'clientSecret', label: 'Spotify Client Secret' }],
+        usageInstructions: 'Use the Spotify Web API. You will need to perform an OAuth flow or use the Client Credentials flow with your Client ID `{{clientId}}` and Client Secret `{{clientSecret}}` to get an access token.',
+        category: 'Social & Content',
     },
-    {
-        id: 'pinterest',
-        name: 'Pinterest',
-        icon: <PinterestIcon />,
-        description: 'Access and manage pins, boards, and user data.',
-        storageKey: 'silo_integration_pinterest',
-        keys: [{ name: 'accessToken', label: 'Pinterest Access Token' }],
-        usageInstructions: 'Use the Pinterest API v5. The endpoint is `https://api.pinterest.com/v5/`. Authenticate using the `Authorization: Bearer {{accessToken}}` header.'
-    },
-    {
-        id: 'producthunt',
-        name: 'Product Hunt',
-        icon: <ProductHuntIcon />,
-        description: 'Fetch data about the latest tech products and startups.',
-        storageKey: 'silo_integration_producthunt',
-        keys: [{ name: 'developerToken', label: 'Product Hunt Developer Token' }],
-        usageInstructions: "Use the Product Hunt API v2 (GraphQL). The endpoint is `https://api.producthunt.com/v2/api/graphql`. When making requests, include the token in the 'Authorization' header like this: `Authorization: Bearer {{developerToken}}`."
-    },
-    {
-        id: 'twilio',
-        name: 'Twilio',
-        icon: <TwilioIcon />,
-        description: 'Build apps with SMS, voice, and video capabilities.',
-        storageKey: 'silo_integration_twilio',
-        keys: [{ name: 'accountSid', label: 'Twilio Account SID' }, { name: 'authToken', label: 'Twilio Auth Token' }],
-        usageInstructions: 'Use the Twilio REST API. The Account SID is `{{accountSid}}`. The Auth Token `{{authToken}}` is secret and should be used on a backend; assume a backend exists that uses it for authenticated requests.'
-    },
-    {
-        id: 'discord',
-        name: 'Discord',
-        icon: <DiscordIcon />,
-        description: 'Create Discord bots to interact with servers and users.',
-        storageKey: 'silo_integration_discord',
-        keys: [{ name: 'botToken', label: 'Discord Bot Token' }],
-        usageInstructions: 'Use the Discord API. Authenticate requests with the bot token in the header: `Authorization: Bot {{botToken}}`.'
-    },
-    {
+     {
         id: 'x_twitter',
         name: 'X (Twitter)',
         icon: <XIcon />,
@@ -113,70 +124,28 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
             { name: 'apiSecretKey', label: 'API Secret Key' },
             { name: 'bearerToken', label: 'Bearer Token' }
         ],
-        usageInstructions: 'Use the X API v2. For app-only authentication, use the Bearer Token `{{bearerToken}}` in the header: `Authorization: Bearer {{bearerToken}}`. The API Key and Secret are for user-based OAuth flows.'
+        usageInstructions: 'Use the X API v2. For app-only authentication, use the Bearer Token `{{bearerToken}}` in the header: `Authorization: Bearer {{bearerToken}}`. The API Key and Secret are for user-based OAuth flows.',
+        category: 'Social & Content',
     },
     {
-        id: 'sendgrid',
-        name: 'SendGrid',
-        icon: <SendGridIcon />,
-        description: 'Add reliable email delivery for notifications and marketing.',
-        storageKey: 'silo_integration_sendgrid',
-        keys: [{ name: 'apiKey', label: 'SendGrid API Key' }],
-        usageInstructions: 'Use the SendGrid Mail Send API. The endpoint is `https://api.sendgrid.com/v3/mail/send`. Authenticate using the `Authorization: Bearer {{apiKey}}` header.'
+        id: 'discord',
+        name: 'Discord',
+        icon: <DiscordIcon />,
+        description: 'Create Discord bots to interact with servers and users.',
+        storageKey: 'silo_integration_discord',
+        keys: [{ name: 'botToken', label: 'Discord Bot Token' }],
+        usageInstructions: 'Use the Discord API. Authenticate requests with the bot token in the header: `Authorization: Bot {{botToken}}`.',
+        category: 'Social & Content',
     },
     {
-        id: 'openweather',
-        name: 'OpenWeather',
-        icon: <OpenWeatherIcon />,
-        description: 'Integrate real-time and forecasted weather data into your apps.',
-        storageKey: 'silo_integration_openweather',
-        keys: [{ name: 'apiKey', label: 'OpenWeather API Key' }],
-        usageInstructions: 'Use the OpenWeather One Call API 3.0. The endpoint is `https://api.openweathermap.org/data/3.0/onecall`. Append `&appid={{apiKey}}` to your requests.'
-    },
-    {
-        id: 'pexels',
-        name: 'Pexels',
-        icon: <PexelsIcon />,
-        description: 'Access a vast library of free, high-quality stock photos and videos.',
-        storageKey: 'silo_integration_pexels',
-        keys: [{ name: 'apiKey', label: 'Pexels API Key' }],
-        usageInstructions: 'Use the Pexels API. The endpoint is `https://api.pexels.com/v1/`. Authenticate using the `Authorization: {{apiKey}}` header.'
-    },
-    {
-        id: 'unsplash',
-        name: 'Unsplash',
-        icon: <UnsplashIcon />,
-        description: "Integrate beautiful, free images from the world's leading photo community.",
-        storageKey: 'silo_integration_unsplash',
-        keys: [{ name: 'accessKey', label: 'Unsplash Access Key' }],
-        usageInstructions: 'Use the Unsplash API. The endpoint is `https://api.unsplash.com/`. Authenticate using the `Authorization: Client-ID {{accessKey}}` header.'
-    },
-    {
-        id: 'notion',
-        name: 'Notion',
-        icon: <NotionIcon />,
-        description: 'Read from and write to Notion pages and databases.',
-        storageKey: 'silo_integration_notion',
-        keys: [{ name: 'apiToken', label: 'Notion Integration Token' }],
-        usageInstructions: 'Use the Notion API v1. The endpoint is `https://api.notion.com/v1/`. Authenticate using the `Authorization: Bearer {{apiToken}}` header. You must also include the `Notion-Version: 2022-06-28` header.'
-    },
-    {
-        id: 'airtable',
-        name: 'Airtable',
-        icon: <AirtableIcon />,
-        description: 'Use flexible, powerful Airtable bases as a backend for your apps.',
-        storageKey: 'silo_integration_airtable',
-        keys: [{ name: 'personalAccessToken', label: 'Personal Access Token' }, { name: 'baseId', label: 'Base ID' }],
-        usageInstructions: 'Use the Airtable API. The endpoint is `https://api.airtable.com/v0/{{baseId}}/`. Authenticate using the `Authorization: Bearer {{personalAccessToken}}` header.'
-    },
-    {
-        id: 'shopify',
-        name: 'Shopify',
-        icon: <ShopifyIcon />,
-        description: 'Build custom storefronts and manage store data.',
-        storageKey: 'silo_integration_shopify',
-        keys: [{ name: 'storefrontAccessToken', label: 'Storefront Access Token' }, { name: 'storeDomain', label: 'Store Domain (e.g., your-store.myshopify.com)' }],
-        usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.'
+        id: 'pinterest',
+        name: 'Pinterest',
+        icon: <PinterestIcon />,
+        description: 'Access and manage pins, boards, and user data.',
+        storageKey: 'silo_integration_pinterest',
+        keys: [{ name: 'accessToken', label: 'Pinterest Access Token' }],
+        usageInstructions: 'Use the Pinterest API v5. The endpoint is `https://api.pinterest.com/v5/`. Authenticate using the `Authorization: Bearer {{accessToken}}` header.',
+        category: 'Social & Content',
     },
     {
         id: 'giphy',
@@ -185,6 +154,117 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         description: "Access the world's largest library of animated GIFs and stickers.",
         storageKey: 'silo_integration_giphy',
         keys: [{ name: 'apiKey', label: 'GIPHY API Key' }],
-        usageInstructions: "Use the GIPHY API. The endpoint is `https://api.giphy.com/v1/`. Append `&api_key={{apiKey}}` to your requests for authentication."
+        usageInstructions: "Use the GIPHY API. The endpoint is `https://api.giphy.com/v1/`. Append `&api_key={{apiKey}}` to your requests for authentication.",
+        category: 'Social & Content',
+    },
+    {
+        id: 'stripe',
+        name: 'Stripe',
+        icon: <StripeIcon />,
+        description: 'Build payment and e-commerce functionalities into your apps.',
+        storageKey: 'silo_integration_stripe',
+        keys: [{ name: 'publicKey', label: 'Stripe Public Key' }, { name: 'secretKey', label: 'Stripe Secret Key' }],
+        usageInstructions: 'For frontend code, use the Public Key `{{publicKey}}` to initialize Stripe.js. The Secret Key `{{secretKey}}` is for backend operations and should not be exposed in frontend code; assume a backend exists that uses it.',
+        category: 'Payments & E-commerce',
+    },
+    {
+        id: 'paypal',
+        name: 'PayPal',
+        icon: <PayPalIcon />,
+        description: 'Integrate PayPal for payments and checkouts.',
+        storageKey: 'silo_integration_paypal',
+        keys: [{ name: 'clientId', label: 'PayPal Client ID' }],
+        usageInstructions: 'Use the PayPal JavaScript SDK. Initialize it by adding the script: `<script src="https://www.paypal.com/sdk/js?client-id={{clientId}}"></script>`. Then render the PayPal buttons.',
+        category: 'Payments & E-commerce',
+    },
+    {
+        id: 'shopify',
+        name: 'Shopify',
+        icon: <ShopifyIcon />,
+        description: 'Build custom storefronts and manage store data.',
+        storageKey: 'silo_integration_shopify',
+        keys: [{ name: 'storefrontAccessToken', label: 'Storefront Access Token' }, { name: 'storeDomain', label: 'Store Domain (e.g., your-store.myshopify.com)' }],
+        usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.',
+        category: 'Payments & E-commerce',
+    },
+    {
+        id: 'producthunt',
+        name: 'Product Hunt',
+        icon: <ProductHuntIcon />,
+        description: 'Fetch data about the latest tech products and startups.',
+        storageKey: 'silo_integration_producthunt',
+        keys: [{ name: 'developerToken', label: 'Product Hunt Developer Token' }],
+        usageInstructions: "Use the Product Hunt API v2 (GraphQL). The endpoint is `https://api.producthunt.com/v2/api/graphql`. When making requests, include the token in the 'Authorization' header like this: `Authorization: Bearer {{developerToken}}`.",
+        category: 'Business',
+    },
+    {
+        id: 'twilio',
+        name: 'Twilio',
+        icon: <TwilioIcon />,
+        description: 'Build apps with SMS, voice, and video capabilities.',
+        storageKey: 'silo_integration_twilio',
+        keys: [{ name: 'accountSid', label: 'Twilio Account SID' }, { name: 'authToken', label: 'Twilio Auth Token' }],
+        usageInstructions: 'Use the Twilio REST API. The Account SID is `{{accountSid}}`. The Auth Token `{{authToken}}` is secret and should be used on a backend; assume a backend exists that uses it for authenticated requests.',
+        category: 'Communication',
+    },
+    {
+        id: 'sendgrid',
+        name: 'SendGrid',
+        icon: <SendGridIcon />,
+        description: 'Add reliable email delivery for notifications and marketing.',
+        storageKey: 'silo_integration_sendgrid',
+        keys: [{ name: 'apiKey', label: 'SendGrid API Key' }],
+        usageInstructions: 'Use the SendGrid Mail Send API. The endpoint is `https://api.sendgrid.com/v3/mail/send`. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
+        category: 'Communication',
+    },
+    {
+        id: 'openweather',
+        name: 'OpenWeather',
+        icon: <OpenWeatherIcon />,
+        description: 'Integrate real-time and forecasted weather data into your apps.',
+        storageKey: 'silo_integration_openweather',
+        keys: [{ name: 'apiKey', label: 'OpenWeather API Key' }],
+        usageInstructions: 'Use the OpenWeather One Call API 3.0. The endpoint is `https://api.openweathermap.org/data/3.0/onecall`. Append `&appid={{apiKey}}` to your requests.',
+        category: 'Data & Media',
+    },
+    {
+        id: 'pexels',
+        name: 'Pexels',
+        icon: <PexelsIcon />,
+        description: 'Access a vast library of free, high-quality stock photos and videos.',
+        storageKey: 'silo_integration_pexels',
+        keys: [{ name: 'apiKey', label: 'Pexels API Key' }],
+        usageInstructions: 'Use the Pexels API. The endpoint is `https://api.pexels.com/v1/`. Authenticate using the `Authorization: {{apiKey}}` header.',
+        category: 'Data & Media',
+    },
+    {
+        id: 'unsplash',
+        name: 'Unsplash',
+        icon: <UnsplashIcon />,
+        description: "Integrate beautiful, free images from the world's leading photo community.",
+        storageKey: 'silo_integration_unsplash',
+        keys: [{ name: 'accessKey', label: 'Unsplash Access Key' }],
+        usageInstructions: 'Use the Unsplash API. The endpoint is `https://api.unsplash.com/`. Authenticate using the `Authorization: Client-ID {{accessKey}}` header.',
+        category: 'Data & Media',
+    },
+    {
+        id: 'notion',
+        name: 'Notion',
+        icon: <NotionIcon />,
+        description: 'Read from and write to Notion pages and databases.',
+        storageKey: 'silo_integration_notion',
+        keys: [{ name: 'apiToken', label: 'Notion Integration Token' }],
+        usageInstructions: 'Use the Notion API v1. The endpoint is `https://api.notion.com/v1/`. Authenticate using the `Authorization: Bearer {{apiToken}}` header. You must also include the `Notion-Version: 2022-06-28` header.',
+        category: 'Productivity',
+    },
+    {
+        id: 'airtable',
+        name: 'Airtable',
+        icon: <AirtableIcon />,
+        description: 'Use flexible, powerful Airtable bases as a backend for your apps.',
+        storageKey: 'silo_integration_airtable',
+        keys: [{ name: 'personalAccessToken', label: 'Personal Access Token' }, { name: 'baseId', label: 'Base ID' }],
+        usageInstructions: 'Use the Airtable API. The endpoint is `https://api.airtable.com/v0/{{baseId}}/`. Authenticate using the `Authorization: Bearer {{personalAccessToken}}` header.',
+        category: 'Productivity',
     },
 ];

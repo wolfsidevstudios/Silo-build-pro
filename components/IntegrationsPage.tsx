@@ -32,6 +32,25 @@ export const IntegrationsPage: React.FC = () => {
             integration.description.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [searchQuery]);
+    
+    const groupedIntegrations = useMemo(() => {
+        const groups: { [key: string]: Integration[] } = {};
+        
+        const sortedIntegrations = [...filteredIntegrations].sort((a, b) => {
+            const categoryA = a.category || 'Z'; // Push items without a category to the end
+            const categoryB = b.category || 'Z';
+            return categoryA.localeCompare(categoryB);
+        });
+
+        for (const integration of sortedIntegrations) {
+            const category = integration.category || 'Other Integrations';
+            if (!groups[category]) {
+                groups[category] = [];
+            }
+            groups[category].push(integration);
+        }
+        return groups;
+    }, [filteredIntegrations]);
 
     const handleSaveKeys = (integrationId: string, storageKey: string, keys: Record<string, string>) => {
         localStorage.setItem(storageKey, JSON.stringify(keys));
@@ -71,32 +90,40 @@ export const IntegrationsPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredIntegrations.map(integration => {
-                        const isConnected = connectedIntegrations.has(integration.id);
-                        return (
-                            <div key={integration.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col justify-between aspect-square transition-all duration-300 hover:shadow-xl hover:border-blue-300">
-                                <div>
-                                    <div className="w-12 h-12 flex items-center justify-center rounded-lg mb-4">
-                                        {integration.icon}
-                                    </div>
-                                    <h3 className="font-semibold text-gray-900 mb-1">{integration.name}</h3>
-                                    <p className="text-sm text-gray-500 leading-snug">{integration.description}</p>
-                                </div>
-                                <div className="flex justify-end items-center mt-4">
-                                    {isConnected ? (
-                                         <button onClick={() => handleDisconnect(integration)} className="px-4 py-1.5 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-colors text-sm">
-                                            Disconnect
-                                        </button>
-                                    ) : (
-                                        <button onClick={() => setSelectedIntegration(integration)} className="px-4 py-1.5 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors text-sm">
-                                            Connect
-                                        </button>
-                                    )}
-                                </div>
+                <div className="space-y-12">
+                    {Object.entries(groupedIntegrations).map(([category, integrations]) => (
+                        <section key={category}>
+                            <h2 className="text-2xl font-bold text-black mb-6">{category}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {/* FIX: Explicitly type `integrations` because `Object.entries` on an object with an index signature can infer the value as `unknown`. */}
+                                {(integrations as Integration[]).map(integration => {
+                                    const isConnected = connectedIntegrations.has(integration.id);
+                                    return (
+                                        <div key={integration.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col justify-between aspect-square transition-all duration-300 hover:shadow-xl hover:border-blue-300">
+                                            <div>
+                                                <div className="w-12 h-12 flex items-center justify-center rounded-lg mb-4">
+                                                    {integration.icon}
+                                                </div>
+                                                <h3 className="font-semibold text-gray-900 mb-1">{integration.name}</h3>
+                                                <p className="text-sm text-gray-500 leading-snug">{integration.description}</p>
+                                            </div>
+                                            <div className="flex justify-end items-center mt-4">
+                                                {isConnected ? (
+                                                     <button onClick={() => handleDisconnect(integration)} className="px-4 py-1.5 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-colors text-sm">
+                                                        Disconnect
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => setSelectedIntegration(integration)} className="px-4 py-1.5 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors text-sm">
+                                                        Connect
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        );
-                    })}
+                        </section>
+                    ))}
                 </div>
 
                 <div className="text-center mt-16 py-8 border-t border-gray-200">
