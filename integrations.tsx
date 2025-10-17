@@ -82,6 +82,16 @@ export const BROWSER_API_DEFINITIONS: Integration[] = [
 
 export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
+        id: 'neon',
+        name: 'Neon',
+        icon: <span className="material-symbols-outlined text-4xl text-cyan-500">database</span>,
+        description: 'Connect to a serverless, scalable PostgreSQL database from Neon.',
+        storageKey: 'silo_integration_neon',
+        keys: [{ name: 'connectionString', label: 'Neon Connection String' }],
+        usageInstructions: 'The application is connected to a Neon serverless Postgres database. The connection string is `{{connectionString}}`. For frontend code, assume a backend API exists that uses this connection string to connect to the database. Make `fetch` requests to hypothetical API endpoints corresponding to the SQL schema (e.g., `/api/users`).',
+        category: 'Databases'
+    },
+    {
         id: 'apple-signin',
         name: 'Sign in with Apple',
         icon: <AppleSignInIcon />,

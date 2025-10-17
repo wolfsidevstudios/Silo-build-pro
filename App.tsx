@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -584,8 +585,8 @@ const App: React.FC = () => {
       **Instructions:**
       1.  Create a concise, step-by-step plan for the implementation.
       2.  List all the file paths you intend to create or modify. This list should be comprehensive.
-      3.  If the application requires data persistence (and is a React project), you MUST provide the complete SQL schema for the database. This schema should be standard SQL.
-      4.  If the project is connected to Supabase (${!!supabaseConfig}), generate SQL that is compatible with PostgreSQL.
+      3.  If the application requires data persistence, you MUST provide the complete PostgreSQL schema for the database. Assume it is for a Neon serverless Postgres database unless Supabase is connected.
+      4.  If the project is connected to Supabase (${!!supabaseConfig}), ensure the PostgreSQL schema is compatible with Supabase's environment.
       5.  If no database is needed, the "sql" field in your response must be an empty string.
       ${projectConstraints}
 
@@ -662,16 +663,20 @@ const App: React.FC = () => {
     // START: Dynamic Integrations Prompt Generation
     let integrationsPrompt = '';
     const integrationsList: string[] = [];
+    let isNeonConnected = false;
     
     for (const integration of INTEGRATION_DEFINITIONS) {
-        const storedKeysRaw = localStorage.getItem(integration.storageKey);
+        if (integration.id === 'neon' && localStorage.getItem(integration.storageKey as string)) {
+            isNeonConnected = true;
+        }
+        const storedKeysRaw = localStorage.getItem(integration.storageKey as string);
         if (storedKeysRaw) {
             try {
                 const storedKeys = JSON.parse(storedKeysRaw);
                 let integrationDetails = `\n- **${integration.name} Integration:**`;
                 let hasAllKeys = true;
                 
-                integration.keys.forEach(keyInfo => {
+                integration.keys?.forEach(keyInfo => {
                     const keyValue = storedKeys[keyInfo.name];
                     if (keyValue) {
                         integrationDetails += `\n  - ${keyInfo.label}: "${keyValue}"`;
@@ -684,7 +689,7 @@ const App: React.FC = () => {
                     if (integration.usageInstructions) {
                         // Replace placeholders like {{apiKey}} with actual values
                         let instructions = integration.usageInstructions;
-                        integration.keys.forEach(keyInfo => {
+                        integration.keys?.forEach(keyInfo => {
                             const placeholder = `{{${keyInfo.name}}}`;
                             instructions = instructions.replace(new RegExp(placeholder, 'g'), storedKeys[keyInfo.name]);
                         });
@@ -715,8 +720,15 @@ ${integrationsList.join('\n')}
       - You MUST use the '@supabase/supabase-js' library. The library is already loaded in the environment. You can access it via the global \`supabase\` object.
       - Initialize the client like this: \`const supabaseClient = supabase.createClient("${supabaseConfig.url}", "${supabaseConfig.anonKey}");\`
     ` : '';
+
+    const neonIntegrationPrompt = isNeonConnected && !supabaseConfig ? `
+      **Neon Database Integration:**
+      - This project is connected to a Neon serverless PostgreSQL database.
+      - You MUST assume a backend API exists that can interact with this database. Your task is to write frontend code that makes \`fetch\` requests to hypothetical API endpoints that would logically correspond to the schema in \`app.sql\` (e.g., \`/api/users\`, \`/api/items\`).
+      - You MUST NOT implement the backend server itself. Focus only on the frontend React code that consumes these imagined APIs.
+    ` : '';
     
-    const customSqlPrompt = currentFiles.some(f => f.path === 'app.sql') && !supabaseConfig ? `
+    const customSqlPrompt = currentFiles.some(f => f.path === 'app.sql') && !supabaseConfig && !isNeonConnected ? `
       **Custom Backend:**
       - An \`app.sql\` file exists, which defines the database schema for the application.
       - You MUST assume a backend API exists that can interact with this database.
@@ -813,6 +825,7 @@ ${integrationsList.join('\n')}
       ${projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
+      ${neonIntegrationPrompt}
       ${customSqlPrompt}
       ${integrationsPrompt}
       ${apiSecretsPrompt}

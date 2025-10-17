@@ -37,7 +37,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile, theme, unread
                 <NavLink href="#/home" theme={theme}>Home</NavLink>
                 <NavLink href="#/integrations" theme={theme}>Integrations</NavLink>
                 <NavLink href="#/pricing" theme={theme}>Pricing</NavLink>
-                <NavLink href="#/docs" theme={theme}>Docs</NavLink>
+                <NavLink href="#/docs" theme={theme}>Newsroom</NavLink>
                 <NavLink href="#/developer-portal" theme={theme}>Developers</NavLink>
             </div>
         </div>
