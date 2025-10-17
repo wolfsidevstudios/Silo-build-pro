@@ -416,3 +416,5 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         category: 'Productivity',
     },
 ];
+
+export const ALL_INTEGRATIONS: Integration[] = [...INTEGRATION_DEFINITIONS, ...BROWSER_API_DEFINITIONS];

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -19,7 +20,7 @@ import { FocusTimer } from './components/FocusTimer';
 import { PricingPage } from './components/PricingPage';
 import { DocsPage } from './components/DocsPage';
 import { IntegrationsPage } from './components/IntegrationsPage';
-import { INTEGRATION_DEFINITIONS } from './integrations';
+import { INTEGRATION_DEFINITIONS, Integration } from './integrations';
 import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
 import { MaxCursor } from './components/MaxCursor';
 import { NotificationsPanel, Notification } from './components/NotificationsPanel';
@@ -250,7 +251,7 @@ const App: React.FC = () => {
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
-  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType, screenshot: string | null} | null>(null);
+  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null} | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishState, setPublishState] = useState<PublishState>({ status: 'idle' });
   const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
@@ -523,11 +524,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const build = async () => {
       if (projectToBuild) {
-        const { projectId, prompt, projectType, screenshot } = projectToBuild;
+        const { projectId, prompt, projectType, screenshot, integration } = projectToBuild;
         setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, [], projectId, projectType, true, screenshot);
+          await runBuildProcess(prompt, [], projectId, projectType, true, screenshot, integration);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setErrors(prev => [errorMessage, ...prev]);
@@ -891,16 +892,23 @@ ${integrationsList.join('\n')}
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false, screenshotBase64: string | null = null) => {
+  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false, screenshotBase64: string | null = null, integration: Integration | null = null) => {
     setIsLoading(true);
     setErrors([]);
 
+    const finalPrompt = integration 
+      ? `The user wants to build an application using the "${integration.name}" integration. Fulfill the following request using this context: "${prompt}"`
+      : prompt;
+
     addMessageToProject(projectId, { actor: 'user', text: prompt });
+    if (integration) {
+        addMessageToProject(projectId, { actor: 'system', text: `Using ${integration.name} integration context.` });
+    }
     
     const project = projects.find(p => p.id === projectId);
     const projectType = projectTypeOverride || project?.projectType || 'multi';
 
-    const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType, screenshotBase64);
+    const { plan, sql, files_to_generate } = await generatePlan(finalPrompt, model, projectType, screenshotBase64);
     
     // FIX: Ensure src/App.tsx is always in the list for React projects.
     if (projectType !== 'html' && !files_to_generate.some(f => f === 'src/App.tsx')) {
@@ -931,7 +939,7 @@ ${integrationsList.join('\n')}
     updateProjectState(projectId, { files: filesForCodeGeneration });
 
     setProgress(0);
-    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, files_to_generate, model, projectType, screenshotBase64);
+    const codePromise = generateCode(finalPrompt, filesForCodeGeneration, plan, files_to_generate, model, projectType, screenshotBase64);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -1023,7 +1031,7 @@ ${integrationsList.join('\n')}
     setIsLoading(false);
   };
 
-  const createNewProject = (prompt: string, projectType: ProjectType, screenshot: string | null) => {
+  const createNewProject = (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => {
     if (!prompt.trim()) return;
     
     const initialFiles = projectType === 'html'
@@ -1041,7 +1049,7 @@ ${integrationsList.join('\n')}
     
     setProjects(prev => [...prev, newProject]);
     
-    setProjectToBuild({ projectId: newProject.id, prompt, projectType, screenshot });
+    setProjectToBuild({ projectId: newProject.id, prompt, projectType, screenshot, integration });
     window.location.hash = `/project/${newProject.id}`;
   };
   

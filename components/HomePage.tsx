@@ -1,10 +1,13 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon } from './icons';
+import type { Integration } from '../integrations';
+import { ALL_INTEGRATIONS } from '../integrations';
 
 interface HomePageProps {
-  onStartBuild: (prompt: string, projectType: ProjectType, screenshot: string | null) => void;
+  onStartBuild: (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => void;
   isLoading: boolean;
   defaultStack: ProjectType;
 }
@@ -115,6 +118,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(false);
+  const [isIntegrationsPanelOpen, setIsIntegrationsPanelOpen] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+
 
   const banners = [
     {
@@ -188,16 +194,32 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     }
   };
 
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value === '/') {
+        setPrompt('');
+        setIsIntegrationsPanelOpen(true);
+    } else {
+        setPrompt(value);
+    }
+  };
+
+  const handleSelectIntegration = (integration: Integration) => {
+    setSelectedIntegration(integration);
+    setIsIntegrationsPanelOpen(false);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onStartBuild(prompt, defaultStack, screenshot);
+      onStartBuild(prompt, defaultStack, screenshot, selectedIntegration);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
-    onStartBuild(suggestion, defaultStack, null);
+    setSelectedIntegration(null);
+    onStartBuild(suggestion, defaultStack, null, null);
   };
 
   return (
@@ -253,14 +275,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
             <textarea
               ref={textareaRef}
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g., a real-time crypto price tracker with a dark theme"
-              className="w-full p-3 pr-16 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
+              onChange={handlePromptChange}
+              placeholder="Describe your app, or type '/' for integrations..."
+              className="w-full p-3 pl-32 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
               rows={4}
               disabled={isLoading}
             />
              {screenshot && (
-              <div className="absolute top-3 left-3 group">
+              <div className="absolute top-3 left-16 group">
                 <img src={screenshot} alt="Screenshot preview" className="w-20 h-auto rounded-lg border-2 border-blue-500" />
                 <button
                   type="button"
@@ -272,17 +294,31 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                 </button>
               </div>
             )}
-            <div className="absolute bottom-4 left-4 flex items-center">
+            <div className="absolute bottom-4 left-4 flex items-center space-x-2">
                  <button
                     type="button"
                     onClick={handleCaptureClick}
                     disabled={isLoading}
-                    className="w-12 h-12 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
+                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 animate-float"
                     aria-label="Capture screenshot"
                     title="Capture Screenshot"
                 >
-                    <span className="material-symbols-outlined">photo_camera</span>
+                    <span className="material-symbols-outlined text-3xl">photo_camera</span>
                 </button>
+                {selectedIntegration && (
+                    <div className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium animate-fade-in">
+                        <div className="w-5 h-5 flex items-center justify-center">{selectedIntegration.icon}</div>
+                        <span className="font-semibold">{selectedIntegration.name}</span>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedIntegration(null)}
+                            className="p-1 rounded-full hover:bg-blue-200"
+                            aria-label={`Remove ${selectedIntegration.name} integration`}
+                        >
+                            <span className="material-symbols-outlined text-base">close</span>
+                        </button>
+                    </div>
+                )}
             </div>
             <button
               type="submit"
@@ -340,6 +376,33 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
           <CountdownTimer />
         </div>
       </div>
+       {isIntegrationsPanelOpen && (
+            <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={() => setIsIntegrationsPanelOpen(false)}>
+                <div 
+                    className="fixed bottom-0 left-0 right-0 h-[60vh] bg-white shadow-2xl rounded-t-3xl p-6 flex flex-col transition-transform duration-300 ease-out"
+                    onClick={e => e.stopPropagation()}
+                    style={{ transform: isIntegrationsPanelOpen ? 'translateY(0)' : 'translateY(100%)' }}
+                >
+                    <h2 className="text-2xl font-bold text-black mb-4 flex-shrink-0">Add an Integration</h2>
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {ALL_INTEGRATIONS.sort((a,b) => a.name.localeCompare(b.name)).map(integration => (
+                                <button
+                                    key={integration.id}
+                                    onClick={() => handleSelectIntegration(integration)}
+                                    className="text-left p-4 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition-colors flex flex-col items-start aspect-square justify-between"
+                                >
+                                  <div>
+                                    <div className="w-8 h-8 mb-2">{integration.icon}</div>
+                                    <p className="font-semibold text-sm text-black">{integration.name}</p>
+                                  </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

@@ -29,6 +29,14 @@
       .animate-click {
         animation: click-animation 0.2s ease-in-out;
       }
+      @keyframes float {
+        0% { transform: translateY(0px); box-shadow: 0 5px 15px 0px rgba(0,0,0,0.1); }
+        50% { transform: translateY(-6px); box-shadow: 0 15px 25px 0px rgba(0,0,0,0.05); }
+        100% { transform: translateY(0px); box-shadow: 0 5px 15px 0px rgba(0,0,0,0.1); }
+      }
+      .animate-float {
+        animation: float 4s ease-in-out infinite;
+      }
       body::before {
         content: '';
         position: fixed;
