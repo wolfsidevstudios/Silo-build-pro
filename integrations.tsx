@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon, JasperIcon, RunwayIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -209,6 +209,46 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_github',
         keys: [{ name: 'pat', label: 'GitHub Personal Access Token' }],
         usageInstructions: 'Use the GitHub REST API. The endpoint is `https://api.github.com/`. Authenticate using the `Authorization: Bearer {{pat}}` header.',
+        category: 'AI & Developer Tools',
+    },
+    {
+        id: 'hailuo-ai',
+        name: 'Hailuo AI',
+        icon: <img src="https://static.cdnlogo.com/logos/h/3/hailuo-ai_800.png" alt="Hailuo AI Logo" className="w-full h-full object-contain" />,
+        description: 'Access to Tongyi Qwen large language models from Alibaba Cloud.',
+        storageKey: 'silo_integration_hailuo',
+        keys: [{ name: 'apiKey', label: 'Hailuo AI API Key' }],
+        usageInstructions: 'Use the Hailuo AI API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
+        category: 'AI & Developer Tools',
+    },
+    {
+        id: 'jasper',
+        name: 'Jasper',
+        icon: <JasperIcon />,
+        description: 'AI content platform for marketing, writing, and creative work.',
+        storageKey: 'silo_integration_jasper',
+        keys: [{ name: 'apiKey', label: 'Jasper API Key' }],
+        usageInstructions: 'Use the Jasper REST API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
+        category: 'AI & Developer Tools',
+    },
+    {
+        id: 'runway',
+        name: 'Runway',
+        icon: <RunwayIcon />,
+        description: 'Generate and edit videos with AI, from text-to-video to style transfer.',
+        storageKey: 'silo_integration_runway',
+        keys: [{ name: 'apiKey', label: 'Runway API Key' }],
+        usageInstructions: 'Use the RunwayML API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
+        category: 'AI & Developer Tools',
+    },
+    {
+        id: 'anthropic',
+        name: 'Anthropic',
+        icon: <img src="https://static.cdnlogo.com/logos/a/69/anthropic_800x800.png" alt="Anthropic Logo" className="w-full h-full object-contain" />,
+        description: 'Integrate the Claude family of models for powerful text generation and analysis.',
+        storageKey: 'silo_integration_anthropic',
+        keys: [{ name: 'apiKey', label: 'Anthropic API Key' }],
+        usageInstructions: 'Use the Anthropic API. The endpoint is `https://api.anthropic.com/v1/`. Authenticate using the `x-api-key: {{apiKey}}` header.',
         category: 'AI & Developer Tools',
     },
     {
