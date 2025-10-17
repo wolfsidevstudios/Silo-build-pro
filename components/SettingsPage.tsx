@@ -9,9 +9,9 @@ const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
 type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'safety' | 'about';
 
-const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="flex h-full items-center justify-center p-8">
-        <div className="w-full max-w-5xl h-[75vh] min-h-[600px] bg-black border border-gray-800 rounded-3xl flex overflow-hidden shadow-2xl shadow-black/30">
+const SettingsContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <div className="flex h-full items-center justify-center p-8 pt-24">
+        <div className="w-full max-w-5xl h-full bg-white/70 backdrop-blur-xl border border-gray-200 rounded-3xl flex overflow-hidden shadow-2xl shadow-black/10">
             {children}
         </div>
     </div>
@@ -23,8 +23,8 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
             onClick={() => onTabChange(tab)}
             className={`flex items-center space-x-3 w-full text-left p-3 rounded-xl transition-all duration-200 ${
                 activeTab === tab
-                    ? 'bg-white/10 text-white font-semibold'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-blue-600 text-white font-semibold shadow-md'
+                    : 'text-gray-600 hover:bg-black/5 hover:text-black'
             }`}
         >
             <span className="material-symbols-outlined">{icon}</span>
@@ -33,9 +33,9 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
     );
 
     return (
-        <nav className="w-64 bg-black/30 p-4 border-r border-gray-800 flex flex-col">
+        <nav className="w-64 bg-black/5 p-4 border-r border-gray-200 flex flex-col">
             <div className="text-left mb-10 p-2">
-                <h2 className="text-2xl font-bold text-gray-200">Settings</h2>
+                <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
                 <p className="text-sm text-gray-500">Manage your workspace</p>
             </div>
             <div className="space-y-2">
@@ -52,7 +52,7 @@ const SettingsSidebar: React.FC<{ activeTab: SettingsTab; onTabChange: (tab: Set
 };
 
 const SettingsContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="flex-1 p-8 overflow-y-auto">
+    <div className="flex-1 p-8 overflow-y-auto text-black">
         <div className="w-full max-w-lg mx-auto space-y-10">
             {children}
         </div>
@@ -61,8 +61,8 @@ const SettingsContent: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 const SettingSection: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
     <div>
-        <h3 className="text-lg font-semibold text-gray-200">{title}</h3>
-        <p className="text-sm text-gray-500 mb-4">{description}</p>
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <p className="text-sm text-gray-600 mb-4">{description}</p>
         {children}
     </div>
 );
@@ -96,7 +96,7 @@ const TokenInput: React.FC<{
 
     return (
         <div>
-            <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-2">
+            <label htmlFor={id} className="block text-sm font-medium text-gray-600 mb-2">
                 {label}
             </label>
             <div className="relative w-full">
@@ -106,20 +106,20 @@ const TokenInput: React.FC<{
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full p-3 pl-5 pr-28 bg-zinc-900 border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full p-3 pl-5 pr-28 bg-white border border-gray-300 rounded-full text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 <button
                     onClick={handleSave}
-                    className="absolute top-1/2 right-2 transform -translate-y-1/2 px-6 py-1.5 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors"
+                    className="absolute top-1/2 right-2 transform -translate-y-1/2 px-6 py-1.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors"
                 >
                     {saveStatus === 'saved' ? 'Saved!' : 'Save'}
                 </button>
             </div>
-            {saveStatus === 'error' && <p className="text-red-400 text-sm mt-2 text-center">Failed to save token.</p>}
+            {saveStatus === 'error' && <p className="text-red-500 text-sm mt-2 text-center">Failed to save token.</p>}
             <p className="text-xs text-gray-500 mt-3">
                 {helpText}
                 {helpLink && (
-                    <a href={helpLink.href} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-400 hover:text-blue-300 hover:underline">
+                    <a href={helpLink.href} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-500 hover:text-blue-400 hover:underline">
                         {helpLink.text}
                     </a>
                 )}
@@ -187,37 +187,37 @@ const ApiSecretsSettings: React.FC<{
                     <p className="text-xs text-gray-500 text-center py-4">No secrets added yet.</p>
                 )}
                 {apiSecrets.map(secret => (
-                    <div key={secret.key} className="flex items-center justify-between bg-zinc-800/50 p-2 rounded-lg text-sm">
+                    <div key={secret.key} className="flex items-center justify-between bg-gray-100 p-2 rounded-lg text-sm">
                         <div className="font-mono flex-1 truncate">
-                            <span className="text-gray-400">{secret.key}</span>
-                            <span className="text-gray-600 mx-2">=</span>
-                            <span className="text-gray-300">{maskValue(secret.value)}</span>
+                            <span className="text-gray-600">{secret.key}</span>
+                            <span className="text-gray-400 mx-2">=</span>
+                            <span className="text-gray-800">{maskValue(secret.value)}</span>
                         </div>
-                        <button onClick={() => handleDelete(secret.key)} className="p-1 rounded-full text-red-500 hover:bg-red-900/50" aria-label={`Delete ${secret.key}`}>
+                        <button onClick={() => handleDelete(secret.key)} className="p-1 rounded-full text-red-500 hover:bg-red-500/10" aria-label={`Delete ${secret.key}`}>
                             <span className="material-symbols-outlined text-base">delete</span>
                         </button>
                     </div>
                 ))}
             </div>
             
-            <div className="bg-zinc-800/50 p-3 rounded-lg border border-gray-700 space-y-3">
+            <div className="bg-gray-100 p-3 rounded-lg border border-gray-200 space-y-3">
                 <div className="flex space-x-2">
                     <input
                         type="text"
                         value={newKey}
                         onChange={e => setNewKey(e.target.value)}
                         placeholder="SECRET_NAME"
-                        className="w-1/2 p-2 bg-zinc-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <input
                         type="password"
                         value={newValue}
                         onChange={e => setNewValue(e.target.value)}
                         placeholder="Secret Value"
-                        className="w-1/2 p-2 bg-zinc-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                 </div>
-                {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                {error && <p className="text-red-500 text-xs text-center">{error}</p>}
                 <button
                     onClick={handleAdd}
                     className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
@@ -319,7 +319,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
     };
 
     return (
-        <SettingsCard>
+        <SettingsContainer>
             <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} />
             <SettingsContent>
                 {activeTab === 'general' && (
@@ -335,38 +335,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                             />
                         </SettingSection>
                         <SettingSection title="Model Selection" description="Flash is faster and great for simple tasks. Pro is more powerful for complex requests.">
-                            <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                            <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
                                     onClick={() => props.onModelChange('gemini-2.5-flash')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.selectedModel === 'gemini-2.5-flash' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.selectedModel === 'gemini-2.5-flash' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Flash
                                 </button>
                                 <button
                                     onClick={() => props.onModelChange('gemini-2.5-pro')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.selectedModel === 'gemini-2.5-pro' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.selectedModel === 'gemini-2.5-pro' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Pro
                                 </button>
                             </div>
                         </SettingSection>
                          <SettingSection title="Default Stack Mode" description="Choose the default project type for new builds.">
-                            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
                                     onClick={() => props.onDefaultStackChange('html')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'html' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'html' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     HTML/JS
                                 </button>
                                 <button
                                     onClick={() => props.onDefaultStackChange('single')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'single' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'single' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     React (Single)
                                 </button>
                                  <button
                                     onClick={() => props.onDefaultStackChange('multi')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'multi' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'multi' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     React (Multi)
                                 </button>
@@ -377,20 +377,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 {activeTab === 'appearance' && (
                      <>
                         <SettingSection title="Theme" description="Choose the look and feel of the interface.">
-                             <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                             <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
-                                    disabled
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors text-gray-500 cursor-not-allowed`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors bg-white text-black shadow`}
                                 >
                                     Light
                                 </button>
                                 <button
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors bg-white text-black`}
+                                    disabled
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors text-gray-500 cursor-not-allowed`}
                                 >
                                     Dark
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2 text-center">Light theme is coming soon.</p>
+                            <p className="text-xs text-gray-500 mt-2 text-center">Dark theme is coming soon.</p>
                         </SettingSection>
                         <SettingSection title="Editor Font Size" description="Customize the font size in the code editor.">
                              <div className="flex items-center space-x-4">
@@ -401,9 +401,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                     step="1"
                                     value={editorFontSize}
                                     onChange={handleFontSizeChange}
-                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                                 />
-                                <span className="text-sm font-mono bg-zinc-800 px-3 py-1 rounded-md">{editorFontSize}px</span>
+                                <span className="text-sm font-mono bg-gray-100 px-3 py-1 rounded-md">{editorFontSize}px</span>
                             </div>
                         </SettingSection>
                     </>
@@ -435,16 +435,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 {activeTab === 'developer' && (
                     <>
                         <SettingSection title="Preview Mode" description="Iframe mode is sandboxed and secure. Service Worker mode offers faster reloads.">
-                            <div className="flex items-center space-x-2 bg-zinc-900 border border-gray-700 rounded-full p-1">
+                            <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
                                     onClick={() => props.onPreviewModeChange('iframe')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Iframe (Secure)
                                 </button>
                                 <button
                                     onClick={() => props.onPreviewModeChange('service-worker')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Service Worker
                                 </button>
@@ -458,17 +458,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         </SettingSection>
                         <SettingSection title="Backup & Restore" description="Export all projects and settings to a JSON file, or import from a backup.">
                             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                                <button onClick={handleExportData} className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm">
+                                <button onClick={handleExportData} className="w-full py-2 bg-white border border-gray-300 text-black rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
                                     Export Backup
                                 </button>
                                 <input type="file" accept=".json" onChange={handleImportData} ref={importFileInputRef} className="hidden" />
-                                <button onClick={() => importFileInputRef.current?.click()} className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm">
+                                <button onClick={() => importFileInputRef.current?.click()} className="w-full py-2 bg-white border border-gray-300 text-black rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
                                     Import Backup
                                 </button>
                             </div>
                         </SettingSection>
                         <SettingSection title="Danger Zone" description="These actions are permanent and cannot be undone. Proceed with caution.">
-                            <button onClick={handleClearData} className="w-full py-2 bg-red-800/80 border border-red-600/50 text-white rounded-lg font-semibold hover:bg-red-800 transition-colors text-sm">
+                            <button onClick={handleClearData} className="w-full py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm">
                                 Clear All Local Data
                             </button>
                         </SettingSection>
@@ -477,8 +477,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                  {activeTab === 'appstore' && (
                     <>
                         <SettingSection title="App Store Publishing" description="Publish your React Native apps directly to the Apple App Store.">
-                            <div className="text-center p-8 bg-zinc-800/50 rounded-lg border border-dashed border-gray-700">
-                                <h3 className="text-xl font-semibold text-gray-300">Coming Soon!</h3>
+                            <div className="text-center p-8 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+                                <h3 className="text-xl font-semibold text-gray-800">Coming Soon!</h3>
                                 <p className="text-gray-500 mt-2">
                                     We're working hard to bring you a seamless App Store publishing experience.
                                 </p>
@@ -489,7 +489,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 {activeTab === 'safety' && (
                     <>
                         <SettingSection title="Privacy Policy" description="How we handle your data.">
-                            <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                            <div className="text-gray-700 text-sm space-y-4 bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-60 overflow-y-auto">
                                 <p><strong>Last Updated: [Date]</strong></p>
                                 <p>Your privacy is important to us. It is Silo Build's policy to respect your privacy regarding any information we may collect from you across our website, and other sites we own and operate.</p>
                                 <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
@@ -501,7 +501,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                             </div>
                         </SettingSection>
                         <SettingSection title="Terms of Service" description="The rules for using our application.">
-                           <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                           <div className="text-gray-700 text-sm space-y-4 bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-60 overflow-y-auto">
                                 <p><strong>1. Terms</strong></p>
                                 <p>By accessing the website at Silo Build, you are agreeing to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws. If you do not agree with any of these terms, you are prohibited from using or accessing this site. The materials contained in this website are protected by applicable copyright and trademark law.</p>
                                 <p><strong>2. Use License</strong></p>
@@ -515,24 +515,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 {activeTab === 'about' && (
                     <>
                         <SettingSection title="About Silo Build" description="Building applications with the power of AI.">
-                            <div className="text-gray-400 text-sm space-y-4 bg-zinc-800/50 p-4 rounded-lg">
+                            <div className="text-gray-700 text-sm space-y-4 bg-gray-50 border border-gray-200 p-4 rounded-lg">
                                 <p>Silo Build is a powerful in-browser IDE that transpiles and renders React TSX code in real-time. Write your components using TypeScript and JSX, and see the live preview instantly.</p>
                                 <p>This project leverages the capabilities of Google's Gemini API to assist in code generation, planning, and debugging, enabling rapid application development directly from natural language prompts.</p>
                             </div>
                         </SettingSection>
                         <SettingSection title="Contact Information" description="For support, feedback, or inquiries, please reach out to our team.">
-                            <div className="text-gray-400 text-sm space-y-2 bg-zinc-800/50 p-4 rounded-lg">
+                            <div className="text-gray-700 text-sm space-y-2 bg-gray-50 border border-gray-200 p-4 rounded-lg">
                                 <p>
-                                    <a href="mailto:survivalcreativeminecraftadven@gmail.com" className="text-blue-400 hover:underline">survivalcreativeminecraftadven@gmail.com</a>
+                                    <a href="mailto:survivalcreativeminecraftadven@gmail.com" className="text-blue-600 hover:underline">survivalcreativeminecraftadven@gmail.com</a>
                                 </p>
                                 <p>
-                                    <a href="mailto:rocio1976ramirezpena@gmail.com" className="text-blue-400 hover:underline">rocio1976ramirezpena@gmail.com</a>
+                                    <a href="mailto:rocio1976ramirezpena@gmail.com" className="text-blue-600 hover:underline">rocio1976ramirezpena@gmail.com</a>
                                 </p>
                             </div>
                         </SettingSection>
                     </>
                 )}
             </SettingsContent>
-        </SettingsCard>
+        </SettingsContainer>
     );
 };

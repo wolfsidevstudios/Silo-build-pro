@@ -1848,7 +1848,7 @@ Good luck!
   const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
 
   const path = location.startsWith('/') ? location : `/${location}`;
-  const isDarkPage = path === '/profile' || path === '/settings';
+  const isDarkPage = path === '/profile';
 
   return (
     <div 
