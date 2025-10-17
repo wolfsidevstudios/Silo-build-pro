@@ -164,6 +164,7 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
 export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject, isLoading }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const { files } = project;
   const sqlFile = files.find(f => f.path === 'app.sql');
   const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
@@ -301,19 +302,63 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           >
             <span className="material-symbols-outlined">open_in_new</span>
           </button>
+           <div className="flex items-center space-x-1 bg-white/50 backdrop-blur-md p-1 rounded-full border border-gray-200 shadow-sm">
+            <button
+              onClick={() => setPreviewDevice('desktop')}
+              title="Desktop Preview"
+              aria-label="Desktop Preview"
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
+                previewDevice === 'desktop'
+                  ? 'bg-black text-white shadow-md'
+                  : 'text-gray-600 hover:bg-black/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">desktop_windows</span>
+            </button>
+            <button
+              onClick={() => setPreviewDevice('mobile')}
+              title="Mobile Preview"
+              aria-label="Mobile Preview"
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
+                previewDevice === 'mobile'
+                  ? 'bg-black text-white shadow-md'
+                  : 'text-gray-600 hover:bg-black/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">smartphone</span>
+            </button>
+          </div>
         </div>
       </div>
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'preview' && (
-          <div className="flex-1 overflow-auto p-4 pt-0">
-            <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
-              {isLoading ? (
-                <FeatureSlideshow />
-              ) : (
-                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
-              )}
+           previewDevice === 'desktop' ? (
+            <div className="flex-1 overflow-auto p-4 pt-0">
+              <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
+                {isLoading ? (
+                  <FeatureSlideshow />
+                ) : (
+                  <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            // Mobile View
+            <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
+              <div
+                className="rounded-[2.5rem] overflow-hidden shadow-2xl shadow-gray-500/40 border-8 border-gray-800 bg-gray-800"
+                style={{ width: '390px', height: '844px', flexShrink: 0 }}
+              >
+                <div className="w-full h-full bg-white overflow-hidden">
+                  {isLoading ? (
+                    <FeatureSlideshow />
+                  ) : (
+                    <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+                  )}
+                </div>
+              </div>
+            </div>
+          )
         )}
         {activeTab === 'code' && (
            <div className="flex flex-1 overflow-hidden">
