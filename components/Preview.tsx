@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
 declare const Babel: any;
+declare const window: any;
 
 interface PreviewProps {
   files: ProjectFile[];
@@ -69,6 +70,11 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
             if (path === 'react') return window.React;
             if (path === 'react-dom/client') return window.ReactDOM;
             if (path === 'react-router-dom') return window.ReactRouterDOM;
+            if (path === 'clsx') return window.clsx;
+            if (path === 'tailwind-merge') return { twMerge: window.twMerge };
+            if (path === 'class-variance-authority') return window.cva;
+            if (path === '@radix-ui/react-slot') return window.RadixSlot;
+
             const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
             if (moduleCache[resolvedPath]) return moduleCache[resolvedPath].exports;
             const code = transpiledModules[resolvedPath];
@@ -113,6 +119,10 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
           <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
           <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+          <script src="https://esm.sh/clsx?globalName=clsx"></script>
+          <script src="https://esm.sh/tailwind-merge?globalName=twMerge"></script>
+          <script src="https://esm.sh/class-variance-authority?globalName=cva"></script>
+          <script src="https://esm.sh/@radix-ui/react-slot?globalName=RadixSlot"></script>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
           <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
         </head>

@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { useDebounce } from './hooks/useDebounce';
-import { DEFAULT_CODE, DEFAULT_HTML_FILES } from './constants';
+import { DEFAULT_CODE, DEFAULT_HTML_FILES, DEFAULT_SHADCN_FILES } from './constants';
 import { ChatPanel } from './components/ChatPanel';
 import { Workspace } from './components/Workspace';
 import { TopNavBar } from './components/TopNavBar';
@@ -136,7 +135,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
-export type ProjectType = 'single' | 'multi' | 'html';
+export type ProjectType = 'single' | 'multi' | 'html' | 'shadcn';
 export type PreviewMode = 'service-worker' | 'iframe';
 export type ApiKeyHandling = 'hardcode' | 'env';
 
@@ -675,6 +674,8 @@ const App: React.FC = () => {
         projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a single-file React project. You MUST only generate one file: 'src/App.tsx'. The "files_to_generate" array in your response MUST contain only this single path.`;
     } else if (projectType === 'html') {
         projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a vanilla HTML/CSS/JS project. You MUST generate three files: 'index.html', 'style.css', and 'script.js'. The "files_to_generate" array in your response MUST contain exactly these three paths. Do not generate any other files. No SQL database is needed.`;
+    } else if (projectType === 'shadcn') {
+        projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a React project using shadcn/ui. You MUST use shadcn/ui components where appropriate. You MUST generate the full source code for any shadcn/ui components you use (e.g., Button, Card, Input) and place them in 'src/components/ui/'. You MUST use relative paths for imports (e.g., '../../lib/utils.ts'). Do NOT use path aliases like '@/*'.`;
     }
     
     let imagePrompt = '';
@@ -898,6 +899,19 @@ ${integrationsList.join('\n')}
             projectTypeInstructions = `
                 **Project Type:** Multi-File (React)
                 **Guideline:** You SHOULD break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure.
+            `;
+            break;
+        case 'shadcn':
+             projectTypeInstructions = `
+                **Project Type:** Multi-File React with shadcn/ui
+                **Critical shadcn/ui Rules:**
+                1.  You are building a web application using React and shadcn/ui.
+                2.  **Component Generation:** shadcn/ui components are NOT installed from npm. You MUST generate the full source code for every shadcn/ui component you use (e.g., Button, Card, Input, etc.).
+                3.  **File Structure:** Place generated shadcn/ui components inside the 'src/components/ui/' directory. Application components go in 'src/components/'.
+                4.  **Dependencies:** Many shadcn/ui components depend on Radix UI primitives (e.g., '@radix-ui/react-slot') and other libraries like 'class-variance-authority', 'clsx', 'tailwind-merge'. These are available via browser imports.
+                5.  **Styling:** You MUST use Tailwind CSS for all styling. A utility function 'cn' is available at 'src/lib/utils.ts' for merging Tailwind classes.
+                6.  **Pathing:** You MUST use relative paths for all local imports (e.g., \`import { cn } from '../../lib/utils.ts'\`). DO NOT use path aliases like '@/'.
+                7.  **Component Source:** Find source code for shadcn/ui components on their official documentation website. You must generate the full, correct code for them.
             `;
             break;
         case 'html':
@@ -1147,6 +1161,8 @@ ${integrationsList.join('\n')}
     
     const initialFiles = projectType === 'html'
       ? DEFAULT_HTML_FILES
+      : projectType === 'shadcn'
+      ? DEFAULT_SHADCN_FILES
       : [{ path: 'src/App.tsx', code: DEFAULT_CODE }];
     
     const newProject: Project = {

@@ -359,21 +359,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
                                     onClick={() => props.onDefaultStackChange('html')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'html' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-full sm:w-1/4 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'html' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     HTML/JS
                                 </button>
                                 <button
                                     onClick={() => props.onDefaultStackChange('single')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'single' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-full sm:w-1/4 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'single' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     React (Single)
                                 </button>
                                  <button
                                     onClick={() => props.onDefaultStackChange('multi')}
-                                    className={`w-full sm:w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'multi' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-full sm:w-1/4 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'multi' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     React (Multi)
+                                </button>
+                                <button
+                                    onClick={() => props.onDefaultStackChange('shadcn')}
+                                    className={`w-full sm:w-1/4 py-2 rounded-full text-sm font-semibold transition-colors ${props.defaultStack === 'shadcn' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    React + shadcn
                                 </button>
                             </div>
                         </SettingSection>
