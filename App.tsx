@@ -1283,6 +1283,50 @@ ${integrationsList.join('\n')}
     }
   };
 
+  const handleFixAllErrors = async () => {
+    if (!activeProject || errors.length === 0) return;
+
+    setIsLoading(true);
+    setProgress(0);
+
+    const combinedErrors = errors.join('\n- ');
+    const fixPrompt = `
+      Multiple errors occurred in the application:
+      - ${combinedErrors}
+      
+      Please analyze the existing files and fix all the bugs causing these errors.
+      You must return the complete, corrected code for ALL existing files that need to be changed.
+    `;
+
+    try {
+      const plan = ["Analyze all reported errors.", "Identify the root causes in the codebase.", "Correct the code in all affected files.", "Ensure the fixes do not introduce new issues."];
+      
+      const interval = setInterval(() => {
+        setProgress(prev => Math.min((prev ?? 0) + 5, 95));
+      }, 400);
+
+      const filesToModify = activeProject.files.map(f => f.path);
+      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType, null);
+      
+      clearInterval(interval);
+      setProgress(100);
+
+      updateProjectState(activeProject.id, { files: newFiles });
+      setErrors([]); // Clear all errors on success
+      
+      addMessageToProject(activeProject.id, { actor: 'system', text: `I've attempted to fix all outstanding errors. Please check the preview.` });
+    } catch (err: any) {
+      const errorMessage = `AI Error during batch fix attempt: ${err.message}`;
+      setErrors(prev => [errorMessage, ...prev]);
+      addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error while trying to fix the errors.` });
+    } finally {
+      setTimeout(() => {
+        setProgress(null);
+        setIsLoading(false);
+      }, 500);
+    }
+  };
+
   const handleModelChange = (newModel: GeminiModel) => {
     setModel(newModel);
     localStorage.setItem('gemini_model', newModel);
@@ -2142,6 +2186,7 @@ Good luck!
                 onClose={() => setIsDebugAssistOpen(false)}
                 errors={errors}
                 onFixError={handleFixError}
+                onFixAllErrors={handleFixAllErrors}
                 isLoading={isLoading}
             />
         </>

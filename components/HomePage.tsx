@@ -120,6 +120,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(false);
   const [isIntegrationsPanelOpen, setIsIntegrationsPanelOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+  const [integrationSearch, setIntegrationSearch] = useState('');
 
 
   const banners = [
@@ -196,8 +197,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    if (value === '/') {
-        setPrompt('');
+    if (value.endsWith('/')) {
+        setPrompt(value.slice(0, -1));
         setIsIntegrationsPanelOpen(true);
     } else {
         setPrompt(value);
@@ -207,6 +208,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const handleSelectIntegration = (integration: Integration) => {
     setSelectedIntegration(integration);
     setIsIntegrationsPanelOpen(false);
+    setIntegrationSearch('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -383,19 +385,35 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     onClick={e => e.stopPropagation()}
                     style={{ transform: isIntegrationsPanelOpen ? 'translateY(0)' : 'translateY(100%)' }}
                 >
-                    <h2 className="text-2xl font-bold text-black mb-4 flex-shrink-0">Add an Integration</h2>
+                    <div className="flex-shrink-0 mb-4">
+                        <h2 className="text-2xl font-bold text-black mb-4">Add an Integration</h2>
+                        <div className="relative">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                            <input
+                                type="text"
+                                value={integrationSearch}
+                                onChange={(e) => setIntegrationSearch(e.target.value)}
+                                placeholder="Search integrations..."
+                                className="w-full p-2 pl-10 bg-gray-100 border border-gray-300 rounded-full text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
                     <div className="flex-1 overflow-y-auto">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {ALL_INTEGRATIONS.sort((a,b) => a.name.localeCompare(b.name)).map(integration => (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {ALL_INTEGRATIONS
+                                .filter(integration => integration.name.toLowerCase().includes(integrationSearch.toLowerCase()))
+                                .sort((a,b) => a.name.localeCompare(b.name))
+                                .map(integration => (
                                 <button
                                     key={integration.id}
                                     onClick={() => handleSelectIntegration(integration)}
-                                    className="text-left p-4 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition-colors flex flex-col items-start aspect-square justify-between"
+                                    className="text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition-colors flex items-center space-x-3"
                                 >
-                                  <div>
-                                    <div className="w-8 h-8 mb-2">{integration.icon}</div>
-                                    <p className="font-semibold text-sm text-black">{integration.name}</p>
-                                  </div>
+                                    <div className="w-8 h-8 flex-shrink-0">{integration.icon}</div>
+                                    <div>
+                                        <p className="font-semibold text-sm text-black">{integration.name}</p>
+                                    </div>
                                 </button>
                             ))}
                         </div>

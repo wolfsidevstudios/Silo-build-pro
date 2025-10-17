@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 
 interface DebugAssistPanelProps {
@@ -6,10 +7,11 @@ interface DebugAssistPanelProps {
   onClose: () => void;
   errors: string[];
   onFixError: (error: string) => void;
+  onFixAllErrors: () => void;
   isLoading: boolean;
 }
 
-const DebugAssistPanel: React.FC<DebugAssistPanelProps> = ({ isOpen, onClose, errors, onFixError, isLoading }) => {
+const DebugAssistPanel: React.FC<DebugAssistPanelProps> = ({ isOpen, onClose, errors, onFixError, onFixAllErrors, isLoading }) => {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSend = () => {
@@ -24,8 +26,8 @@ const DebugAssistPanel: React.FC<DebugAssistPanelProps> = ({ isOpen, onClose, er
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
-      <div className={`absolute inset-0 bg-black/50 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose}></div>
-      <div className="relative w-full h-full bg-zinc-900/80 backdrop-blur-xl border-l border-gray-700 rounded-l-3xl shadow-2xl flex flex-col p-6 text-white">
+      <div className={`absolute inset-0 bg-black/30 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose}></div>
+      <div className="relative w-full h-full bg-white/80 backdrop-blur-xl border-l border-gray-200 shadow-2xl flex flex-col p-6 text-black">
         <div className="flex items-center justify-between mb-6 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" height="24" width="24">
@@ -39,25 +41,25 @@ const DebugAssistPanel: React.FC<DebugAssistPanelProps> = ({ isOpen, onClose, er
             </svg>
             <h2 className="text-xl font-bold">Debug Assist</h2>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
         
         <div className="flex-1 overflow-y-auto pr-2 space-y-4">
           {errors.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
               <span className="material-symbols-outlined text-5xl">task_alt</span>
               <p className="mt-2">No errors detected. Looking good!</p>
             </div>
           ) : (
             errors.map((error, index) => (
-              <div key={index} className="bg-red-900/40 border border-red-500/50 rounded-lg p-3">
-                <pre className="text-red-200 whitespace-pre-wrap font-mono text-xs mb-3">{error}</pre>
+              <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <pre className="text-red-800 whitespace-pre-wrap font-mono text-xs mb-3">{error}</pre>
                 <button 
                   onClick={() => onFixError(error)}
                   disabled={isLoading}
-                  className="w-full text-center px-4 py-1.5 bg-white text-black rounded-full text-xs font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  className="w-full text-center px-4 py-1.5 bg-black text-white rounded-full text-xs font-semibold hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Fixing...' : '✨ Fix it for me'}
                 </button>
@@ -66,15 +68,24 @@ const DebugAssistPanel: React.FC<DebugAssistPanelProps> = ({ isOpen, onClose, er
           )}
         </div>
         
-        <div className="mt-4 border-t border-gray-700 pt-4 flex-shrink-0">
-          <div className="relative">
+        <div className="mt-4 pt-4 flex-shrink-0 space-y-4">
+           {errors.length > 1 && (
+             <button 
+                onClick={onFixAllErrors}
+                disabled={isLoading}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Fixing all errors...' : 'Fix All Errors'}
+            </button>
+           )}
+          <div className="relative border-t border-gray-200 pt-4">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleChatSend()}
               placeholder="Ask for help..."
-              className="w-full bg-zinc-800 border border-gray-700 rounded-full py-2 pl-4 pr-12 text-sm"
+              className="w-full bg-gray-100 border border-gray-300 rounded-full py-2 pl-4 pr-12 text-sm"
             />
             <button
               onClick={handleChatSend}
