@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -184,19 +185,19 @@ const FEATURE_NOTIFICATIONS: Omit<Notification, 'read'>[] = [
     id: 'max-ai-agent-v1',
     title: 'New Feature: Max AI Agent',
     description: 'Meet Max, your autonomous AI development partner. Activate Max to have it brainstorm, write, and execute prompts for you.',
-    timestamp: new Date('2024-07-20T10:00:00Z').getTime()
+    timestamp: new Date('2024-10-15T10:00:00Z').getTime()
   },
   {
     id: 'integrations-marketplace-v1',
     title: 'New: Integrations Marketplace',
     description: "Connect to services like Pexels, OpenAI, and more directly within Silo Build. Check out the new Integrations page!",
-    timestamp: new Date('2024-07-19T10:00:00Z').getTime()
+    timestamp: new Date('2024-10-14T10:00:00Z').getTime()
   },
   {
     id: 'eas-export-v1',
     title: 'Project Export for EAS',
     description: "You can now download your projects as a zip file, pre-configured for submission to the App Store using Expo Application Services.",
-    timestamp: new Date('2024-07-18T10:00:00Z').getTime()
+    timestamp: new Date('2024-10-13T10:00:00Z').getTime()
   },
 ];
 
