@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { IntegrationModal } from './IntegrationModal';
-import { Integration, INTEGRATION_DEFINITIONS } from '../integrations';
+import { Integration, INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS } from '../integrations';
+
+const ALL_INTEGRATIONS = [...INTEGRATION_DEFINITIONS, ...BROWSER_API_DEFINITIONS];
 
 export const IntegrationsPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -11,7 +13,7 @@ export const IntegrationsPage: React.FC = () => {
         const checkConnections = () => {
             const newConnected = new Set<string>();
             INTEGRATION_DEFINITIONS.forEach(integration => {
-                if (localStorage.getItem(integration.storageKey)) {
+                if (integration.storageKey && localStorage.getItem(integration.storageKey)) {
                     newConnected.add(integration.id);
                 }
             });
@@ -25,9 +27,9 @@ export const IntegrationsPage: React.FC = () => {
 
     const filteredIntegrations = useMemo(() => {
         if (!searchQuery) {
-            return INTEGRATION_DEFINITIONS;
+            return ALL_INTEGRATIONS;
         }
-        return INTEGRATION_DEFINITIONS.filter(integration =>
+        return ALL_INTEGRATIONS.filter(integration =>
             integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             integration.description.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -59,7 +61,7 @@ export const IntegrationsPage: React.FC = () => {
     };
     
     const handleDisconnect = (integration: Integration) => {
-        if (window.confirm(`Are you sure you want to disconnect ${integration.name}? This will remove your stored API keys.`)) {
+        if (integration.storageKey && window.confirm(`Are you sure you want to disconnect ${integration.name}? This will remove your stored API keys.`)) {
             localStorage.removeItem(integration.storageKey);
             setConnectedIntegrations(prev => {
                 const newSet = new Set(prev);
@@ -68,13 +70,20 @@ export const IntegrationsPage: React.FC = () => {
             });
         }
     };
+    
+    const handleUseClick = (prompt: string | undefined) => {
+        if (!prompt) return;
+        sessionStorage.setItem('silo_prompt_suggestion', prompt);
+        window.location.hash = '/home';
+    };
+
 
     return (
         <div className="flex flex-col h-full p-8 pt-28 overflow-y-auto">
             <div className="w-full max-w-5xl mx-auto">
                 <header className="text-center mb-12">
                     <h1 className="text-5xl font-bold text-black mb-2">Integrations Marketplace</h1>
-                    <p className="text-lg text-gray-600">Connect your favorite tools to build powerful apps.</p>
+                    <p className="text-lg text-gray-600">Connect your favorite tools and browser APIs to build powerful apps.</p>
                 </header>
 
                 <div className="sticky top-20 z-10 py-6">
@@ -95,9 +104,10 @@ export const IntegrationsPage: React.FC = () => {
                         <section key={category}>
                             <h2 className="text-2xl font-bold text-black mb-6">{category}</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {/* FIX: Explicitly type `integrations` because `Object.entries` on an object with an index signature can infer the value as `unknown`. */}
                                 {(integrations as Integration[]).map(integration => {
-                                    const isConnected = connectedIntegrations.has(integration.id);
+                                    const isKeyBased = integration.keys && integration.keys.length > 0;
+                                    const isConnected = isKeyBased && connectedIntegrations.has(integration.id);
+
                                     return (
                                         <div key={integration.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col justify-between aspect-square transition-all duration-300 hover:shadow-xl hover:border-blue-300">
                                             <div>
@@ -108,13 +118,19 @@ export const IntegrationsPage: React.FC = () => {
                                                 <p className="text-sm text-gray-500 leading-snug">{integration.description}</p>
                                             </div>
                                             <div className="flex justify-end items-center mt-4">
-                                                {isConnected ? (
-                                                     <button onClick={() => handleDisconnect(integration)} className="px-4 py-1.5 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-colors text-sm">
-                                                        Disconnect
-                                                    </button>
+                                                {isKeyBased ? (
+                                                    isConnected ? (
+                                                        <button onClick={() => handleDisconnect(integration)} className="px-4 py-1.5 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-colors text-sm">
+                                                            Disconnect
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => setSelectedIntegration(integration)} className="px-4 py-1.5 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors text-sm">
+                                                            Connect
+                                                        </button>
+                                                    )
                                                 ) : (
-                                                    <button onClick={() => setSelectedIntegration(integration)} className="px-4 py-1.5 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors text-sm">
-                                                        Connect
+                                                    <button onClick={() => handleUseClick(integration.prompt)} className="px-4 py-1.5 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-colors text-sm">
+                                                        Use
                                                     </button>
                                                 )}
                                             </div>

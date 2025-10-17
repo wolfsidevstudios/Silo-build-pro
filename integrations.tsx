@@ -6,11 +6,79 @@ export interface Integration {
     name: string;
     icon: React.ReactNode;
     description: string;
-    storageKey: string;
-    keys: { name: string; label: string }[];
+    storageKey?: string;
+    keys?: { name: string; label: string }[];
     usageInstructions?: string;
     category?: string;
+    prompt?: string;
 }
+
+export const BROWSER_API_DEFINITIONS: Integration[] = [
+    {
+        id: 'geolocation',
+        name: 'Geolocation API',
+        icon: <span className="material-symbols-outlined text-4xl text-blue-500">location_on</span>,
+        description: "Access the user's location for location-aware features.",
+        prompt: "Build an app that asks for location permission and then displays the user's current latitude and longitude.",
+        category: 'Browser APIs'
+    },
+    {
+        id: 'camera',
+        name: 'Camera (getUserMedia)',
+        icon: <span className="material-symbols-outlined text-4xl text-red-500">photo_camera</span>,
+        description: 'Capture video and images directly from the device camera.',
+        prompt: 'Create a photobooth app. Show the live camera feed on the page and include a button to capture a photo and display it below the feed.',
+        category: 'Browser APIs'
+    },
+    {
+        id: 'speech-recognition',
+        name: 'Speech Recognition',
+        icon: <span className="material-symbols-outlined text-4xl text-purple-500">mic</span>,
+        description: 'Transcribe spoken words into text using the Web Speech API.',
+        prompt: 'Build a voice note app. It should have a "Start Listening" button that transcribes speech to text in a text area, and a "Stop Listening" button.',
+        category: 'Browser APIs'
+    },
+    {
+        id: 'speech-synthesis',
+        name: 'Speech Synthesis',
+        icon: <span className="material-symbols-outlined text-4xl text-green-500">volume_up</span>,
+        description: 'Convert text into spoken voice with the Web Speech API.',
+        prompt: 'Create a text-to-speech app with a textarea and a "Speak" button. When the button is clicked, the app should read the text from the textarea aloud.',
+        category: 'Browser APIs'
+    },
+    {
+        id: 'fullscreen',
+        name: 'Fullscreen API',
+        icon: <span className="material-symbols-outlined text-4xl text-gray-700">fullscreen</span>,
+        description: 'Allow users to view a specific element in fullscreen mode.',
+        prompt: "Build a simple image viewer with an 'Enter Fullscreen' button. When clicked, the image should take up the entire screen.",
+        category: 'Browser APIs'
+    },
+    {
+        id: 'clipboard',
+        name: 'Clipboard API',
+        icon: <span className="material-symbols-outlined text-4xl text-yellow-600">content_paste</span>,
+        description: 'Securely copy text and other data to the user clipboard.',
+        prompt: 'Create a component with a text input and a "Copy" button. When the button is clicked, the text from the input should be copied to the clipboard.',
+        category: 'Browser APIs'
+    },
+    {
+        id: 'web-share',
+        name: 'Web Share API',
+        icon: <span className="material-symbols-outlined text-4xl text-indigo-500">share</span>,
+        description: 'Enable native sharing capabilities on supported devices.',
+        prompt: 'Create a simple article page with a title, some text, and a "Share" button. Clicking the button should open the native device sharing UI.',
+        category: 'Browser APIs'
+    },
+    {
+        id: 'vibration',
+        name: 'Vibration API',
+        icon: <span className="material-symbols-outlined text-4xl text-teal-500">vibration</span>,
+        description: 'Provide physical feedback through device vibration (mobile only).',
+        prompt: 'Build a set of buttons that trigger different vibration patterns when clicked: a short buzz, a long buzz, and a "mario" sequence.',
+        category: 'Browser APIs'
+    }
+];
 
 export const INTEGRATION_DEFINITIONS: Integration[] = [
     {

@@ -92,6 +92,17 @@ const CountdownTimer = () => {
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const suggestedPrompt = sessionStorage.getItem('silo_prompt_suggestion');
+    if (suggestedPrompt) {
+        setPrompt(suggestedPrompt);
+        sessionStorage.removeItem('silo_prompt_suggestion');
+        textareaRef.current?.focus();
+        textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +149,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
           <div className="relative w-full">
             <textarea
+              ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., a real-time crypto price tracker with a dark theme"
