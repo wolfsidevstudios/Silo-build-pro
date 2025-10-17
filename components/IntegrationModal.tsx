@@ -38,6 +38,12 @@ export const IntegrationModal: React.FC<IntegrationModalProps> = ({ integration,
                     <div>
                         <h2 className="text-xl font-bold">Connect {integration.name}</h2>
                         <p className="text-sm text-gray-600">Your keys are stored securely in your browser.</p>
+                        {integration.getApiKeyUrl && (
+                            <a href={integration.getApiKeyUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center space-x-1 mt-1">
+                                <span>Get API Key</span>
+                                <span className="material-symbols-outlined text-base">open_in_new</span>
+                            </a>
+                        )}
                     </div>
                 </div>
                 

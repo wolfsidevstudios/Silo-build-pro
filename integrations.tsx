@@ -11,6 +11,7 @@ export interface Integration {
     usageInstructions?: string;
     category?: string;
     prompt?: string;
+    getApiKeyUrl?: string;
 }
 
 export const BROWSER_API_DEFINITIONS: Integration[] = [
@@ -89,7 +90,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_neon',
         keys: [{ name: 'connectionString', label: 'Neon Connection String' }],
         usageInstructions: 'The application is connected to a Neon serverless Postgres database. The connection string is `{{connectionString}}`. For frontend code, assume a backend API exists that uses this connection string to connect to the database. Make `fetch` requests to hypothetical API endpoints corresponding to the SQL schema (e.g., `/api/users`).',
-        category: 'Databases'
+        category: 'Databases',
+        getApiKeyUrl: 'https://neon.tech/docs/connect/connect-from-any-app#find-your-connection-string',
     },
     {
         id: 'apple-signin',
@@ -99,7 +101,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_apple_signin',
         keys: [{ name: 'serviceId', label: 'Service ID' }],
         usageInstructions: 'Use the Sign in with Apple JS library. The `clientId` in your configuration should be `{{serviceId}}`.',
-        category: 'Apple Services'
+        category: 'Apple Services',
+        getApiKeyUrl: 'https://developer.apple.com/help/account/configure-app-capabilities/configure-sign-in-with-apple-for-the-web',
     },
     {
         id: 'apple-mapkit',
@@ -109,7 +112,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_apple_mapkit',
         keys: [{ name: 'authToken', label: 'JWT Auth Token' }],
         usageInstructions: 'Use MapKit JS. When initializing the map, provide the authorization callback that returns your token `{{authToken}}`.',
-        category: 'Apple Services'
+        category: 'Apple Services',
+        getApiKeyUrl: 'https://developer.apple.com/documentation/mapkitjs/creating_and_using_a_mapkit_js_key',
     },
     {
         id: 'apple-music',
@@ -119,7 +123,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_apple_music',
         keys: [{ name: 'developerToken', label: 'Developer Token (JWT)' }],
         usageInstructions: 'Use MusicKit JS. Configure it with your developer token `{{developerToken}}`.',
-        category: 'Apple Services'
+        category: 'Apple Services',
+        getApiKeyUrl: 'https://developer.apple.com/documentation/applemusicapi/getting_keys_and_creating_tokens',
     },
     {
         id: 'apple-icloud',
@@ -129,7 +134,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         storageKey: 'silo_integration_apple_icloud',
         keys: [{ name: 'apiToken', label: 'CloudKit API Token' }, { name: 'containerId', label: 'Container Identifier' }],
         usageInstructions: 'Use CloudKit JS. Configure it with your container identifier `{{containerId}}` and API token `{{apiToken}}`.',
-        category: 'Apple Services'
+        category: 'Apple Services',
+        getApiKeyUrl: 'https://developer.apple.com/documentation/cloudkitjs/setting_up_cloudkit_js',
     },
     {
         id: 'youtube',
@@ -140,6 +146,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'YouTube Data API Key v3' }],
         usageInstructions: 'Use the YouTube Data API v3. The endpoint is `https://www.googleapis.com/youtube/v3/`. Append `&key={{apiKey}}` to your requests for authentication.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://console.cloud.google.com/apis/credentials',
     },
     {
         id: 'google-analytics',
@@ -150,6 +157,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'measurementId', label: 'Measurement ID (G-)' }],
         usageInstructions: 'Use the Google Analytics Data API or gtag.js. The Measurement ID `{{measurementId}}` is used to send data to your property.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://support.google.com/analytics/answer/9539598',
     },
     {
         id: 'google-gmail',
@@ -160,6 +168,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Gmail API Key' }, { name: 'clientId', label: 'OAuth 2.0 Client ID' }],
         usageInstructions: 'Use the Gmail API. Requires an OAuth 2.0 flow with your Client ID `{{clientId}}` to get user consent and an access token.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://console.cloud.google.com/apis/credentials',
     },
     {
         id: 'google-calendar',
@@ -170,6 +179,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Calendar API Key' }, { name: 'clientId', label: 'OAuth 2.0 Client ID' }],
         usageInstructions: 'Use the Google Calendar API. Requires an OAuth 2.0 flow with your Client ID `{{clientId}}` to get user consent and an access token.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://console.cloud.google.com/apis/credentials',
     },
     {
         id: 'google-pay',
@@ -180,6 +190,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'merchantId', label: 'Google Pay Merchant ID' }],
         usageInstructions: 'Use the Google Pay API for web. Use the Merchant ID `{{merchantId}}` when configuring your payment requests.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://pay.google.com/business/console',
     },
     {
         id: 'google-adsense',
@@ -190,6 +201,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'publisherId', label: 'AdSense Publisher ID (pub-)' }],
         usageInstructions: 'Use the Google AdSense code snippet with your Publisher ID `{{publisherId}}` to display ads.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://support.google.com/adsense/answer/105516',
     },
     {
         id: 'google-gemini',
@@ -200,6 +212,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Gemini API Key' }],
         usageInstructions: 'Use the Google AI SDK. Authenticate your requests with the API Key `{{apiKey}}`.',
         category: 'Google Services',
+        getApiKeyUrl: 'https://aistudio.google.com/app/apikey',
     },
     {
         id: 'openai',
@@ -210,6 +223,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'OpenAI API Key' }],
         usageInstructions: 'Use the OpenAI API. The endpoint is `https://api.openai.com/v1/`. Use the token in the `Authorization: Bearer {{apiKey}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://platform.openai.com/api-keys',
     },
     {
         id: 'github',
@@ -220,6 +234,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'pat', label: 'GitHub Personal Access Token' }],
         usageInstructions: 'Use the GitHub REST API. The endpoint is `https://api.github.com/`. Authenticate using the `Authorization: Bearer {{pat}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://github.com/settings/tokens',
     },
     {
         id: 'hailuo-ai',
@@ -230,6 +245,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Hailuo AI API Key' }],
         usageInstructions: 'Use the Hailuo AI API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://www.alibabacloud.com/product/model-studio',
     },
     {
         id: 'jasper',
@@ -240,6 +256,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Jasper API Key' }],
         usageInstructions: 'Use the Jasper REST API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://app.jasper.ai/settings/api',
     },
     {
         id: 'runway',
@@ -250,6 +267,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Runway API Key' }],
         usageInstructions: 'Use the RunwayML API. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://app.runwayml.com/account/api-tokens',
     },
     {
         id: 'anthropic',
@@ -260,6 +278,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Anthropic API Key' }],
         usageInstructions: 'Use the Anthropic API. The endpoint is `https://api.anthropic.com/v1/`. Authenticate using the `x-api-key: {{apiKey}}` header.',
         category: 'AI & Developer Tools',
+        getApiKeyUrl: 'https://console.anthropic.com/settings/keys',
     },
     {
         id: 'spotify',
@@ -270,6 +289,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'clientId', label: 'Spotify Client ID' }, { name: 'clientSecret', label: 'Spotify Client Secret' }],
         usageInstructions: 'Use the Spotify Web API. You will need to perform an OAuth flow or use the Client Credentials flow with your Client ID `{{clientId}}` and Client Secret `{{clientSecret}}` to get an access token.',
         category: 'Social & Content',
+        getApiKeyUrl: 'https://developer.spotify.com/dashboard',
     },
      {
         id: 'x_twitter',
@@ -284,6 +304,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         ],
         usageInstructions: 'Use the X API v2. For app-only authentication, use the Bearer Token `{{bearerToken}}` in the header: `Authorization: Bearer {{bearerToken}}`. The API Key and Secret are for user-based OAuth flows.',
         category: 'Social & Content',
+        getApiKeyUrl: 'https://developer.twitter.com/en/portal/dashboard',
     },
     {
         id: 'discord',
@@ -294,6 +315,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'botToken', label: 'Discord Bot Token' }],
         usageInstructions: 'Use the Discord API. Authenticate requests with the bot token in the header: `Authorization: Bot {{botToken}}`.',
         category: 'Social & Content',
+        getApiKeyUrl: 'https://discord.com/developers/applications',
     },
     {
         id: 'pinterest',
@@ -304,6 +326,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'accessToken', label: 'Pinterest Access Token' }],
         usageInstructions: 'Use the Pinterest API v5. The endpoint is `https://api.pinterest.com/v5/`. Authenticate using the `Authorization: Bearer {{accessToken}}` header.',
         category: 'Social & Content',
+        getApiKeyUrl: 'https://developers.pinterest.com/apps/',
     },
     {
         id: 'giphy',
@@ -314,6 +337,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'GIPHY API Key' }],
         usageInstructions: "Use the GIPHY API. The endpoint is `https://api.giphy.com/v1/`. Append `&api_key={{apiKey}}` to your requests for authentication.",
         category: 'Social & Content',
+        getApiKeyUrl: 'https://developers.giphy.com/dashboard/',
     },
     {
         id: 'stripe',
@@ -324,6 +348,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'publicKey', label: 'Stripe Public Key' }, { name: 'secretKey', label: 'Stripe Secret Key' }],
         usageInstructions: 'For frontend code, use the Public Key `{{publicKey}}` to initialize Stripe.js. The Secret Key `{{secretKey}}` is for backend operations and should not be exposed in frontend code; assume a backend exists that uses it.',
         category: 'Payments & E-commerce',
+        getApiKeyUrl: 'https://dashboard.stripe.com/apikeys',
     },
     {
         id: 'paypal',
@@ -334,6 +359,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'clientId', label: 'PayPal Client ID' }],
         usageInstructions: 'Use the PayPal JavaScript SDK. Initialize it by adding the script: `<script src="https://www.paypal.com/sdk/js?client-id={{clientId}}"></script>`. Then render the PayPal buttons.',
         category: 'Payments & E-commerce',
+        getApiKeyUrl: 'https://developer.paypal.com/dashboard/applications/',
     },
     {
         id: 'shopify',
@@ -344,6 +370,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'storefrontAccessToken', label: 'Storefront Access Token' }, { name: 'storeDomain', label: 'Store Domain (e.g., your-store.myshopify.com)' }],
         usageInstructions: 'Use the Shopify Storefront GraphQL API. The endpoint is `https://{{storeDomain}}/api/2023-10/graphql.json`. Authenticate using the `X-Shopify-Storefront-Access-Token: {{storefrontAccessToken}}` header.',
         category: 'Payments & E-commerce',
+        getApiKeyUrl: 'https://shopify.dev/docs/apps/auth/admin-api-access-tokens',
     },
     {
         id: 'producthunt',
@@ -354,6 +381,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'developerToken', label: 'Product Hunt Developer Token' }],
         usageInstructions: "Use the Product Hunt API v2 (GraphQL). The endpoint is `https://api.producthunt.com/v2/api/graphql`. When making requests, include the token in the 'Authorization' header like this: `Authorization: Bearer {{developerToken}}`.",
         category: 'Business',
+        getApiKeyUrl: 'https://www.producthunt.com/v2/oauth/applications',
     },
     {
         id: 'twilio',
@@ -364,6 +392,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'accountSid', label: 'Twilio Account SID' }, { name: 'authToken', label: 'Twilio Auth Token' }],
         usageInstructions: 'Use the Twilio REST API. The Account SID is `{{accountSid}}`. The Auth Token `{{authToken}}` is secret and should be used on a backend; assume a backend exists that uses it for authenticated requests.',
         category: 'Communication',
+        getApiKeyUrl: 'https://www.twilio.com/console',
     },
     {
         id: 'sendgrid',
@@ -374,6 +403,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'SendGrid API Key' }],
         usageInstructions: 'Use the SendGrid Mail Send API. The endpoint is `https://api.sendgrid.com/v3/mail/send`. Authenticate using the `Authorization: Bearer {{apiKey}}` header.',
         category: 'Communication',
+        getApiKeyUrl: 'https://app.sendgrid.com/settings/api_keys',
     },
     {
         id: 'openweather',
@@ -384,6 +414,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'OpenWeather API Key' }],
         usageInstructions: 'Use the OpenWeather One Call API 3.0. The endpoint is `https://api.openweathermap.org/data/3.0/onecall`. Append `&appid={{apiKey}}` to your requests.',
         category: 'Data & Media',
+        getApiKeyUrl: 'https://home.openweathermap.org/api_keys',
     },
     {
         id: 'pexels',
@@ -394,6 +425,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiKey', label: 'Pexels API Key' }],
         usageInstructions: 'Use the Pexels API. The endpoint is `https://api.pexels.com/v1/`. Authenticate using the `Authorization: {{apiKey}}` header.',
         category: 'Data & Media',
+        getApiKeyUrl: 'https://www.pexels.com/api/',
     },
     {
         id: 'unsplash',
@@ -404,6 +436,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'accessKey', label: 'Unsplash Access Key' }],
         usageInstructions: 'Use the Unsplash API. The endpoint is `https://api.unsplash.com/`. Authenticate using the `Authorization: Client-ID {{accessKey}}` header.',
         category: 'Data & Media',
+        getApiKeyUrl: 'https://unsplash.com/oauth/applications',
     },
     {
         id: 'notion',
@@ -414,6 +447,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'apiToken', label: 'Notion Integration Token' }],
         usageInstructions: 'Use the Notion API v1. The endpoint is `https://api.notion.com/v1/`. Authenticate using the `Authorization: Bearer {{apiToken}}` header. You must also include the `Notion-Version: 2022-06-28` header.',
         category: 'Productivity',
+        getApiKeyUrl: 'https://www.notion.so/my-integrations',
     },
     {
         id: 'airtable',
@@ -424,6 +458,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         keys: [{ name: 'personalAccessToken', label: 'Personal Access Token' }, { name: 'baseId', label: 'Base ID' }],
         usageInstructions: 'Use the Airtable API. The endpoint is `https://api.airtable.com/v0/{{baseId}}/`. Authenticate using the `Authorization: Bearer {{personalAccessToken}}` header.',
         category: 'Productivity',
+        getApiKeyUrl: 'https://airtable.com/create/tokens',
     },
 ];
 
