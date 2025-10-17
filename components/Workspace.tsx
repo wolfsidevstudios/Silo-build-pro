@@ -345,7 +345,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           ) : (
             // Mobile View
             <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
-              <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>
+              <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
                 <div
                   className="rounded-[47.33px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
                   style={{ width: '390px', height: '844px', flexShrink: 0 }}
