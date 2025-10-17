@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
@@ -140,6 +140,8 @@ interface SettingsPageProps {
   isLoading: boolean;
   previewMode: PreviewMode;
   onPreviewModeChange: (mode: PreviewMode) => void;
+  apiKeyHandling: ApiKeyHandling;
+  onApiKeyHandlingChange: (mode: ApiKeyHandling) => void;
   apiSecrets: ApiSecret[];
   onApiSecretsChange: (secrets: ApiSecret[]) => void;
 }
@@ -248,7 +250,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
                 'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
                 'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
-                'silo_default_stack'
+                'silo_default_stack', 'silo_api_key_handling'
             ];
             const backupData: { [key: string]: any } = { version: 1 };
             keysToBackup.forEach(key => {
@@ -449,6 +451,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                     Service Worker
                                 </button>
                             </div>
+                        </SettingSection>
+                         <SettingSection title="API Key Handling" description="Choose how the AI should handle your API secrets from the Integrations marketplace when generating code.">
+                            <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
+                                <button
+                                    onClick={() => props.onApiKeyHandlingChange('hardcode')}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.apiKeyHandling === 'hardcode' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Hardcode Keys
+                                </button>
+                                <button
+                                    onClick={() => props.onApiKeyHandlingChange('env')}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.apiKeyHandling === 'env' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Use .env File
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 text-center">Using a .env file is recommended for better security practices, though it may not be runnable in all preview environments.</p>
                         </SettingSection>
                         <SettingSection title="Project API Secrets" description="Add secrets for external services. The AI can use these when generating code. Stored in local storage.">
                             <ApiSecretsSettings 

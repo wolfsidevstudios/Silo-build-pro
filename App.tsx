@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -119,6 +120,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi' | 'html';
 export type PreviewMode = 'iframe' | 'service-worker';
+export type ApiKeyHandling = 'hardcode' | 'env';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
@@ -185,19 +187,19 @@ const FEATURE_NOTIFICATIONS: Omit<Notification, 'read'>[] = [
     id: 'max-ai-agent-v1',
     title: 'New Feature: Max AI Agent',
     description: 'Meet Max, your autonomous AI development partner. Activate Max to have it brainstorm, write, and execute prompts for you.',
-    timestamp: new Date('2024-10-15T10:00:00Z').getTime()
+    timestamp: new Date('2025-10-15T10:00:00Z').getTime()
   },
   {
     id: 'integrations-marketplace-v1',
     title: 'New: Integrations Marketplace',
     description: "Connect to services like Pexels, OpenAI, and more directly within Silo Build. Check out the new Integrations page!",
-    timestamp: new Date('2024-10-14T10:00:00Z').getTime()
+    timestamp: new Date('2025-10-14T10:00:00Z').getTime()
   },
   {
     id: 'eas-export-v1',
     title: 'Project Export for EAS',
     description: "You can now download your projects as a zip file, pre-configured for submission to the App Store using Expo Application Services.",
-    timestamp: new Date('2024-10-13T10:00:00Z').getTime()
+    timestamp: new Date('2025-10-13T10:00:00Z').getTime()
   },
 ];
 
@@ -240,15 +242,15 @@ const App: React.FC = () => {
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [defaultStack, setDefaultStack] = useState<ProjectType>('multi');
   const [progress, setProgress] = useState<number | null>(null);
-  // Default to service-worker mode for better reliability and performance.
   const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
+  const [apiKeyHandling, setApiKeyHandling] = useState<ApiKeyHandling>('hardcode');
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
-  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType} | null>(null);
+  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType, screenshot: string | null} | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishState, setPublishState] = useState<PublishState>({ status: 'idle' });
   const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
@@ -319,6 +321,10 @@ const App: React.FC = () => {
       if (savedPreviewMode) {
         setPreviewMode(savedPreviewMode);
       }
+      const savedApiKeyHandling = localStorage.getItem('silo_api_key_handling') as ApiKeyHandling;
+      if (savedApiKeyHandling) {
+        setApiKeyHandling(savedApiKeyHandling);
+      }
       const savedApiSecrets = localStorage.getItem('silo_api_secrets');
       if (savedApiSecrets) {
         setApiSecrets(JSON.parse(savedApiSecrets));
@@ -381,6 +387,11 @@ const App: React.FC = () => {
   const handleSetDefaultStack = (stack: ProjectType) => {
     setDefaultStack(stack);
     localStorage.setItem('silo_default_stack', stack);
+  };
+  
+  const handleApiKeyHandlingChange = (mode: ApiKeyHandling) => {
+    setApiKeyHandling(mode);
+    localStorage.setItem('silo_api_key_handling', mode);
   };
 
   const handleProfileUpdate = (newProfile: UserProfile) => {
@@ -512,11 +523,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const build = async () => {
       if (projectToBuild) {
-        const { projectId, prompt, projectType } = projectToBuild;
+        const { projectId, prompt, projectType, screenshot } = projectToBuild;
         setProjectToBuild(null);
 
         try {
-          await runBuildProcess(prompt, [], projectId, projectType, true);
+          await runBuildProcess(prompt, [], projectId, projectType, true, screenshot);
         } catch (err: any) {
           const errorMessage = `AI Error: ${err.message}`;
           setErrors(prev => [errorMessage, ...prev]);
@@ -548,7 +559,7 @@ const App: React.FC = () => {
     return new GoogleGenAI({ apiKey });
   }
 
-  const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType, screenshotBase64: string | null): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
     const ai = getAiClient();
 
     let projectConstraints = '';
@@ -557,9 +568,15 @@ const App: React.FC = () => {
     } else if (projectType === 'html') {
         projectConstraints = `\n**CRITICAL CONSTRAINT:** This is a vanilla HTML/CSS/JS project. You MUST generate three files: 'index.html', 'style.css', and 'script.js'. The "files_to_generate" array in your response MUST contain exactly these three paths. Do not generate any other files. No SQL database is needed.`;
     }
+    
+    let imagePrompt = '';
+    if (screenshotBase64) {
+      imagePrompt = `\n**IMPORTANT:** An image has been provided as context. Analyze the image and incorporate its design, layout, and content into your plan. The user's request is likely related to this image.`;
+    }
 
     const planPrompt = `
       You are a senior software architect. Your task is to create a plan to build a web application based on the user's request.
+      ${imagePrompt}
 
       **Instructions:**
       1.  Create a concise, step-by-step plan for the implementation.
@@ -579,9 +596,20 @@ const App: React.FC = () => {
       
       **User Request:** "${prompt}"
     `;
+    
+    const contents: any = [planPrompt];
+    if (screenshotBase64) {
+      contents.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: screenshotBase64.split(',')[1]
+        }
+      });
+    }
+
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: planPrompt,
+      contents: { parts: contents.map(c => typeof c === 'string' ? { text: c } : c) },
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -625,7 +653,7 @@ const App: React.FC = () => {
     }
   };
 
-  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], filesToGenerate: string[], selectedModel: GeminiModel, projectType: ProjectType) => {
+  const generateCode = async (prompt: string, currentFiles: ProjectFile[], plan: string[], filesToGenerate: string[], selectedModel: GeminiModel, projectType: ProjectType, screenshotBase64: string | null) => {
     const ai = getAiClient();
     
     // START: Dynamic Integrations Prompt Generation
@@ -693,13 +721,25 @@ ${integrationsList.join('\n')}
       - You MUST NOT implement the backend server itself. Focus only on the frontend React code that consumes these imagined APIs.
     ` : '';
 
-    const apiSecretsPrompt = apiSecrets.length > 0 ? `
-      **API Secrets:**
-      - The user has provided the following API secrets. You MUST use these in the code when an external API key is required (e.g., for another AI service, a database, etc.).
-      - IMPORTANT: Do not display these secrets directly in the UI. When initializing clients or making API calls, use the provided value for the corresponding key.
-      - Available secrets:
-${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
-    ` : '';
+    let apiSecretsPrompt = '';
+    if (apiSecrets.length > 0) {
+      if (apiKeyHandling === 'env') {
+        apiSecretsPrompt = `
+          **API Secrets:**
+          - The user has provided API secrets. You MUST reference them using \`process.env.SECRET_NAME\` and MUST NOT hardcode the values in the code.
+          - If secrets are used, you MUST also generate a '.env.local' file containing the key-value pairs in the format \`SECRET_NAME="secret_value"\`.
+          - Available secret names: ${apiSecrets.map(s => s.key).join(', ')}
+        `;
+      } else { // 'hardcode'
+        apiSecretsPrompt = `
+          **API Secrets:**
+          - The user has provided the following API secrets. You MUST use these in the code when an external API key is required (e.g., for another AI service, a database, etc.).
+          - IMPORTANT: Do not display these secrets directly in the UI. When initializing clients or making API calls, use the provided value for the corresponding key.
+          - Available secrets:
+    ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
+        `;
+      }
+    }
     
     let projectTypeInstructions = '';
     switch (projectType) {
@@ -756,6 +796,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
     const fullPrompt = `
       You are an expert web developer. Your task is to generate the complete code for a set of specified files based on the user's request, a plan, and the current file structure.
+      ${screenshotBase64 ? '\n**CONTEXT:** An image has been provided. You MUST analyze it and use it as a primary reference for the UI, layout, and content of the application you generate.' : ''}
 
       **CRITICAL INSTRUCTION:** You MUST generate code for EVERY file listed below. Do not add, omit, or rename any files from this list. The "files" array in your JSON response must contain an entry for each and every one of these paths.
       
@@ -781,10 +822,20 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
 
       Your response MUST contain ONLY the JSON object, with no other text or markdown formatting.
     `;
+    
+    const contentParts: any[] = [{ text: fullPrompt }];
+    if (screenshotBase64) {
+      contentParts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: screenshotBase64.split(',')[1]
+        }
+      });
+    }
 
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: fullPrompt,
+      contents: { parts: contentParts },
       config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -816,6 +867,13 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
         if (!parsed.files || !Array.isArray(parsed.files)) {
             throw new Error("AI response is missing the 'files' array.");
         }
+        
+        // If using .env mode, inject the .env.local file if the AI didn't
+        if (apiKeyHandling === 'env' && apiSecrets.length > 0 && !parsed.files.some((f: ProjectFile) => f.path === '.env.local')) {
+            const envContent = apiSecrets.map(s => `${s.key}="${s.value}"`).join('\n');
+            parsed.files.push({ path: '.env.local', code: envContent });
+        }
+
         return parsed.files;
     } catch (e) {
         console.error("Failed to parse AI code response:", response.text);
@@ -833,7 +891,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false) => {
+  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false, screenshotBase64: string | null = null) => {
     setIsLoading(true);
     setErrors([]);
 
@@ -842,7 +900,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     const project = projects.find(p => p.id === projectId);
     const projectType = projectTypeOverride || project?.projectType || 'multi';
 
-    const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType);
+    const { plan, sql, files_to_generate } = await generatePlan(prompt, model, projectType, screenshotBase64);
     
     // FIX: Ensure src/App.tsx is always in the list for React projects.
     if (projectType !== 'html' && !files_to_generate.some(f => f === 'src/App.tsx')) {
@@ -873,7 +931,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     updateProjectState(projectId, { files: filesForCodeGeneration });
 
     setProgress(0);
-    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, files_to_generate, model, projectType);
+    const codePromise = generateCode(prompt, filesForCodeGeneration, plan, files_to_generate, model, projectType, screenshotBase64);
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -965,7 +1023,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     setIsLoading(false);
   };
 
-  const createNewProject = (prompt: string, projectType: ProjectType) => {
+  const createNewProject = (prompt: string, projectType: ProjectType, screenshot: string | null) => {
     if (!prompt.trim()) return;
     
     const initialFiles = projectType === 'html'
@@ -983,7 +1041,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
     
     setProjects(prev => [...prev, newProject]);
     
-    setProjectToBuild({ projectId: newProject.id, prompt, projectType });
+    setProjectToBuild({ projectId: newProject.id, prompt, projectType, screenshot });
     window.location.hash = `/project/${newProject.id}`;
   };
   
@@ -1195,7 +1253,7 @@ ${apiSecrets.map(s => `      - ${s.key}: "${s.value}"`).join('\n')}
       }, 400);
 
       const filesToModify = activeProject.files.map(f => f.path);
-      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType);
+      const newFiles = await generateCode(fixPrompt, activeProject.files, plan, filesToModify, model, activeProject.projectType, null);
       
       clearInterval(interval);
       setProgress(100);
@@ -2005,6 +2063,8 @@ Good luck!
           isLoading={isLoading}
           previewMode={previewMode}
           onPreviewModeChange={handlePreviewModeChange}
+          apiKeyHandling={apiKeyHandling}
+          onApiKeyHandlingChange={handleApiKeyHandlingChange}
           apiSecrets={apiSecrets}
           onApiSecretsChange={setApiSecrets}
         />
@@ -2028,7 +2088,7 @@ Good luck!
       return (
         <>
           <main className="flex flex-1 overflow-hidden pt-20">
-            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-200">
+            <div className="w-1/3 max-w-md flex-col border-r border-gray-200 hidden md:flex">
               <ChatPanel
                 messages={activeProject.messages}
                 userInput={userInput}
@@ -2095,12 +2155,7 @@ Good luck!
   const isDarkPage = path === '/profile';
 
   return (
-    <div 
-        className="flex h-screen text-black font-sans bg-white bg-no-repeat"
-        style={{
-             backgroundImage: 'radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%)'
-        }}
-    >
+    <div className="flex h-screen text-black font-sans">
       <TopNavBar 
         userProfile={userProfile}
         theme={isDarkPage ? 'dark' : 'light'}

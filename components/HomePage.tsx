@@ -1,9 +1,11 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon } from './icons';
 
 interface HomePageProps {
-  onStartBuild: (prompt: string, projectType: ProjectType) => void;
+  onStartBuild: (prompt: string, projectType: ProjectType, screenshot: string | null) => void;
   isLoading: boolean;
   defaultStack: ProjectType;
 }
@@ -34,7 +36,7 @@ const CountdownUnit: React.FC<{ value: number; label: string }> = ({ value, labe
 
 const CountdownTimer = () => {
   const calculateTimeLeft = () => {
-    const year = new Date().getFullYear();
+    const year = 2025;
     // Use a UTC date to avoid timezone issues. Month is 0-indexed, so 9 is October.
     const launchDate = new Date(Date.UTC(year, 9, 17, 0, 0, 0)); 
     const difference = +launchDate - +new Date();
@@ -91,6 +93,7 @@ const CountdownTimer = () => {
 
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
+  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
@@ -130,20 +133,49 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     }
   }, []);
 
+  const handleCaptureClick = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+            video.play();
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                // Wait for the next frame to be painted
+                requestAnimationFrame(() => {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    setScreenshot(dataUrl);
+                    stream.getTracks().forEach(track => track.stop());
+                });
+            } else {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    } catch (err) {
+        console.error("Error capturing screen:", err);
+        // Optionally, inform the user that permission was denied or an error occurred.
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onStartBuild(prompt, defaultStack);
+      onStartBuild(prompt, defaultStack, screenshot);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
-    onStartBuild(suggestion, defaultStack);
+    onStartBuild(suggestion, defaultStack, null);
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
+    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center bg-white">
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <div className="w-full max-w-4xl mx-auto mb-8 h-24">
             <div className="relative w-full h-full overflow-hidden rounded-2xl">
@@ -163,9 +195,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                                     {banner.description && (
                                         <p className="text-sm text-gray-600 text-left">{banner.description}</p>
                                     )}
-                                    {banner.badgeHtml && (
-                                       <div className="mt-1 flex" dangerouslySetInnerHTML={{ __html: banner.badgeHtml }} />
-                                    )}
                                 </div>
                             </div>
                             {banner.linkLabel && (
@@ -176,6 +205,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                                         </a>
                                     </div>
                                 </div>
+                            )}
+                            {banner.badgeHtml && (
+                                <div className="flex-shrink-0" dangerouslySetInnerHTML={{ __html: banner.badgeHtml }} />
                             )}
                         </div>
                     </div>
@@ -190,16 +222,41 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         </p>
         
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
-          <div className="relative w-full">
+          <div className="relative w-full bg-white border border-gray-300 rounded-2xl shadow-lg p-2">
             <textarea
               ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., a real-time crypto price tracker with a dark theme"
-              className="w-full p-5 pr-20 bg-white border border-gray-300 rounded-2xl text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg resize-none shadow-lg"
+              className="w-full p-3 pr-16 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
               rows={4}
               disabled={isLoading}
             />
+             {screenshot && (
+              <div className="absolute top-3 left-3 group">
+                <img src={screenshot} alt="Screenshot preview" className="w-20 h-auto rounded-lg border-2 border-blue-500" />
+                <button
+                  type="button"
+                  onClick={() => setScreenshot(null)}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Remove screenshot"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            )}
+            <div className="absolute bottom-4 left-4 flex items-center">
+                 <button
+                    type="button"
+                    onClick={handleCaptureClick}
+                    disabled={isLoading}
+                    className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors disabled:opacity-50"
+                    aria-label="Capture screenshot"
+                    title="Capture Screenshot"
+                >
+                    <span className="material-symbols-outlined">photo_camera</span>
+                </button>
+            </div>
             <button
               type="submit"
               disabled={isLoading || !prompt.trim()}
