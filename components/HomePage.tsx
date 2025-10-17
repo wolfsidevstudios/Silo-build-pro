@@ -29,70 +29,6 @@ const ADVANCED_PROMPTS = [
 ];
 
 
-const CountdownUnit: React.FC<{ value: number; label: string }> = ({ value, label }) => (
-  <div className="flex flex-col items-center w-20">
-    <span className="text-4xl md:text-5xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-br from-zinc-800 to-zinc-500">{String(value).padStart(2, '0')}</span>
-    <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">{label}</span>
-  </div>
-);
-
-const CountdownTimer = () => {
-  const calculateTimeLeft = () => {
-    const year = 2025;
-    // Use a UTC date to avoid timezone issues. Month is 0-indexed, so 9 is October.
-    const launchDate = new Date(Date.UTC(year, 9, 17, 0, 0, 0)); 
-    const difference = +launchDate - +new Date();
-    
-    let timeLeft = {
-      days: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      isLive: false,
-    };
-
-    if (difference > 0) {
-      timeLeft = {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-        isLive: false,
-      };
-    } else {
-        timeLeft.isLive = true;
-    }
-    return timeLeft;
-  };
-
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  if (timeLeft.isLive) {
-      return (
-        <div className="text-3xl font-bold text-green-500 animate-pulse">
-            We Are Live!
-        </div>
-      )
-  }
-
-  return (
-    <div className="flex items-center justify-center space-x-2 md:space-x-6">
-      <CountdownUnit value={timeLeft.days} label="Days" />
-      <CountdownUnit value={timeLeft.hours} label="Hours" />
-      <CountdownUnit value={timeLeft.minutes} label="Minutes" />
-      <CountdownUnit value={timeLeft.seconds} label="Seconds" />
-    </div>
-  );
-};
-
 const CompatibilityWarningModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
       <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-lg">
@@ -225,7 +161,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full p-8 text-center">
+    <div className="relative flex flex-col items-center justify-center h-full p-8 text-center">
       {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <div className="w-full max-w-4xl mx-auto mb-8 h-24">
@@ -371,13 +307,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         </div>
       </div>
       
-      <div className="relative z-10 w-full max-w-4xl mt-8 pt-8 pb-4">
-        <div className="bg-white/30 backdrop-blur-lg border border-white/50 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/5">
-          <h2 className="text-2xl font-bold text-zinc-800 mb-2">The Countdown Has Begun</h2>
-          <p className="text-zinc-600 mb-6">We're officially launching on October 17th. Get ready!</p>
-          <CountdownTimer />
-        </div>
-      </div>
        {isIntegrationsPanelOpen && (
             <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={() => setIsIntegrationsPanelOpen(false)}>
                 <div 
