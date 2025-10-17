@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType } from '../App';
 
@@ -13,7 +12,7 @@ type SettingsTab = 'general' | 'appearance' | 'integrations' | 'deployments' | '
 
 const SettingsCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="flex h-full items-center justify-center p-8">
-        <div className="w-full max-w-5xl h-[75vh] min-h-[600px] bg-zinc-900/50 backdrop-blur-xl border border-gray-700 rounded-3xl flex overflow-hidden shadow-2xl shadow-black/30">
+        <div className="w-full max-w-5xl h-[75vh] min-h-[600px] bg-black border border-gray-800 rounded-3xl flex overflow-hidden shadow-2xl shadow-black/30">
             {children}
         </div>
     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 
@@ -27,8 +26,8 @@ const ADVANCED_PROMPTS = [
 
 const CountdownUnit: React.FC<{ value: number; label: string }> = ({ value, label }) => (
   <div className="flex flex-col items-center w-20">
-    <span className="text-4xl md:text-5xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">{String(value).padStart(2, '0')}</span>
-    <span className="text-xs text-gray-500 uppercase tracking-widest mt-1">{label}</span>
+    <span className="text-4xl md:text-5xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-br from-zinc-800 to-zinc-500">{String(value).padStart(2, '0')}</span>
+    <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">{label}</span>
   </div>
 );
 
@@ -73,7 +72,7 @@ const CountdownTimer = () => {
 
   if (timeLeft.isLive) {
       return (
-        <div className="text-3xl font-bold text-green-400 animate-pulse">
+        <div className="text-3xl font-bold text-green-500 animate-pulse">
             We Are Live!
         </div>
       )
@@ -89,51 +88,20 @@ const CountdownTimer = () => {
   );
 };
 
-const projectTypeLabels: Record<ProjectType, string> = {
-    'html': 'HTML/CSS/JS',
-    'single': 'React (Single File)',
-    'multi': 'React (Multi-File)',
-};
-
-
 export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
   const [prompt, setPrompt] = useState('');
-  const [projectType, setProjectType] = useState<ProjectType>(defaultStack);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-  const modeDropdownRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    setProjectType(defaultStack);
-  }, [defaultStack]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target as Node)) {
-            setIsModeDropdownOpen(false);
-        }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
-      onStartBuild(prompt, projectType);
+      onStartBuild(prompt, defaultStack);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
-    onStartBuild(suggestion, projectType);
-  };
-  
-  const handleModeChange = (mode: ProjectType) => {
-      setProjectType(mode);
-      setIsModeDropdownOpen(false);
+    onStartBuild(suggestion, defaultStack);
   };
 
   return (
@@ -146,29 +114,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
           Create apps and websites by chatting with AI.
         </p>
         
-        <div className="relative mb-6" ref={modeDropdownRef}>
-            <button
-                onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
-                disabled={isLoading}
-                className="flex items-center justify-center space-x-2 bg-white/30 backdrop-blur-md border border-black/20 rounded-full py-2 px-5 text-sm text-black hover:bg-white/50 transition-colors"
-            >
-                <span>Mode: <strong>{projectTypeLabels[projectType]}</strong></span>
-                <span className={`material-symbols-outlined text-base transition-transform ${isModeDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
-            </button>
-    
-            {isModeDropdownOpen && (
-                <div className="absolute top-full mt-2 w-56 bg-zinc-900/80 backdrop-blur-lg border border-gray-700 rounded-xl shadow-lg p-1.5 z-20 origin-top animate-in fade-in-0 zoom-in-95">
-                    <button onClick={() => handleModeChange('html')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors">HTML/CSS/JS</button>
-                    <button onClick={() => handleModeChange('single')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors">React (Single File)</button>
-                    <button onClick={() => handleModeChange('multi')} className="w-full text-left p-2 rounded-lg text-sm text-gray-200 hover:bg-white/10 transition-colors flex items-center justify-between">
-                        <span>React (Multi-File)</span>
-                        <span className="bg-yellow-400/20 text-yellow-300 text-xs font-mono px-1.5 py-0.5 rounded-full">Beta</span>
-                    </button>
-                </div>
-            )}
-        </div>
-
-
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
           <div className="relative w-full">
             <textarea
@@ -229,9 +174,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
       </div>
       
       <div className="relative z-10 w-full max-w-4xl mt-8 pt-8 pb-4">
-        <div className="bg-zinc-900/50 backdrop-blur-md border border-gray-700 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/30">
-          <h2 className="text-2xl font-bold text-gray-200 mb-2">The Countdown Has Begun</h2>
-          <p className="text-gray-400 mb-6">We're officially launching on October 17th. Get ready!</p>
+        <div className="bg-white/30 backdrop-blur-lg border border-white/50 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/5">
+          <h2 className="text-2xl font-bold text-zinc-800 mb-2">The Countdown Has Begun</h2>
+          <p className="text-zinc-600 mb-6">We're officially launching on October 17th. Get ready!</p>
           <CountdownTimer />
         </div>
       </div>

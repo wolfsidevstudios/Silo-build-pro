@@ -1,64 +1,47 @@
-
 import React from 'react';
+import type { UserProfile } from '../App';
 
 interface TopNavBarProps {
-  currentPath: string;
+  userProfile: UserProfile;
 }
 
-const NavButton: React.FC<{
-  icon: string;
-  label: string;
-  isActive: boolean;
-  href: string;
-}> = ({ icon, label, isActive, href }) => (
-  <a
-    href={href}
-    title={label}
-    aria-label={label}
-    className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-all duration-200 text-sm font-medium ${
-      isActive
-        ? 'bg-white text-black shadow-md'
-        : 'text-gray-300 hover:bg-white/10'
-    }`}
-  >
-    <span className="material-symbols-outlined text-base">{icon}</span>
-    <span className="hidden sm:inline">{label}</span>
-  </a>
+const NavLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => (
+    <a href={href} className="text-gray-800 hover:text-black transition-colors text-sm font-medium">
+        {children}
+    </a>
 );
 
-export const TopNavBar: React.FC<TopNavBarProps> = ({ currentPath }) => {
-  const path = currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
-
+export const TopNavBar: React.FC<TopNavBarProps> = ({ userProfile }) => {
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black/30 backdrop-blur-lg border border-white/10 rounded-full shadow-lg">
-      <div className="flex items-center justify-between px-3 h-16 space-x-2">
-        <a href="#/home" className="flex-shrink-0 px-3">
-          <h1
-            className="text-white text-xl"
-            style={{ fontFamily: "'Press Start 2P', system-ui" }}
-          >
-            Silo
-          </h1>
-        </a>
-        <div className="flex items-center space-x-1 bg-black/20 p-1 rounded-full">
-           <NavButton
-              icon="home"
-              label="Home"
-              isActive={path === '/home' || path === '/'}
-              href="#/home"
-            />
-            <NavButton
-                icon="person"
-                label="Profile"
-                isActive={path === '/profile'}
-                href="#/profile"
-            />
-            <NavButton
-                icon="settings"
-                label="Settings"
-                isActive={path === '/settings'}
-                href="#/settings"
-            />
+    <nav className="fixed top-0 left-0 right-0 h-16 z-50">
+      <div className="flex items-center justify-between h-full px-8 mx-auto max-w-7xl">
+        <div className="flex items-center space-x-8">
+            <a href="#/home" className="flex-shrink-0">
+                <h1
+                    className="text-black text-xl"
+                    style={{ fontFamily: "'Press Start 2P', system-ui" }}
+                >
+                    Silo
+                </h1>
+            </a>
+            <div className="hidden md:flex items-center space-x-6">
+                <NavLink href="#">Community</NavLink>
+                <NavLink href="#">Pricing</NavLink>
+                <NavLink href="#">Docs</NavLink>
+            </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+            <a href="#/settings" title="Settings" className="text-gray-800 hover:text-black transition-colors">
+                <span className="material-symbols-outlined">settings</span>
+            </a>
+             <a href="#/profile" title="Profile" className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors">
+                {userProfile.profilePicture ? (
+                    <img src={userProfile.profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                    <span className="material-symbols-outlined text-lg text-gray-800">person</span>
+                )}
+            </a>
         </div>
       </div>
     </nav>

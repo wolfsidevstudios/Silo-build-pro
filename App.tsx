@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -173,6 +172,32 @@ export interface SupabaseConfig {
   accessToken: string;
 }
 
+const generateAvatar = (name: string): string => {
+    const canvas = document.createElement('canvas');
+    const size = 128;
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+
+    const gradient = context.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, '#4f46e5');
+    gradient.addColorStop(1, '#0ea5e9');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+
+    const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    if (!initials) return canvas.toDataURL('image/png');
+
+    context.fillStyle = 'white';
+    context.font = `bold ${size / 2.5}px sans-serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(initials, size / 2, size / 2);
+
+    return canvas.toDataURL('image/png');
+};
+
 const App: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
   
@@ -254,7 +279,11 @@ const App: React.FC = () => {
       }
       const savedUserProfile = localStorage.getItem('silo_user_profile');
       if (savedUserProfile) {
-        setUserProfile(JSON.parse(savedUserProfile));
+        const profile = JSON.parse(savedUserProfile);
+        if (profile.name && !profile.profilePicture) {
+            profile.profilePicture = generateAvatar(profile.name);
+        }
+        setUserProfile(profile);
       }
        const savedDefaultStack = localStorage.getItem('silo_default_stack') as ProjectType;
       if (savedDefaultStack) {
@@ -288,6 +317,34 @@ const App: React.FC = () => {
   const handleSetDefaultStack = (stack: ProjectType) => {
     setDefaultStack(stack);
     localStorage.setItem('silo_default_stack', stack);
+  };
+
+  const handleProfileUpdate = (newProfile: UserProfile) => {
+    const oldProfile = userProfile;
+    let finalProfile = { ...newProfile };
+
+    const pictureWasJustUploaded = newProfile.profilePicture !== oldProfile.profilePicture;
+
+    if (pictureWasJustUploaded) {
+        // If the user uploaded a picture, just use it.
+        setUserProfile(finalProfile);
+        return;
+    }
+
+    // If the name was added and there wasn't one before
+    if (newProfile.name && !oldProfile.name) {
+        finalProfile.profilePicture = generateAvatar(newProfile.name);
+    } 
+    // If the name was cleared
+    else if (!newProfile.name && oldProfile.name) {
+        finalProfile.profilePicture = null;
+    } 
+    // If the name changed (and a picture wasn't just uploaded)
+    else if (newProfile.name !== oldProfile.name && newProfile.name) {
+        finalProfile.profilePicture = generateAvatar(newProfile.name);
+    }
+    
+    setUserProfile(finalProfile);
   };
 
   useEffect(() => {
@@ -1688,7 +1745,7 @@ Good luck!
         onSelectProject={handleSelectProject} 
         onDeleteProject={handleDeleteProject}
         userProfile={userProfile}
-        onProfileUpdate={setUserProfile}
+        onProfileUpdate={handleProfileUpdate}
       />;
     }
     if (path === '/settings') {
@@ -1773,8 +1830,13 @@ Good luck!
 
 
   return (
-    <div className="flex h-screen text-white font-sans bg-cover bg-center" style={{ backgroundImage: 'url(https://iili.io/KvdfcdP.md.png)'}}>
-      <TopNavBar currentPath={location} />
+    <div 
+        className="flex h-screen text-white font-sans bg-white bg-no-repeat"
+        style={{
+             backgroundImage: 'radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%)'
+        }}
+    >
+      <TopNavBar userProfile={userProfile} />
       <div className="flex-1 flex flex-col overflow-hidden">
         {renderContent()}
       </div>
