@@ -245,6 +245,8 @@ const App: React.FC = () => {
   const [defaultStack, setDefaultStack] = useState<ProjectType>('multi');
   const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
   const [apiKeyHandling, setApiKeyHandling] = useState<ApiKeyHandling>('hardcode');
+  const [isStreamingEnabled, setIsStreamingEnabled] = useState(true);
+  const [isFreeUiEnabled, setIsFreeUiEnabled] = useState(false);
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
@@ -326,6 +328,14 @@ const App: React.FC = () => {
       if (savedApiKeyHandling) {
         setApiKeyHandling(savedApiKeyHandling);
       }
+       const savedStreamingEnabled = localStorage.getItem('silo_streaming_enabled');
+      if (savedStreamingEnabled) {
+        setIsStreamingEnabled(JSON.parse(savedStreamingEnabled));
+      }
+      const savedFreeUiEnabled = localStorage.getItem('silo_free_ui_enabled');
+      if (savedFreeUiEnabled) {
+        setIsFreeUiEnabled(JSON.parse(savedFreeUiEnabled));
+      }
       const savedApiSecrets = localStorage.getItem('silo_api_secrets');
       if (savedApiSecrets) {
         setApiSecrets(JSON.parse(savedApiSecrets));
@@ -393,6 +403,16 @@ const App: React.FC = () => {
   const handleApiKeyHandlingChange = (mode: ApiKeyHandling) => {
     setApiKeyHandling(mode);
     localStorage.setItem('silo_api_key_handling', mode);
+  };
+
+  const handleStreamingEnabledChange = (enabled: boolean) => {
+    setIsStreamingEnabled(enabled);
+    localStorage.setItem('silo_streaming_enabled', JSON.stringify(enabled));
+  };
+  
+  const handleFreeUiEnabledChange = (enabled: boolean) => {
+    setIsFreeUiEnabled(enabled);
+    localStorage.setItem('silo_free_ui_enabled', JSON.stringify(enabled));
   };
 
   const handleProfileUpdate = (newProfile: UserProfile) => {
@@ -660,7 +680,8 @@ const App: React.FC = () => {
     fileToGenerate: string,
     selectedModel: GeminiModel,
     projectType: ProjectType,
-    screenshotBase64: string | null
+    screenshotBase64: string | null,
+    isFreeUi: boolean
   ) => {
     const ai = getAiClient();
     
@@ -760,6 +781,24 @@ ${integrationsList.join('\n')}
     }
     
     let projectTypeInstructions = '';
+
+    const freeUiReactStylingGuidelines = `
+      **Design System & UI Guidelines (for React Projects):**
+      - **Creative Freedom:** You have creative freedom over the color palette, typography, and layout. Aim for a unique and visually appealing user interface.
+      - **Buttons:** MUST be pill-shaped (fully rounded). Buttons MUST use solid colors. DO NOT use purple gradients or lime-and-blue gradients for buttons.
+      - **Backgrounds:** Backgrounds MUST be solid colors.
+      - **Icons:** If needed, MUST use Google Material Symbols (outlined style), e.g., \`<span className="material-symbols-outlined">icon_name</span>\`.
+      - **Styling:** You MUST use Tailwind CSS for all styling. DO NOT generate any CSS files or use CSS imports.
+    `;
+    
+    const freeUiHtmlStylingGuidelines = `
+      **Design System & UI Guidelines (for HTML Projects):**
+      - **Creative Freedom:** You have creative freedom over the color palette, typography, and layout. Aim for a unique and visually appealing user interface.
+      - **Buttons:** MUST be pill-shaped (fully rounded). Buttons MUST use solid colors. DO NOT use purple gradients or lime-and-blue gradients for buttons.
+      - **Backgrounds:** Backgrounds MUST be solid colors.
+      - **Icons:** If needed, MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
+    `;
+
     switch (projectType) {
         case 'single':
             projectTypeInstructions = `
@@ -780,12 +819,14 @@ ${integrationsList.join('\n')}
                 - If you are generating 'index.html': It MUST contain the full HTML structure and link to the other two files correctly: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
                 - If you are generating 'style.css': It MUST contain all the CSS styles.
                 - If you are generating 'script.js': It MUST contain all the JavaScript logic.
+                ${isFreeUi ? freeUiHtmlStylingGuidelines : `
                 **Design System & UI Guidelines:**
                 - **Overall Style:** Modern, clean, and aesthetically pleasing. Main background MUST be white.
                 - **Buttons:** MUST be pill-shaped (fully rounded). Primary buttons are solid black with white text. Secondary buttons are outlined with a thin black border.
                 - **Icons:** MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
                 - **Nav Bars:** If needed, should be pill-shaped, floating, with a frosted glass effect (\`backdrop-filter: blur(10px);\`).
-                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. Write plain HTML, CSS, and JavaScript. DO NOT use Tailwind CSS.
+                `}
+                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. DO NOT use Tailwind CSS.
             `;
             break;
     }
@@ -814,7 +855,7 @@ ${integrationsList.join('\n')}
       Your output must contain ONLY the code for this file. Do not include JSON, markdown, file paths, or any other explanatory text.
 
       ${projectTypeInstructions}
-      ${projectType !== 'html' ? reactStylingGuidelines : ''}
+      ${projectType !== 'html' ? (isFreeUi ? freeUiReactStylingGuidelines : reactStylingGuidelines) : ''}
       ${projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
@@ -936,27 +977,49 @@ ${integrationsList.join('\n')}
             filePath,
             model,
             projectType,
-            screenshotBase64
+            screenshotBase64,
+            isFreeUiEnabled
         );
-
+        
         let newFileContent = '';
-        for await (const chunk of stream) {
-            const chunkText = chunk.text;
-            if (chunkText) {
-                newFileContent += chunkText;
-                setProjects(prev => prev.map(p => {
-                    if (p.id === projectId) {
-                        const files = [...p.files];
-                        const fileIndex = files.findIndex(f => f.path === filePath);
-                        if (fileIndex !== -1) {
-                            files[fileIndex].code += chunkText;
-                            return { ...p, files: [...files] };
+        if (isStreamingEnabled) {
+            for await (const chunk of stream) {
+                const chunkText = chunk.text;
+                if (chunkText) {
+                    newFileContent += chunkText; // Still accumulate for projectForGeneration context
+                    setProjects(prev => prev.map(p => {
+                        if (p.id === projectId) {
+                            const files = [...p.files];
+                            const fileIndex = files.findIndex(f => f.path === filePath);
+                            if (fileIndex !== -1) {
+                                files[fileIndex].code += chunkText;
+                                return { ...p, files: [...files] };
+                            }
                         }
-                    }
-                    return p;
-                }));
+                        return p;
+                    }));
+                }
             }
+        } else { // Non-streaming mode
+            for await (const chunk of stream) {
+                if (chunk.text) {
+                    newFileContent += chunk.text;
+                }
+            }
+            // Single update after the file is complete
+            setProjects(prev => prev.map(p => {
+                if (p.id === projectId) {
+                    const files = [...p.files];
+                    const fileIndex = files.findIndex(f => f.path === filePath);
+                    if (fileIndex !== -1) {
+                        files[fileIndex].code = newFileContent;
+                        return { ...p, files };
+                    }
+                }
+                return p;
+            }));
         }
+
 
         const fileIdx = projectForGeneration.files.findIndex(f => f.path === filePath);
         if (fileIdx > -1) {
@@ -2103,6 +2166,10 @@ Good luck!
           onApiKeyHandlingChange={handleApiKeyHandlingChange}
           apiSecrets={apiSecrets}
           onApiSecretsChange={setApiSecrets}
+          isStreamingEnabled={isStreamingEnabled}
+          onStreamingEnabledChange={handleStreamingEnabledChange}
+          isFreeUiEnabled={isFreeUiEnabled}
+          onFreeUiEnabledChange={handleFreeUiEnabledChange}
         />
       );
     }

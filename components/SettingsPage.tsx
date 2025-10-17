@@ -143,6 +143,10 @@ interface SettingsPageProps {
   onApiKeyHandlingChange: (mode: ApiKeyHandling) => void;
   apiSecrets: ApiSecret[];
   onApiSecretsChange: (secrets: ApiSecret[]) => void;
+  isStreamingEnabled: boolean;
+  onStreamingEnabledChange: (enabled: boolean) => void;
+  isFreeUiEnabled: boolean;
+  onFreeUiEnabledChange: (enabled: boolean) => void;
 }
 
 const ApiSecretsSettings: React.FC<{
@@ -249,7 +253,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
                 'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
                 'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
-                'silo_default_stack', 'silo_api_key_handling'
+                'silo_default_stack', 'silo_api_key_handling', 'silo_streaming_enabled', 'silo_free_ui_enabled'
             ];
             const backupData: { [key: string]: any } = { version: 1 };
             keysToBackup.forEach(key => {
@@ -393,6 +397,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                             </div>
                             <p className="text-xs text-gray-500 mt-2 text-center">Dark theme is coming soon.</p>
                         </SettingSection>
+                        <SettingSection title="Free UI Mode" description="Allow the AI creative freedom over the app's design, ignoring the default design system.">
+                            <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
+                                <button
+                                    onClick={() => props.onFreeUiEnabledChange(true)}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.isFreeUiEnabled ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    On
+                                </button>
+                                <button
+                                    onClick={() => props.onFreeUiEnabledChange(false)}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${!props.isFreeUiEnabled ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Off
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 text-center">Some constraints, like pill-shaped buttons and solid colors, will still apply.</p>
+                        </SettingSection>
                         <SettingSection title="Editor Font Size" description="Customize the font size in the code editor.">
                              <div className="flex items-center space-x-4">
                                 <input
@@ -448,6 +469,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                     className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Service Worker
+                                </button>
+                            </div>
+                        </SettingSection>
+                         <SettingSection title="Code Streaming" description="Enable real-time code generation. When disabled, files will appear once fully generated.">
+                            <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
+                                <button
+                                    onClick={() => props.onStreamingEnabledChange(true)}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.isStreamingEnabled ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    On
+                                </button>
+                                <button
+                                    onClick={() => props.onStreamingEnabledChange(false)}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${!props.isStreamingEnabled ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Off
                                 </button>
                             </div>
                         </SettingSection>
