@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
-import { ProductHuntIcon, PexelsIcon } from './icons';
+import { ProductHuntIcon, PexelsIcon, GoogleGeminiIcon } from './icons';
 import type { Integration } from '../integrations';
 import { ALL_INTEGRATIONS } from '../integrations';
 
@@ -131,10 +132,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
       linkLabel: 'Learn More',
     },
     {
-      id: 'pexels',
-      icon: <PexelsIcon />,
-      title: 'Silo Build x Pexels',
-      description: 'Product of the Week: Access free stock photos.',
+      id: 'google-gemini',
+      icon: <GoogleGeminiIcon />,
+      title: 'Silo Build x Google Gemini',
+      description: 'Integration of the Day: Power your apps with Gemini.',
       link: '#/integrations',
       linkLabel: 'Add Integration',
     },
