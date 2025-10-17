@@ -8,7 +8,7 @@ interface CodeEditorProps {
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, readOnly = false }) => {
   return (
-    <div className="relative h-full bg-[#1e1e1e]">
+    <div className="relative h-full bg-gray-50">
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -17,7 +17,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, readOnl
         autoComplete="off"
         autoCorrect="off"
         readOnly={readOnly}
-        className="w-full h-full p-4 bg-transparent text-gray-200 font-mono text-sm leading-relaxed resize-none border-none outline-none"
+        className="w-full h-full p-4 bg-transparent text-gray-900 font-mono text-sm leading-relaxed resize-none border-none outline-none"
         placeholder="Write your React TSX code here..."
       />
     </div>

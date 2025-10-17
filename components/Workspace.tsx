@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -36,8 +34,8 @@ const TabButton: React.FC<{
     aria-label={title}
     className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ease-in-out ${
       isActive
-        ? 'bg-white text-black shadow-lg'
-        : 'text-gray-300 hover:bg-white/20'
+        ? 'bg-black text-white shadow-md'
+        : 'text-gray-600 hover:bg-black/5'
     }`}
   >
     {icon}
@@ -233,9 +231,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
 
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-transparent text-black">
       <div className="flex items-center justify-between p-2 flex-shrink-0">
-        <div className="flex space-x-1 bg-black/30 backdrop-blur-md p-1 rounded-full border border-white/10 shadow-lg">
+        <div className="flex space-x-1 bg-white/50 backdrop-blur-md p-1 rounded-full border border-gray-200 shadow-lg">
           <TabButton
             title="Preview"
             icon={<span className="material-symbols-outlined">visibility</span>}
@@ -265,7 +263,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         </div>
         <div className="flex items-center space-x-2">
           {isSupabaseConnected && (
-            <div className="flex items-center space-x-2 bg-green-500/20 text-green-300 px-3 py-1.5 rounded-full text-sm font-medium">
+            <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-sm font-medium">
               <span className="material-symbols-outlined text-base">cloud_done</span>
               <span>Supabase Connected</span>
             </div>
@@ -275,7 +273,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             title={isDeployed ? "Deployment Settings" : "Publish Project"}
             className={`flex items-center space-x-2 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
               isDeployed 
-              ? 'bg-zinc-800 text-gray-200 hover:bg-zinc-700' 
+              ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' 
               : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
@@ -285,7 +283,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           <button
             onClick={handleOpenInNewTab}
             title="Open preview in a new tab"
-            className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            className="p-2 rounded-full text-gray-600 hover:bg-black/10 hover:text-black transition-colors"
             aria-label="Open preview in new tab"
           >
             <span className="material-symbols-outlined">open_in_new</span>
@@ -295,14 +293,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'preview' && (
           <div className="flex-1 overflow-auto p-4 pt-0">
-            <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
+            <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
               <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
             </div>
           </div>
         )}
         {activeTab === 'code' && (
            <div className="flex flex-1 overflow-hidden">
-            <div className="w-64 border-r border-gray-900 bg-zinc-900/50 p-2 flex-shrink-0">
+            <div className="w-64 border-r border-gray-200 bg-gray-50/50 backdrop-blur-md p-2 flex-shrink-0">
               <FileExplorer
                 files={files}
                 activeFilePath={activeFilePath}
@@ -310,7 +308,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
               />
             </div>
             <div className="flex-1 overflow-auto p-4 pt-0">
-              <div className="w-full h-full rounded-3xl overflow-hidden">
+              <div className="w-full h-full rounded-3xl overflow-hidden border border-gray-200">
                 <CodeEditor value={activeFile?.code ?? ''} onChange={() => {}} readOnly />
               </div>
             </div>

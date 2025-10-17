@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { Project, Commit, ProjectFile } from '../App';
 
@@ -57,42 +55,42 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
     };
 
     return (
-        <div className="flex h-full text-white bg-black">
-            <div className="w-[400px] max-w-sm flex flex-col border-r border-gray-900">
-                <div className="p-4 border-b border-gray-900">
+        <div className="flex h-full text-black bg-transparent">
+            <div className="w-[400px] max-w-sm flex flex-col border-r border-gray-200">
+                <div className="p-4 border-b border-gray-200">
                      {!isGitHubLinked ? (
-                        <div className="mb-4 text-center p-4 bg-zinc-900 border border-dashed border-gray-700 rounded-lg">
-                            <p className="text-sm text-gray-400 mb-3">Save your project to GitHub to track versions and collaborate.</p>
+                        <div className="mb-4 text-center p-4 bg-gray-100 border border-dashed border-gray-300 rounded-lg">
+                            <p className="text-sm text-gray-600 mb-3">Save your project to GitHub to track versions and collaborate.</p>
                             <button
                                 onClick={onInitiateGitHubSave}
-                                className="w-full py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm"
+                                className="w-full py-2 bg-white border border-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm"
                             >
                                 Connect to GitHub
                             </button>
                         </div>
                     ) : (
-                        <div className="mb-4 text-sm text-gray-400">
-                            Connected to: <a href={`https://github.com/${project.githubRepo}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{project.githubRepo}</a>
+                        <div className="mb-4 text-sm text-gray-600">
+                            Connected to: <a href={`https://github.com/${project.githubRepo}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{project.githubRepo}</a>
                         </div>
                     )}
-                    <h2 className="text-lg font-semibold mb-4">Commit Changes</h2>
+                    <h2 className="text-lg font-semibold mb-4 text-gray-900">Commit Changes</h2>
                     <textarea
                         value={commitMessage}
                         onChange={(e) => setCommitMessage(e.target.value)}
                         placeholder="Commit message..."
-                        className="w-full h-24 p-2 bg-zinc-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm resize-none"
+                        className="w-full h-24 p-2 bg-white border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm resize-none"
                     />
                     <button
                         onClick={handleCommitClick}
                         disabled={!commitMessage.trim() || changes.length === 0}
-                        className="mt-3 w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm"
+                        className="mt-3 w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
                     >
                         {isGitHubLinked ? 'Commit & Push' : 'Commit'} ({changes.length} file{changes.length !== 1 ? 's' : ''})
                     </button>
-                     <div className="mt-4 pt-4 border-t border-gray-800/50">
+                     <div className="mt-4 pt-4 border-t border-gray-200">
                         <button
                             onClick={onExportProject}
-                            className="w-full flex items-center justify-center space-x-2 py-2 bg-zinc-800 border border-gray-700 text-white rounded-lg font-semibold hover:bg-zinc-700 transition-colors text-sm"
+                            className="w-full flex items-center justify-center space-x-2 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm"
                         >
                             <span className="material-symbols-outlined text-base">download</span>
                             <span>Download Project for EAS</span>
@@ -101,21 +99,21 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
-                    <h3 className="text-md font-semibold mb-2">Changes</h3>
+                    <h3 className="text-md font-semibold mb-2 text-gray-800">Changes</h3>
                      {changes.length === 0 ? (
                         <p className="text-sm text-gray-500 mt-4">No changes since last commit.</p>
                     ) : (
                         <ul className="space-y-1">
                             {changes.map(change => (
-                                <li key={change.path} className="flex items-center space-x-2 text-sm p-1 rounded hover:bg-white/5">
+                                <li key={change.path} className="flex items-center space-x-2 text-sm p-1 rounded hover:bg-gray-100">
                                     <span className={`w-14 text-center px-1.5 py-0.5 rounded text-xs font-mono
-                                        ${change.status === 'new' && 'bg-green-500/20 text-green-300'}
-                                        ${change.status === 'modified' && 'bg-yellow-500/20 text-yellow-300'}
-                                        ${change.status === 'deleted' && 'bg-red-500/20 text-red-300'}
+                                        ${change.status === 'new' && 'bg-green-100 text-green-800'}
+                                        ${change.status === 'modified' && 'bg-yellow-100 text-yellow-800'}
+                                        ${change.status === 'deleted' && 'bg-red-100 text-red-800'}
                                     `}>
                                         {change.status}
                                     </span>
-                                    <span className="text-gray-300 truncate">{change.path}</span>
+                                    <span className="text-gray-700 truncate">{change.path}</span>
                                 </li>
                             ))}
                         </ul>
@@ -124,7 +122,7 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
             </div>
 
             <div className="flex-1 flex flex-col p-4 overflow-y-auto">
-                <h2 className="text-lg font-semibold mb-4">History</h2>
+                <h2 className="text-lg font-semibold mb-4 text-gray-900">History</h2>
                 {(!project.commits || project.commits.length === 0) ? (
                     <div className="flex items-center justify-center h-full text-center text-gray-500">
                         <p>No commits yet. Make your first commit!</p>
@@ -132,8 +130,8 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ project,
                 ) : (
                     <ul className="space-y-4">
                         {[...project.commits].reverse().map(commit => (
-                            <li key={commit.id} className="bg-zinc-900/50 border border-gray-800 rounded-lg p-3">
-                                <p className="font-semibold text-gray-200">{commit.message}</p>
+                            <li key={commit.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                                <p className="font-semibold text-gray-800">{commit.message}</p>
                                 <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
                                     <span>Commit {commit.id.substring(0, 7)}</span>
                                     <span>{new Date(commit.timestamp).toLocaleString()}</span>

@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState } from 'react';
 import type { ProjectFile } from '../App';
 
@@ -57,7 +53,7 @@ const FileNode: React.FC<{ node: TreeNode; activeFilePath: string; onFileSelect:
       <div
         onClick={handleToggle}
         className={`flex items-center space-x-2 py-1.5 px-2 rounded-md cursor-pointer transition-colors ${
-          isActive ? 'bg-blue-600/30 text-blue-300' : 'text-gray-400 hover:bg-white/10'
+          isActive ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-200'
         }`}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
       >

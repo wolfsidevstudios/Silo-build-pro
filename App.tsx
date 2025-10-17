@@ -1783,8 +1783,8 @@ Good luck!
     if (projectMatch && activeProject) {
       return (
         <>
-          <main className="flex flex-1 overflow-hidden pt-24">
-            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-900 bg-black/50">
+          <main className="flex flex-1 overflow-hidden pt-20">
+            <div className="w-1/3 max-w-md flex flex-col border-r border-gray-200 bg-white/80 backdrop-blur-md">
               <ChatPanel
                 messages={activeProject.messages}
                 userInput={userInput}
@@ -1823,8 +1823,8 @@ Good luck!
     }
      if (projectMatch && !activeProject && projects.length > 0) {
        return (
-           <div className="flex flex-col items-center justify-center h-full p-8 text-center pt-20">
-              <h1 className="text-4xl font-bold text-gray-400">Loading Project...</h1>
+           <div className="flex flex-col items-center justify-center h-full p-8 text-center pt-20 text-gray-800">
+              <h1 className="text-4xl font-bold text-gray-700">Loading Project...</h1>
               <p className="text-gray-500 mt-2">If this takes too long, the project might not exist.</p>
           </div>
       );
@@ -1841,7 +1841,7 @@ Good luck!
 
   return (
     <div 
-        className="flex h-screen text-white font-sans bg-white bg-no-repeat"
+        className="flex h-screen text-black font-sans bg-white bg-no-repeat"
         style={{
              backgroundImage: 'radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%)'
         }}
@@ -1899,14 +1899,14 @@ Good luck!
             <button
                 onClick={() => setIsFocusTimerOpen(true)}
                 title="Open Focus Timer"
-                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center border border-gray-200"
             >
                 <span className="material-symbols-outlined">timer</span>
             </button>
             <button
                 onClick={() => setIsDebugAssistOpen(true)}
                 title="Open Debug Assist"
-                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+                className="w-14 h-14 bg-white text-black rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center border border-gray-200"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" height="24" width="24">
                     <defs>

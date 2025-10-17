@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import type { Message } from '../App';
 
@@ -14,26 +13,26 @@ interface ChatPanelProps {
 const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   const baseStyle = "p-3 rounded-xl max-w-lg mb-2";
   const userStyle = "bg-blue-600 text-white self-end";
-  const aiStyle = "bg-gray-800 text-gray-200 self-start";
-  const systemStyle = "bg-gray-900 text-gray-400 self-center text-sm italic w-full text-center";
+  const aiStyle = "bg-gray-100 text-gray-800 self-start";
+  const systemStyle = "bg-gray-200 text-gray-600 self-center text-sm italic w-full text-center";
 
   if (message.plan || message.files_to_generate) {
     return (
-      <div className="self-start bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 max-w-lg mb-2 text-gray-200 shadow-lg">
+      <div className="self-start bg-white/50 backdrop-blur-md border border-gray-200 rounded-2xl p-4 max-w-lg mb-2 text-gray-800 shadow-lg">
         <p className="font-semibold mb-2">{message.text}</p>
         {message.plan && (
-            <ul className="space-y-1 list-disc list-inside text-sm text-gray-300">
+            <ul className="space-y-1 list-disc list-inside text-sm text-gray-600">
             {message.plan.map((item, i) => <li key={i}>{item}</li>)}
             </ul>
         )}
         {message.files_to_generate && (
-            <div className="mt-4 pt-3 border-t border-white/10">
-                <p className="font-semibold text-sm mb-2 text-gray-300">File Checklist:</p>
+            <div className="mt-4 pt-3 border-t border-gray-200">
+                <p className="font-semibold text-sm mb-2 text-gray-500">File Checklist:</p>
                 <ul className="space-y-1.5 text-sm">
                 {message.files_to_generate.map((file, i) => {
                     const isGenerated = message.generated_files?.includes(file);
                     return (
-                    <li key={i} className={`flex items-center transition-colors duration-300 ${isGenerated ? 'text-green-400' : 'text-gray-400'}`}>
+                    <li key={i} className={`flex items-center transition-colors duration-300 ${isGenerated ? 'text-green-600' : 'text-gray-500'}`}>
                         <span className="material-symbols-outlined text-base mr-2">
                         {isGenerated ? 'check_circle' : 'radio_button_unchecked'}
                         </span>
@@ -60,7 +59,7 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
 };
 
 const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
-  <div className="w-full bg-gray-800 rounded-full h-1.5 my-2">
+  <div className="w-full bg-gray-200 rounded-full h-1.5 my-2">
     <div 
       className="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-linear" 
       style={{ width: `${progress}%` }}
@@ -83,22 +82,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
   };
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-transparent">
       <div className="flex-1 p-4 overflow-y-auto flex flex-col">
         {messages.map((msg, index) => (
           <ChatMessage key={index} message={msg} />
         ))}
         
-        {/* Shows spinner while waiting for the plan */}
         {isLoading && progress === null && !messages.some(m => m.files_to_generate) && (
-          <div className="self-start bg-gray-800 p-3 rounded-lg flex items-center space-x-2">
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
+          <div className="self-start bg-gray-100 p-3 rounded-lg flex items-center space-x-2">
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
           </div>
         )}
 
-        {/* Shows progress bar while generating code */}
         {progress !== null && (
           <div className="self-start w-full max-w-lg">
             <ProgressBar progress={progress} />
@@ -107,14 +104,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
 
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t border-gray-900">
-        <div className="relative bg-zinc-900 rounded-3xl">
+      <div className="p-4 border-t border-gray-200">
+        <div className="relative bg-white border border-gray-300 rounded-2xl shadow-md">
           <textarea
             value={userInput}
             onChange={(e) => onUserInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={"a real-time crypto price\ntracker"}
-            className="w-full bg-transparent text-gray-200 border-none outline-none resize-none p-5 pr-20"
+            className="w-full bg-transparent text-black placeholder-gray-500 border-none outline-none resize-none p-5 pr-20"
             style={{ minHeight: '5.5rem', maxHeight: '15rem' }}
             rows={2}
             disabled={isLoading}
@@ -122,7 +119,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
           <button
             onClick={onSend}
             disabled={isLoading || !userInput.trim()}
-            className="absolute right-4 bottom-4 w-12 h-12 flex items-center justify-center rounded-full bg-white text-black disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-4 bottom-4 w-12 h-12 flex items-center justify-center rounded-full bg-black text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             aria-label="Send message"
           >
             <span className="material-symbols-outlined text-2xl">arrow_upward</span>
