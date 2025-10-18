@@ -7,6 +7,7 @@ interface ChatPanelProps {
   onUserInput: (value: string) => void;
   onSend: () => void;
   isLoading: boolean;
+  buildTime: number;
   onToggleMaxAgent: () => void;
 }
 
@@ -65,7 +66,7 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
   return <div className={getStyle()}>{message.text}</div>;
 };
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, onToggleMaxAgent }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUserInput, onSend, isLoading, buildTime, onToggleMaxAgent }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +79,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
       onSend();
     }
   };
+  
+  const formatTime = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
 
   return (
     <div className="flex flex-col h-full bg-transparent">
@@ -86,12 +93,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, userInput, onUse
           <ChatMessage key={index} message={msg} />
         ))}
         
-        {isLoading && !messages.some(m => m.files_to_generate) && (
-          <div className="self-start bg-white/70 backdrop-blur-lg border border-gray-200/50 p-3 rounded-lg flex items-center space-x-2 shadow-lg">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-          </div>
+        {isLoading && (
+            <div className="self-center flex flex-col items-center mt-2">
+                {!messages.some(m => m.files_to_generate) && (
+                  <div className="bg-white/70 backdrop-blur-lg border border-gray-200/50 p-3 rounded-lg flex items-center space-x-2 shadow-lg mb-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                  </div>
+                )}
+                <div className="text-xs text-gray-500 font-mono">
+                    Time building: {formatTime(buildTime)}
+                </div>
+            </div>
         )}
 
         <div ref={messagesEndRef} />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -266,6 +265,8 @@ const App: React.FC = () => {
   const [isStreamingEnabled, setIsStreamingEnabled] = useState(true);
   const [isFreeUiEnabled, setIsFreeUiEnabled] = useState(false);
   const [homeBackground, setHomeBackground] = useState<HomeBackground>('nebula');
+  const [buildTime, setBuildTime] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
@@ -472,6 +473,26 @@ const App: React.FC = () => {
     document.body.className = '';
     document.body.classList.add(`bg-${homeBackground}`);
   }, [homeBackground]);
+
+  useEffect(() => {
+    if (isLoading) {
+        setBuildTime(0);
+        timerRef.current = setInterval(() => {
+            setBuildTime(prev => prev + 1);
+        }, 1000);
+    } else {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    }
+    
+    return () => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
+    };
+  }, [isLoading]);
 
   const handleSetDefaultStack = (stack: ProjectType) => {
     setDefaultStack(stack);
@@ -2187,7 +2208,7 @@ ${integrationsList.join('\n')}
     const path = location.startsWith('/') ? location : `/${location}`;
 
     if (path === '/home' || path === '/') {
-      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} />;
+      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} />;
     }
     if (path === '/profile') {
       return <ProfilePage 
@@ -2277,6 +2298,7 @@ ${integrationsList.join('\n')}
                 onUserInput={setUserInput}
                 onSend={handleSend}
                 isLoading={isLoading}
+                buildTime={buildTime}
                 onToggleMaxAgent={() => setIsMaxAgentPanelOpen(p => !p)}
               />
             </div>
@@ -2294,6 +2316,7 @@ ${integrationsList.join('\n')}
                 onPushToGitHub={handlePushToGitHub}
                 onExportProject={handleExportProject}
                 isLoading={isLoading}
+                buildTime={buildTime}
               />
             </div>
              {isMaxAgentPanelOpen && (
@@ -2328,7 +2351,7 @@ ${integrationsList.join('\n')}
       );
     }
 
-    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} />;
+    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} />;
   };
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem(NETLIFY_TOKEN_STORAGE_KEY));

@@ -7,6 +7,7 @@ import { FeatureSlideshow } from './FeatureSlideshow';
 import type { Project, PreviewMode } from '../App';
 import { INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS, Integration } from '../integrations';
 import { TokenInput, GITHUB_TOKEN_STORAGE_KEY } from './SettingsPage';
+import { MusicPlayer } from './MusicPlayer';
 
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
@@ -26,6 +27,7 @@ interface WorkspaceProps {
   onPushToGitHub: (message: string) => void;
   onExportProject: () => void;
   isLoading: boolean;
+  buildTime: number;
 }
 
 const TabButton: React.FC<{
@@ -302,7 +304,7 @@ const ProjectSettingsPanel: React.FC<ProjectSettingsPanelProps> = ({ project, on
 };
 
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onInitiateGitHubSave, onPushToGitHub, onExportProject, isLoading }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onInitiateGitHubSave, onPushToGitHub, onExportProject, isLoading, buildTime }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -480,7 +482,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             <div className="flex-1 overflow-auto p-4 pt-0">
               <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
                 {isLoading ? (
-                  <FeatureSlideshow />
+                  buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
                 ) : (
                   <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
                 )}
@@ -500,7 +502,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
                         <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(60px-6px)]">
                             {!isAppetizeMode && <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>}
                             {isLoading ? (
-                                <FeatureSlideshow />
+                                buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
                             ) : (
                                 <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
                             )}

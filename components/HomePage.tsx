@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { ProjectType } from '../App';
+import type { ProjectType, UserProfile } from '../App';
 import { ProductHuntIcon, PexelsIcon, GoogleGeminiIcon } from './icons';
 import type { Integration } from '../integrations';
 import { ALL_INTEGRATIONS } from '../integrations';
@@ -10,6 +10,8 @@ interface HomePageProps {
   onStartBuild: (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => void;
   isLoading: boolean;
   defaultStack: ProjectType;
+  userProfile: UserProfile;
+  isLoggedIn: boolean;
 }
 
 const BASIC_PROMPTS = [
@@ -107,7 +109,7 @@ const ImportModal: React.FC<{
     );
 };
 
-export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack }) => {
+export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack, userProfile, isLoggedIn }) => {
   const [prompt, setPrompt] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -260,7 +262,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     />
       <div className="relative z-10 flex flex-col items-center justify-center w-full pt-20 md:pt-16 flex-grow">
         <h1 className="text-5xl md:text-6xl font-bold mb-4 text-black mt-24">
-          If you can type it you can build it
+          {isLoggedIn ? `Hello ${userProfile.name}, What will you build today?` : 'If you can type it you can build it'}
         </h1>
         <p className="text-gray-600 text-lg mb-8 max-w-2xl">
           Create apps and websites by chatting with AI.
