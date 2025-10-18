@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -2130,7 +2131,11 @@ ${integrationsList.join('\n')}
       const currentFiles = activeProject.files || [];
       const currentMessages = activeProject.messages || [];
       
-      const systemInstruction = `You are Max, an autonomous AI agent building a web application. Your goal is to iteratively add features and fix bugs. Based on the current project state (files, conversation history, and errors), decide the next single, logical step. Choose an action: 'CONTINUE_BUILDING' if things are going well, or 'FIX_ERRORS' if there are problems. Formulate your response as a JSON object containing your reasoning ('thought') and a concise, actionable instruction ('prompt') for another AI developer.`;
+      const systemInstruction = `You are Max, an autonomous AI agent building a web application. Your goal is to iteratively add features and fix bugs. Based on the current project state (files, conversation history, and errors), decide the next single, logical step. Formulate your response as a JSON object with three keys: 'thought', 'action', and 'prompt'.
+- **thought**: Your internal monologue and reasoning for the chosen action. This is your thinking process.
+- **action**: Choose 'FIX_ERRORS' if there are errors to address. Otherwise, choose 'CONTINUE_BUILDING'.
+- **prompt**: A concise, actionable, and imperative instruction for another AI developer. This is what will be typed. Example: "Add a blue 'Submit' button to the form."
+Your generated 'prompt' must be grammatically correct and free of spelling errors. Double-check your spelling.`;
       
       const promptToGemini = `
           Current Project State:
@@ -2153,7 +2158,7 @@ ${integrationsList.join('\n')}
                 properties: {
                     thought: { 
                         type: Type.STRING,
-                        description: "Your reasoning for the chosen action. Explain your goal and why this is the next logical step."
+                        description: "Your internal monologue and reasoning for the chosen action. This should not be a command."
                     },
                     action: { 
                         type: Type.STRING,
@@ -2162,7 +2167,7 @@ ${integrationsList.join('\n')}
                     },
                     prompt: {
                         type: Type.STRING,
-                        description: "The exact, concise, and actionable prompt to send to the developer AI to execute the chosen action. This will be typed into the prompt box."
+                        description: "The exact, concise, and actionable instruction for the developer AI. This is a command and will be typed into the prompt box. It MUST NOT be your thought process. Example: 'Add a new state variable for a counter and two buttons to increment and decrement it.'"
                     }
                 },
                 required: ['thought', 'action', 'prompt']
