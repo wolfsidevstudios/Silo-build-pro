@@ -131,6 +131,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
       linkLabel: 'Learn More',
     },
     {
+      id: 'saashub-approved',
+      icon: <span className="material-symbols-outlined text-4xl text-blue-500">military_tech</span>,
+      title: 'Approved by SaaSHub',
+      description: 'Discover Silo Build among the best AI Development Tools.',
+      badgeHtml: `<a href='https://www.saashub.com/silo-build?utm_source=badge&utm_campaign=badge&utm_content=silo-build&badge_variant=color&badge_kind=approved' target='_blank'><img src="https://cdn-b.saashub.com/img/badges/approved-color.png?v=1" alt="Silo Build badge" style="max-width: 150px;"/></a>`,
+    },
+    {
       id: 'google-gemini',
       icon: <GoogleGeminiIcon />,
       title: 'Silo Build x Google Gemini',
