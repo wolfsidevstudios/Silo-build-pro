@@ -62,7 +62,16 @@
         transition: background-image 0.5s ease-in-out;
       }
       body.bg-nebula::before {
-        background-image: radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(240, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(180, 80%, 80%, 0.2) 0px, transparent 50%);
+        background-image:
+          /* Light blue shimmer at the bottom left */
+          radial-gradient(ellipse 30% 40% at 20% 90%, hsla(220, 100%, 80%, 0.3), transparent),
+          /* Main gradient from top to bottom */
+          linear-gradient(to bottom, 
+            hsl(35, 100%, 85%) 0%,    /* Light sunset peach */
+            hsl(320, 100%, 80%) 30%,  /* Light pink */
+            hsl(260, 60%, 40%) 80%,   /* Purple */
+            hsl(330, 70%, 30%) 100%  /* Dark pink */
+          );
       }
       body.bg-sunset::before {
         background-image:
@@ -76,8 +85,13 @@
           );
       }
       .bg-nebula-thumb {
-        background-image: radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(240, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(180, 80%, 80%, 0.2) 0px, transparent 50%);
-        background-color: #2e0249;
+        background-image:
+          linear-gradient(to bottom, 
+            hsl(35, 100%, 85%) 0%,    /* Light sunset peach */
+            hsl(320, 100%, 80%) 30%,  /* Light pink */
+            hsl(260, 60%, 40%) 80%,   /* Purple */
+            hsl(330, 70%, 30%) 100%  /* Dark pink */
+          );
       }
       .bg-sunset-thumb {
         background-image: linear-gradient(to bottom, hsl(275, 76%, 20%) 0%, hsl(28, 100%, 50%) 80%, hsl(275, 30%, 5%) 100%);
