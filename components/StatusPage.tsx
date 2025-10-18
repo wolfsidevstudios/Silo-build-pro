@@ -43,7 +43,10 @@ const services: ServiceStatus[] = [
   { 
     name: 'Live Preview Service',
     description: 'Service for rendering live code previews.',
-    history: generateHistory(30),
+    history: generateHistory(30, [
+      { day: 0, status: 'Outage' }, // Today
+      { day: 1, status: 'Degraded Performance' } // Yesterday
+    ]),
     status: 'Operational',
   },
   { 
