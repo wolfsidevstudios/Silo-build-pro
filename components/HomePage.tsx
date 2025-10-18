@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon, GoogleGeminiIcon } from './icons';
@@ -281,7 +282,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     type="button"
                     onClick={handleCaptureClick}
                     disabled={isLoading}
-                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 animate-float"
+                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 bg-transparent"
                     aria-label="Capture screenshot"
                     title="Capture Screenshot"
                 >
@@ -291,7 +292,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isLoading}
-                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 animate-float [animation-delay:-2s]"
+                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 bg-transparent"
                     aria-label="Upload image"
                     title="Upload Image or Screenshot"
                 >
