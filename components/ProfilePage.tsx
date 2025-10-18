@@ -10,6 +10,27 @@ interface ProfilePageProps {
   onLogout: () => void;
 }
 
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  earned: boolean;
+}
+
+// Mock data for badges. In a real app, this would come from user data.
+const userBadges: Badge[] = [
+  { id: 'first-project', name: 'First Project', description: 'Awarded for creating your first project.', icon: 'rocket_launch', earned: true },
+  { id: 'bug-squasher', name: 'Bug Squasher', description: 'Awarded for using the Debug Assist to fix an error.', icon: 'bug_report', earned: true },
+  { id: 'deployer', name: 'Deployer', description: 'How to earn: Publish a project to the web.', icon: 'dns', earned: false },
+  { id: 'community-sharer', name: 'Community Sharer', description: 'How to earn: Publish an app to the community showcase.', icon: 'group', earned: false },
+  { id: 'github-sync', name: 'Git Initiated', description: 'Awarded for connecting a project to a GitHub repository.', icon: 'code', earned: true },
+  { id: 'prolific-builder', name: 'Prolific Builder', description: 'How to earn: Create 5 projects.', icon: 'construction', earned: false },
+  { id: 'max-collaborator', name: 'Max Collaborator', description: 'How to earn: Use the Max AI Agent to build a feature.', icon: 'smart_toy', earned: false },
+  { id: 'integration-master', name: 'Integration Master', description: 'How to earn: Use an integration from the marketplace.', icon: 'hub', earned: false },
+];
+
+
 const ProfileModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -91,6 +112,29 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ projects, onSelectProj
                         </div>
                     </div>
                 </header>
+                
+                <div className="mt-12 pt-8 border-t border-gray-800">
+                    <h2 className="text-xl font-semibold mb-6">Awards & Badges</h2>
+                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6">
+                        {userBadges.map(badge => (
+                            <div key={badge.id} className="group relative flex flex-col items-center text-center" title={badge.description}>
+                                <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${badge.earned ? 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20' : 'bg-zinc-800 border-2 border-dashed border-zinc-700'}`}>
+                                    <span className={`material-symbols-outlined text-4xl transition-colors ${badge.earned ? 'text-white' : 'text-zinc-600'}`}>
+                                        {badge.icon}
+                                    </span>
+                                    {!badge.earned && (
+                                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-zinc-400">lock</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className={`mt-2 text-xs font-semibold truncate w-full transition-colors ${badge.earned ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    {badge.name}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
                 <div className="mt-12 pt-8 border-t border-gray-800">
                     <h2 className="text-xl font-semibold mb-6">My Projects</h2>
