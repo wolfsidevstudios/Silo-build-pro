@@ -266,7 +266,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         </p>
         
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
-          <div className="relative w-full bg-white border border-gray-300 rounded-2xl shadow-lg p-2">
+          <div className="relative w-full bg-white border border-gray-300 rounded-3xl shadow-lg p-2">
             <textarea
               ref={textareaRef}
               value={prompt}
