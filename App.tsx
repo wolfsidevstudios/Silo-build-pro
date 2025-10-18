@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -18,6 +19,7 @@ import { FocusTimer } from './components/FocusTimer';
 import { PricingPage } from './components/PricingPage';
 import { DocsPage } from './components/DocsPage';
 import { ArticlePage } from './components/ArticlePage';
+import { ArticleMaxPage } from './components/ArticleMaxPage';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { INTEGRATION_DEFINITIONS, Integration } from './integrations';
 import { MaxAgentPanel, MaxThought } from './components/MaxAgentPanel';
@@ -307,8 +309,8 @@ const App: React.FC = () => {
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
-  const addMaxThought = (text: string) => {
-    setMaxThoughts(prev => [...prev, { text, timestamp: Date.now() }]);
+  const addMaxThought = (text: string, type: MaxThought['type'] = 'thought') => {
+    setMaxThoughts(prev => [...prev, { text, type, timestamp: Date.now() }]);
   };
 
   const handleGoogleCallback = useCallback((response: any) => {
@@ -778,6 +780,11 @@ const App: React.FC = () => {
           parsed.sql = ''; // Force no SQL for HTML projects
       }
 
+      // Ensure file list is unique
+      if (parsed.files_to_generate) {
+          parsed.files_to_generate = [...new Set(parsed.files_to_generate)];
+      }
+
       return {
           plan: parsed.plan || [],
           sql: parsed.sql || '',
@@ -1063,16 +1070,16 @@ ${integrationsList.join('\n')}
         addMessageToProject(projectId, { actor: 'system', text: `Using ${integration.name} integration context.` });
     }
     
-    const project = projects.find(p => p.id === projectId);
-    const projectType = projectTypeOverride || project?.projectType || 'multi';
-
+    let projectForGeneration = projects.find(p => p.id === projectId)!;
+    const projectType = projectTypeOverride || projectForGeneration.projectType || 'multi';
+    
     const { plan, sql, files_to_generate } = await generatePlan(finalPrompt, model, projectType, screenshotBase64);
     
     if (projectType !== 'html' && !files_to_generate.some(f => f === 'src/App.tsx')) {
         files_to_generate.unshift('src/App.tsx');
     }
 
-    const existingFilePaths = new Set((project?.files || []).map(f => f.path));
+    const existingFilePaths = new Set((projectForGeneration.files || []).map(f => f.path));
     const filesWithStatus = files_to_generate.map(path => ({
         path,
         status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
@@ -1087,12 +1094,14 @@ ${integrationsList.join('\n')}
         generated_files: []
     });
     
-    let projectForGeneration = projects.find(p => p.id === projectId)!;
-
     if (isInitialBuild) {
-        const initialFiles: ProjectFile[] = sql ? [{ path: 'app.sql', code: sql }] : [];
-        updateProjectState(projectId, { files: initialFiles });
-        projectForGeneration = { ...projectForGeneration, files: initialFiles };
+        // Don't replace files, just add sql if it exists
+        if (sql) {
+            const initialFiles: ProjectFile[] = [...projectForGeneration.files, { path: 'app.sql', code: sql }];
+            updateProjectState(projectId, { files: initialFiles });
+            projectForGeneration = { ...projectForGeneration, files: initialFiles };
+        }
+        // If no sql, projectForGeneration is already correct from createNewProject
     } else {
         if (sql) {
             const sqlFileIndex = projectForGeneration.files.findIndex(f => f.path === 'app.sql');
@@ -1106,6 +1115,7 @@ ${integrationsList.join('\n')}
         }
         updateProjectState(projectId, { files: projectForGeneration.files });
     }
+    
 
     for (const filePath of files_to_generate) {
         setProjects(prev => prev.map(p => {
@@ -2052,6 +2062,8 @@ ${integrationsList.join('\n')}
 
   // --- MAX AGENT LOGIC ---
 
+  const easeInOutQuad = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
   const moveCursorToElement = (selector: string) => new Promise<void>((resolve) => {
     const element = document.querySelector(selector) as HTMLElement;
     if (!element) {
@@ -2061,18 +2073,18 @@ ${integrationsList.join('\n')}
     const rect = element.getBoundingClientRect();
     const target = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     
-    // A simple animation loop
     const start = maxCursorPosition || { x: window.innerWidth - 160, y: 80 };
-    const duration = 500;
+    const duration = 800; // Increased duration for smoother feel
     let startTime: number | null = null;
 
     const animate = (time: number) => {
       if (startTime === null) startTime = time;
       const elapsed = time - startTime;
       const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeInOutQuad(progress);
 
-      const newX = start.x + (target.x - start.x) * progress;
-      const newY = start.y + (target.y - start.y) * progress;
+      const newX = start.x + (target.x - start.x) * easedProgress;
+      const newY = start.y + (target.y - start.y) * easedProgress;
 
       setMaxCursorPosition({ x: newX, y: newY });
 
@@ -2096,7 +2108,7 @@ ${integrationsList.join('\n')}
         clearInterval(interval);
         resolve();
       }
-    }, 50); // Typing speed
+    }, 40); // Slightly faster typing
   });
 
   const clickWithCursor = (selector: string) => new Promise<void>((resolve) => {
@@ -2106,27 +2118,27 @@ ${integrationsList.join('\n')}
     setIsMaxCursorClicking(true);
     setTimeout(() => {
         setIsMaxCursorClicking(false);
-        element.click(); // This will trigger handleSend
+        element.click();
         resolve();
     }, 200);
   });
 
-  const generateNextAgentPrompt = async (): Promise<string> => {
-      if (!activeProject) return "Make a simple counter app";
+  const generateNextAgentAction = async (): Promise<{ thought: string; action: 'CONTINUE_BUILDING' | 'FIX_ERRORS'; prompt: string; }> => {
+      if (!activeProject) return { thought: "No active project found.", action: 'CONTINUE_BUILDING', prompt: "Make a simple counter app" };
+      
       const ai = getAiClient();
       const currentFiles = activeProject.files || [];
       const currentMessages = activeProject.messages || [];
       
-      const systemInstruction = `You are an autonomous AI agent building a web application. Your goal is to iteratively add features. Based on the current project files and conversation history, propose the next single, logical feature to add. Formulate your response as a concise, actionable instruction for another AI developer. Respond with only the prompt text, no extra formatting or explanation. Be creative and aim for a functional, impressive application.`;
+      const systemInstruction = `You are Max, an autonomous AI agent building a web application. Your goal is to iteratively add features and fix bugs. Based on the current project state (files, conversation history, and errors), decide the next single, logical step. Choose an action: 'CONTINUE_BUILDING' if things are going well, or 'FIX_ERRORS' if there are problems. Formulate your response as a JSON object containing your reasoning ('thought') and a concise, actionable instruction ('prompt') for another AI developer.`;
       
       const promptToGemini = `
-          Current Files (abbreviated):
-          ${JSON.stringify(currentFiles.map(f => ({ path: f.path, code: f.code.substring(0, 200) + '...' })), null, 2)}
+          Current Project State:
+          - Files (abbreviated): ${JSON.stringify(currentFiles.map(f => ({ path: f.path, code: f.code.substring(0, 150) + '...' })), null, 2)}
+          - Conversation History (last 3 messages): ${JSON.stringify(currentMessages.slice(-3), null, 2)}
+          - Current Errors: [${errors.join(', ')}]
 
-          Conversation History (last 5 messages):
-          ${JSON.stringify(currentMessages.slice(-5), null, 2)}
-
-          What is the next logical prompt to continue building this app?
+          What is the next logical action to take?
       `;
 
       try {
@@ -2134,32 +2146,53 @@ ${integrationsList.join('\n')}
             model: 'gemini-2.5-flash',
             contents: promptToGemini,
             config: {
-              systemInstruction: systemInstruction,
+              systemInstruction,
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    thought: { 
+                        type: Type.STRING,
+                        description: "Your reasoning for the chosen action. Explain your goal and why this is the next logical step."
+                    },
+                    action: { 
+                        type: Type.STRING,
+                        enum: ['CONTINUE_BUILDING', 'FIX_ERRORS'],
+                        description: "Choose 'FIX_ERRORS' if there are errors to address. Otherwise, choose 'CONTINUE_BUILDING'."
+                    },
+                    prompt: {
+                        type: Type.STRING,
+                        description: "The exact, concise, and actionable prompt to send to the developer AI to execute the chosen action. This will be typed into the prompt box."
+                    }
+                },
+                required: ['thought', 'action', 'prompt']
+              }
             }
           });
-          return response.text.trim();
+          return JSON.parse(response.text);
       } catch (err: any) {
-          console.error("Max Agent failed to generate a prompt:", err);
-          addMaxThought(`I encountered an error thinking: ${err.message}. Deactivating.`);
+          console.error("Max Agent failed to generate an action:", err);
+          addMaxThought(`I encountered an error thinking: ${err.message}. Deactivating.`, 'system');
           setIsMaxAgentRunning(false);
-          return "Create a simple counter component."; // Fallback
+          return { thought: "Fell back to a default task due to an error.", action: 'CONTINUE_BUILDING', prompt: "Create a simple counter component." };
       }
   };
   
   const runAgentCycle = useCallback(async () => {
-    addMaxThought("Brainstorming next steps...");
-    const newPrompt = await generateNextAgentPrompt();
-    addMaxThought(`New idea: ${newPrompt}`);
+    addMaxThought("Analyzing project state...", 'system');
+    const { thought, action, prompt } = await generateNextAgentAction();
+    addMaxThought(thought, 'thought');
     await new Promise(r => setTimeout(r, 500));
     
+    addMaxThought(`Action: ${prompt}`, 'action');
     await moveCursorToElement('#prompt-input');
-    await typePrompt(newPrompt);
+    await typePrompt(prompt);
     await new Promise(r => setTimeout(r, 300));
 
     await moveCursorToElement('#send-button');
     await clickWithCursor('#send-button');
-    addMaxThought("Prompt sent. Waiting for the build to complete...");
-  }, [activeProject]);
+    addMaxThought("Prompt sent. Waiting for the build to complete...", 'system');
+  }, [activeProject, errors]);
 
   useEffect(() => {
     const processAgentQueue = async () => {
@@ -2182,14 +2215,17 @@ ${integrationsList.join('\n')}
   useEffect(() => {
     // This effect triggers the agent's next cycle after a build is complete.
     if (isMaxAgentRunning && !isLoading && !isAgentProcessing.current && agentTaskQueue.current.length === 0) {
-        addMaxThought("Build complete. Analyzing the results...");
-        agentTaskQueue.current.push(runAgentCycle);
+        addMaxThought("Build complete. Planning next move...", 'system');
+        // Add a delay to simulate "thinking" and allow UI to settle
+        setTimeout(() => {
+            agentTaskQueue.current.push(runAgentCycle);
+        }, 2000);
     }
   }, [isMaxAgentRunning, isLoading, runAgentCycle]);
 
   const startAgent = () => {
       setMaxThoughts([]);
-      addMaxThought("Max is activated. Let's build something amazing.");
+      addMaxThought("Max is activated. Let's build something amazing.", 'system');
       setIsMaxAgentRunning(true);
       setMaxCursorPosition({ x: window.innerWidth - 160, y: 80 });
       agentTaskQueue.current.push(runAgentCycle);
@@ -2197,7 +2233,7 @@ ${integrationsList.join('\n')}
   
   const stopAgent = () => {
       setIsMaxAgentRunning(false);
-      addMaxThought("Max has been deactivated.");
+      addMaxThought("Max has been deactivated.", 'system');
       agentTaskQueue.current = [];
       setMaxCursorPosition(null);
   };
@@ -2255,6 +2291,9 @@ ${integrationsList.join('\n')}
     }
     if (path === '/news/real-time-code-gen') {
         return <ArticlePage />;
+    }
+    if (path === '/news/max-1-5') {
+        return <ArticleMaxPage />;
     }
      if (path === '/integrations') {
       return <IntegrationsPage />;

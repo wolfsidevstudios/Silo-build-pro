@@ -36,6 +36,12 @@ const announcements = [
 
 const articles = [
   {
+    title: 'Meet Max 1.5: Your Upgraded Autonomous AI Teammate',
+    date: 'October 19, 2025',
+    excerpt: 'Max is no longer just a prompter; it\'s a strategic partner. With an upgraded thought process, proactive debugging, and a smoother workflow, Max 1.5 represents a major leap in AI-human collaboration.',
+    link: '#/news/max-1-5',
+  },
+  {
     title: 'Beyond the Build: Our Vision for Future Innovations',
     date: 'October 18, 2025',
     excerpt: 'We\'re dreaming big. From multi-agent development teams and direct App Store submissions to AI-powered UI/UX analysis, we\'re exploring the next frontier of software creation. Discover our roadmap for making Silo Build the most intelligent and seamless development environment ever.',
@@ -52,12 +58,6 @@ const articles = [
     date: 'October 16, 2025',
     excerpt: 'We are thrilled to announce a new partnership with Neon, bringing the power of serverless PostgreSQL to all Silo Build projects. Developers can now connect their Neon databases in a single click and instruct the AI to build data-driven applications.',
     link: '#/integrations',
-  },
-  {
-    title: 'Introducing Max: Your Autonomous AI Development Partner',
-    date: 'October 15, 2025',
-    excerpt: 'Meet Max, the new AI agent inside Silo Build. Activate Max and watch as it brainstorms, writes, and executes prompts for you, iteratively building your application with minimal supervision.',
-    link: '#',
   },
   {
     title: 'New in 1.5: Figma & GitHub Imports',
