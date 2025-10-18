@@ -30,14 +30,11 @@
       const handleError = (err) => {
           console.error("Preview Error:", err);
           try {
-              const root = document.getElementById('preview-root');
-              if (root) {
-                  const errorHtml = `<div style="color: red; padding: 1rem; font-family: monospace; white-space: pre-wrap; word-break: break-word;"><h4>Runtime Error</h4><pre>${err.stack || err.message}</pre></div>`;
-                  root.innerHTML = errorHtml;
-              }
+              // We still want to send the error to the parent to display in the UI.
               window.parent.postMessage({ type: 'error', message: err.message }, '*');
           } catch (e) {
-              console.error('Failed to display error in preview:', e);
+              // This might fail if we are in a sandboxed iframe without allow-same-origin.
+              console.error('Failed to post error message to parent:', e);
           }
       };
 
