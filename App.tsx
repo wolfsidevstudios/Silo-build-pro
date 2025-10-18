@@ -29,6 +29,7 @@ import { TermsOfServicePage } from './components/TermsOfServicePage';
 import { PublishToCommunityModal, CommunityPublishState } from './components/PublishToCommunityModal';
 import { CommunityPage } from './components/CommunityPage';
 import { CommunityAppViewerPage } from './components/CommunityAppViewerPage';
+import { StatusPage } from './components/StatusPage';
 
 
 declare const Babel: any;
@@ -2371,6 +2372,9 @@ Good luck!
     }
     if (path === '/community') {
         return <CommunityPage supabaseConfig={communitySupabaseConfig} />;
+    }
+    if (path === '/status') {
+        return <StatusPage />;
     }
     const communityAppMatch = path.match(/^\/community\/([^/]+)$/);
     if (communityAppMatch) {
