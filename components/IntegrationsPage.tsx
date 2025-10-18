@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { IntegrationModal } from './IntegrationModal';
-import { Integration, INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS } from '../integrations';
-
-const ALL_INTEGRATIONS = [...INTEGRATION_DEFINITIONS, ...BROWSER_API_DEFINITIONS];
+import { Integration, ALL_INTEGRATIONS, INTEGRATION_DEFINITIONS } from '../integrations';
 
 export const IntegrationsPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');

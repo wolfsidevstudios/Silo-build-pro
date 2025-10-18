@@ -569,4 +569,168 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     },
 ];
 
-export const ALL_INTEGRATIONS: Integration[] = [...INTEGRATION_DEFINITIONS, ...BROWSER_API_DEFINITIONS];
+export const PUBLIC_DATASET_DEFINITIONS: Integration[] = [
+    {
+        id: 'jsonplaceholder',
+        name: 'JSONPlaceholder',
+        icon: <span className="material-symbols-outlined text-4xl text-purple-500">data_object</span>,
+        description: 'A free fake REST API for testing and prototyping with JSON data.',
+        prompt: 'Build a simple app that fetches and displays a list of users from JSONPlaceholder.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'pokeapi',
+        name: 'PokéAPI',
+        icon: <span className="material-symbols-outlined text-4xl text-red-500">catching_pokemon</span>,
+        description: 'Provides a RESTful API for all Pokémon data from the games.',
+        prompt: 'Create a Pokédex app. It should fetch and display a list of Pokémon, and clicking on one should show its details.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'rickandmortyapi',
+        name: 'Rick and Morty API',
+        icon: <span className="material-symbols-outlined text-4xl text-green-400">rocket_launch</span>,
+        description: 'Characters, locations, and episodes from the Rick and Morty TV show.',
+        prompt: 'Build a character browser for the Rick and Morty API. Display a grid of characters with their images and names.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'ghibliapi',
+        name: 'Studio Ghibli API',
+        icon: <span className="material-symbols-outlined text-4xl text-blue-400">movie</span>,
+        description: 'Catalog of people, places, and things from the worlds of Studio Ghibli.',
+        prompt: 'Create an app that lists all Studio Ghibli films and their descriptions.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'nasa-apod',
+        name: 'NASA APOD',
+        icon: <span className="material-symbols-outlined text-4xl text-gray-700">rocket</span>,
+        description: "NASA's Astronomy Picture of the Day. A new image or video each day.",
+        prompt: "Build an app that displays NASA's Astronomy Picture of the Day with its title and explanation. Use the demo key.",
+        category: 'Public Datasets'
+    },
+    {
+        id: 'thecocktaildb',
+        name: 'TheCocktailDB',
+        icon: <span className="material-symbols-outlined text-4xl text-yellow-500">local_bar</span>,
+        description: 'An open, crowd-sourced database of drinks and cocktails from around the world.',
+        prompt: 'Create a random cocktail generator app that fetches a drink from TheCocktailDB and displays its recipe.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'themealdb',
+        name: 'TheMealDB',
+        icon: <span className="material-symbols-outlined text-4xl text-orange-500">restaurant</span>,
+        description: 'An open, crowd-sourced database of meal recipes from around the world.',
+        prompt: 'Build a recipe finder app. Include a search bar to look for meals by name using TheMealDB.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'dog-api',
+        name: 'Dog API',
+        icon: <span className="material-symbols-outlined text-4xl text-amber-700">pets</span>,
+        description: 'A simple API for fetching random dog images. Based on the Stanford Dogs Dataset.',
+        prompt: 'Create an app with a button that says "Show me a dog!". Each click should fetch and display a new random dog picture.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'cat-facts',
+        name: 'Cat Facts API',
+        icon: <span className="material-symbols-outlined text-4xl text-cyan-600">cruelty_free</span>,
+        description: 'Get random cat facts. Useful for your feline-themed applications.',
+        prompt: 'Build an app that displays a new random cat fact every time a button is clicked.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'public-apis',
+        name: 'Public APIs List',
+        icon: <span className="material-symbols-outlined text-4xl text-indigo-500">list_alt</span>,
+        description: 'A community-driven list of free public APIs for use in software and web development.',
+        prompt: 'Create a browser for the Public APIs list. Fetch all APIs and display them in a searchable, filterable list.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'coingecko',
+        name: 'CoinGecko API',
+        icon: <span className="material-symbols-outlined text-4xl text-green-600">currency_bitcoin</span>,
+        description: 'Free and reliable cryptocurrency price and market data.',
+        prompt: 'Build a cryptocurrency price tracker for the top 10 coins using the CoinGecko API.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'open-meteo',
+        name: 'Open-Meteo',
+        icon: <span className="material-symbols-outlined text-4xl text-blue-500">partly_cloudy_day</span>,
+        description: 'An open-source weather API with global forecast data.',
+        prompt: 'Create a simple weather app. It should get the weather for New York City using the Open-Meteo API.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'rest-countries',
+        name: 'REST Countries',
+        icon: <span className="material-symbols-outlined text-4xl text-gray-600">public</span>,
+        description: 'Get information about countries via a RESTful API.',
+        prompt: 'Build a country information app. Display a list of all countries, and when one is clicked, show its capital and population.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'swapi',
+        name: 'Star Wars API (SWAPI)',
+        icon: <span className="material-symbols-outlined text-4xl text-yellow-400">stars</span>,
+        description: "All the Star Wars data you've ever wanted: Planets, Spaceships, Vehicles, People, Films and Species.",
+        prompt: 'Create a Star Wars character lookup. It should have a search input to find characters by name from SWAPI.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'chuck-norris-jokes',
+        name: 'Chuck Norris Jokes',
+        icon: <span className="material-symbols-outlined text-4xl text-orange-700">mood</span>,
+        description: 'A free JSON API for hand-curated Chuck Norris facts.',
+        prompt: 'Build a random Chuck Norris joke generator. A button click should fetch and display a new joke.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'iss-location',
+        name: 'ISS Current Location',
+        icon: <span className="material-symbols-outlined text-4xl text-cyan-400">satellite_alt</span>,
+        description: 'Get the real-time latitude and longitude of the International Space Station.',
+        prompt: 'Create a dashboard that shows the current latitude and longitude of the ISS and updates every 5 seconds.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'usgs-earthquakes',
+        name: 'USGS Earthquake API',
+        icon: <span className="material-symbols-outlined text-4xl text-red-700">earthquake</span>,
+        description: 'Provides real-time earthquake data from the US Geological Survey.',
+        prompt: 'Build a map that shows all earthquakes that happened in the last 24 hours using data from the USGS API.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'spacex-api',
+        name: 'SpaceX API',
+        icon: <span className="material-symbols-outlined text-4xl text-gray-800">rocket_launch</span>,
+        description: 'Open Source REST API for rocket, core, capsule, pad, and launch data from SpaceX.',
+        prompt: 'Create an app that lists all past SpaceX launches with their mission name and date.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'jikan-api',
+        name: 'Jikan (MyAnimeList)',
+        icon: <span className="material-symbols-outlined text-4xl text-blue-700">movie_filter</span>,
+        description: 'An unofficial MyAnimeList API that provides anime and manga data.',
+        prompt: 'Build an anime search app. It should allow users to search for anime by title and display the results from the Jikan API.',
+        category: 'Public Datasets'
+    },
+    {
+        id: 'bored-api',
+        name: 'The Bored API',
+        icon: <span className="material-symbols-outlined text-4xl text-lime-600">attractions</span>,
+        description: "Find random activities to do when you're bored.",
+        prompt: "Create an app with a button that says \"I'm bored\". When clicked, it should suggest a random activity to do.",
+        category: 'Public Datasets'
+    }
+];
+
+
+export const ALL_INTEGRATIONS: Integration[] = [...INTEGRATION_DEFINITIONS, ...BROWSER_API_DEFINITIONS, ...PUBLIC_DATASET_DEFINITIONS];
