@@ -40,7 +40,7 @@ const TabButton: React.FC<{
     className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ease-in-out ${
       isActive
         ? 'bg-black text-white shadow-md'
-        : 'text-gray-600 hover:bg-black/5'
+        : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
     }`}
   >
     {icon}
@@ -247,8 +247,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
 
   return (
     <div className="flex flex-col h-full bg-transparent text-black">
-      <div className="flex items-center justify-between p-2 flex-shrink-0">
-        <div className="flex space-x-1 bg-white/50 backdrop-blur-md p-1 rounded-full border border-gray-200 shadow-lg">
+      <div className="flex items-center justify-between p-4 flex-shrink-0">
+        <div className="flex space-x-2">
           <TabButton
             title="Preview"
             icon={<span className="material-symbols-outlined">visibility</span>}
@@ -303,7 +303,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           >
             <span className="material-symbols-outlined">open_in_new</span>
           </button>
-           <div className="flex items-center space-x-1 bg-white/50 backdrop-blur-md p-1 rounded-full border border-gray-200 shadow-sm">
+           <div className="flex items-center space-x-2">
             <button
               onClick={() => setPreviewDevice('desktop')}
               title="Desktop Preview"
@@ -311,7 +311,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
               className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
                 previewDevice === 'desktop'
                   ? 'bg-black text-white shadow-md'
-                  : 'text-gray-600 hover:bg-black/5'
+                  : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
               }`}
             >
               <span className="material-symbols-outlined text-xl">desktop_windows</span>
@@ -323,7 +323,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
               className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
                 previewDevice === 'mobile'
                   ? 'bg-black text-white shadow-md'
-                  : 'text-gray-600 hover:bg-black/5'
+                  : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
               }`}
             >
               <span className="material-symbols-outlined text-xl">smartphone</span>
@@ -348,13 +348,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
               <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
                 <div
-                  className="rounded-[47.33px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
+                  className="rounded-[60px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
                   style={{ width: '390px', height: '780px', flexShrink: 0 }}
                 >
                     <div
-                        className="w-full h-full bg-gray-900 rounded-[calc(47.33px-1px)] p-[5px]"
+                        className="w-full h-full bg-gray-900 rounded-[calc(60px-1px)] p-[5px]"
                     >
-                        <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(47.33px-6px)]">
+                        <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(60px-6px)]">
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>
                             {isLoading ? (
                                 <FeatureSlideshow />
