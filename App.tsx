@@ -30,6 +30,7 @@ import { PublishToCommunityModal, CommunityPublishState } from './components/Pub
 import { CommunityPage } from './components/CommunityPage';
 import { CommunityAppViewerPage } from './components/CommunityAppViewerPage';
 import { StatusPage } from './components/StatusPage';
+import { AwardsPage } from './components/AwardsPage';
 
 
 declare const Babel: any;
@@ -2375,6 +2376,9 @@ Good luck!
     }
     if (path === '/status') {
         return <StatusPage />;
+    }
+    if (path === '/awards') {
+        return <AwardsPage />;
     }
     const communityAppMatch = path.match(/^\/community\/([^/]+)$/);
     if (communityAppMatch) {

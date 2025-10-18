@@ -494,6 +494,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     <a href="#/docs" className="hover:text-black transition-colors">Newsroom</a>
                     <a href="#/developer-portal" className="hover:text-black transition-colors">Developers</a>
                     <a href="#/community" className="hover:text-black transition-colors">Community</a>
+                    <a href="#/awards" className="hover:text-black transition-colors">Awards</a>
                     <a href="#/status" className="hover:text-black transition-colors">Status</a>
                     <a href="#/privacy" className="hover:text-black transition-colors">Privacy</a>
                     <a href="#/terms" className="hover:text-black transition-colors">Terms</a>
