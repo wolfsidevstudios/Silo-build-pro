@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -1690,91 +1691,74 @@ ${integrationsList.join('\n')}
     return zip.generateAsync({ type: 'blob' });
   };
 
-  const createVercelDeploymentPackage = (projectName: string, files: ProjectFile[]): { file: string, data: string }[] => {
+  const createVercelDeploymentPackage = async (files: ProjectFile[], projectType: ProjectType): Promise<{ file: string, data: string }[]> => {
     const deploymentFiles: { file: string, data: string }[] = [];
 
-    // 1. Add user's source files
-    files.forEach(file => {
-        deploymentFiles.push({ file: file.path, data: file.code });
-    });
-
-    // 2. Add package.json
-    const packageJson = {
-      name: projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-      version: "1.0.0",
-      private: true,
-      dependencies: {
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0"
-      },
-      devDependencies: {
-        "@babel/cli": "^7.24.1",
-        "@babel/core": "^7.24.4",
-        "@babel/preset-env": "^7.24.4",
-        "@babel/preset-react": "^7.24.1",
-        "@babel/preset-typescript": "^7.24.1",
-        "babel-plugin-add-import-extension": "^1.6.0"
-      },
-      scripts: {
-        "build": "babel src --out-dir dist/src --extensions '.ts,.tsx,.js,.jsx' --copy-files && cp index.html dist/index.html"
-      }
-    };
-    deploymentFiles.push({ file: 'package.json', data: JSON.stringify(packageJson, null, 2) });
-    
-    // 3. Add .babelrc.json
-    const babelrc = {
-        "presets": [
-            "@babel/preset-env",
-            ["@babel/preset-react", { "runtime": "classic" }],
-            "@babel/preset-typescript"
-        ],
-        "plugins": [
-            ["babel-plugin-add-import-extension", { "extension": "js" }]
-        ]
-    };
-    deploymentFiles.push({ file: '.babelrc.json', data: JSON.stringify(babelrc, null, 2) });
-
-    // 4. Add vercel.json
-    const vercelConfig = {
-      "builds": [
-        {
-          "src": "package.json",
-          "use": "@vercel/static-build",
-          "config": { "distDir": "dist" }
-        }
-      ],
-      "routes": [{ "src": "/(.*)", "dest": "/index.html" }]
-    };
-    deploymentFiles.push({ file: 'vercel.json', data: JSON.stringify(vercelConfig, null, 2) });
-
-    // 5. Add index.html (the build target)
-    const productionHtml = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>${projectName}</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-          <style> body { background-color: #ffffff; } </style>
-          <script type="importmap">
-          {
-            "imports": {
-              "react": "https://esm.sh/react@18.2.0",
-              "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+    if (projectType === 'html') {
+        files.forEach(file => {
+            deploymentFiles.push({ file: file.path, data: file.code });
+        });
+    } else { // React projects
+        // Transpile TSX/JS files to JS in the browser
+        for (const file of files) {
+            if (file.path.match(/\.(tsx|ts|jsx|js)$/)) {
+                try {
+                    const transformedCode = Babel.transform(file.code, {
+                        presets: ['typescript', ['react', { runtime: 'classic' }]],
+                        filename: file.path,
+                    }).code;
+                    const codeWithJsImports = transformedCode.replace(
+                        /(from\s+['"]\..+)\.(tsx|ts|jsx)(['"])/g,
+                        '$1.js$3'
+                    );
+                    deploymentFiles.push({
+                        file: file.path.replace(/\.(tsx|ts|jsx)$/, '.js'),
+                        data: codeWithJsImports,
+                    });
+                } catch (e: any) {
+                    console.error(`Babel compilation failed for ${file.path}:`, e);
+                    throw new Error(`Failed to transpile ${file.path}. Error: ${e.message}.`);
+                }
+            } else {
+                deploymentFiles.push({ file: file.path, data: file.code });
             }
-          }
-          </script>
-        </head>
-        <body>
-          <div id="root"></div>
-          <script type="module" src="/src/App.js"></script>
-        </body>
-      </html>
-    `;
-    deploymentFiles.push({ file: 'index.html', data: productionHtml });
+        }
+
+        const productionHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Silo Build App</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+                <style> body { background-color: #ffffff; } </style>
+                <script type="importmap">
+                {
+                  "imports": {
+                    "react": "https://esm.sh/react@18.2.0",
+                    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                    "react-router-dom": "https://esm.sh/react-router-dom@6"
+                  }
+                }
+                </script>
+              </head>
+              <body>
+                <div id="root"></div>
+                <script type="module" src="/src/App.js"></script>
+              </body>
+            </html>
+          `;
+        deploymentFiles.push({ file: 'index.html', data: productionHtml });
+
+        const usesReactRouter = files.some(f => f.code.includes('react-router-dom'));
+        const vercelConfig = {
+            rewrites: usesReactRouter ? [{ source: "/(.*)", destination: "/index.html" }] : [],
+        };
+        deploymentFiles.push({ file: 'vercel.json', data: JSON.stringify(vercelConfig, null, 2) });
+    }
 
     return deploymentFiles;
 };
@@ -1798,7 +1782,6 @@ ${integrationsList.join('\n')}
         setPublishState({ status: 'creating_site', platform: 'netlify' });
         const siteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
           method: 'POST',
-          mode: 'cors',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!siteResponse.ok) {
@@ -1813,7 +1796,6 @@ ${integrationsList.join('\n')}
       setPublishState({ status: 'uploading', platform: 'netlify' });
       const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
         method: 'POST',
-        mode: 'cors',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
         body: zipBlob,
       });
@@ -1827,7 +1809,6 @@ ${integrationsList.join('\n')}
       setPublishState({ status: 'building', platform: 'netlify' });
       const pollDeploy = async (): Promise<string> => {
         const statusResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployId}`, {
-          mode: 'cors',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!statusResponse.ok) throw new Error('Failed to poll deploy status.');
@@ -1867,23 +1848,18 @@ ${integrationsList.join('\n')}
 
     try {
         setPublishState({ status: 'packaging', platform: 'vercel' });
-        const deploymentFiles = createVercelDeploymentPackage(activeProject.name, activeProject.files);
+        const deploymentFiles = await createVercelDeploymentPackage(activeProject.files, activeProject.projectType);
 
         const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
         const deployPayload: any = {
             name: activeProject.name.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 100),
             files: deploymentFiles,
-            target: 'production',
             projectId: activeProject.vercelProjectId,
         };
 
         setPublishState({ status: 'uploading', platform: 'vercel' });
         
-        let apiUrl = 'https://api.vercel.com/v13/deployments';
-        // If it's a new project (no projectId yet), add the query parameter to skip auto-detection confirmation.
-        if (!activeProject.vercelProjectId) {
-            apiUrl += '?skipAutoDetectionConfirmation=1';
-        }
+        const apiUrl = 'https://api.vercel.com/v13/deployments';
         
         const deployResponse = await fetch(apiUrl, {
             method: 'POST',
