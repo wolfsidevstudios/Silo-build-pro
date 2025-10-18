@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
@@ -225,9 +224,9 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
         setAppetizePublicKey(null);
         
         try {
-            const apiToken = localStorage.getItem('silo_appetize_token');
+            const apiToken = 'tok_32w24mhn7v4bmu6v27aylqjd5e';
             if (!apiToken) {
-                throw new Error('Appetize.io API token not found. Please add it in Settings.');
+                throw new Error('The Appetize.io API token is not configured in the application.');
             }
 
             const zipBlob = await createExpoAppPackage(files, projectName);

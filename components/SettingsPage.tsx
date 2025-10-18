@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling, HomeBackground } from '../App';
 
@@ -8,7 +7,6 @@ const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
 const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
-const APPETIZE_TOKEN_STORAGE_KEY = 'silo_appetize_token';
 
 type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'about';
 
@@ -256,7 +254,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
         try {
             const keysToBackup = [
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
-                'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token', 'silo_appetize_token',
+                'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
                 'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
                 'silo_default_stack', 'silo_api_key_handling', 'silo_streaming_enabled', 'silo_free_ui_enabled',
                 'silo_home_background'
@@ -492,16 +490,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 helpText="" 
                                 helpLink={{ href: 'https://vercel.com/account/tokens', text: 'Create a token' }}
                             />
-                        </SettingSection>
-                         <SettingSection title="Appetize.io" description="Preview your mobile apps on Appetize. Your token is stored in local storage.">
-                           <TokenInput 
-                                id="appetize-token" 
-                                label="Appetize API Token" 
-                                placeholder="Enter your Appetize API token" 
-                                storageKey={APPETIZE_TOKEN_STORAGE_KEY} 
-                                helpText=""
-                                helpLink={{ href: 'https://appetize.io/docs#api-token', text: 'Get your token' }}
-                           />
                         </SettingSection>
                     </>
                 )}
