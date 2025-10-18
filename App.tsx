@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -2480,6 +2481,7 @@ Good luck!
   const path = location.startsWith('/') ? location : `/${location}`;
   const isDarkPage = path === '/profile';
   const isCommunityAppView = !!path.match(/^\/community\/([^/]+)$/);
+  const isHomePage = path === '/home' || path === '/';
 
   return (
     <div className="flex h-screen text-black font-sans">
@@ -2499,7 +2501,7 @@ Good luck!
             />
         </>
       )}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`flex-1 flex flex-col ${isHomePage ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         {renderContent()}
       </div>
        <ProjectSelectorModal

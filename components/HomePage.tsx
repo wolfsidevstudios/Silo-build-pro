@@ -110,6 +110,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(false);
   const [isIntegrationsPanelOpen, setIsIntegrationsPanelOpen] = useState(false);
@@ -208,6 +209,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         // Optionally, inform the user that permission was denied or an error occurred.
     }
   };
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshot(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -260,6 +272,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   return (
     <div className="relative flex flex-col items-center justify-start min-h-full p-8 text-center">
+      <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
       {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
       <ImportModal
         isOpen={isFigmaModalOpen}
@@ -351,6 +364,16 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
                     title="Capture Screenshot"
                 >
                     <span className="material-symbols-outlined text-3xl">photo_camera</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading}
+                    className="w-12 h-12 flex items-center justify-center text-gray-500 hover:text-black transition-colors disabled:opacity-50 animate-float [animation-delay:-2s]"
+                    aria-label="Upload image"
+                    title="Upload Image or Screenshot"
+                >
+                    <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
                 </button>
                 {screenshot && (
                   <div className="relative group animate-fade-in">
