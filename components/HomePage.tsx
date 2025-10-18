@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { ProjectType } from '../App';
 import { ProductHuntIcon, PexelsIcon, GoogleGeminiIcon } from './icons';
@@ -337,7 +338,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
             </div>
         </div>
         <h1 className="text-5xl md:text-6xl font-bold mb-4 text-black">
-          Build anything with Silo
+          If you can type it you can build it
         </h1>
         <p className="text-gray-600 text-lg mb-8 max-w-2xl">
           Create apps and websites by chatting with AI.
