@@ -1,18 +1,19 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
 import { DatabasePanel } from './DatabasePanel';
 import { FileExplorer } from './FileExplorer';
-import { SourceControlPanel } from './SourceControlPanel';
 import { FeatureSlideshow } from './FeatureSlideshow';
 import type { Project, PreviewMode } from '../App';
+import { INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS, Integration } from '../integrations';
+
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
 declare const Babel: any;
 
-type ActiveTab = 'preview' | 'code' | 'database' | 'source-control';
+type ActiveTab = 'preview' | 'code' | 'database' | 'settings';
 type Language = 'tsx' | 'sql' | 'html' | 'css' | 'javascript';
 
 
@@ -22,8 +23,8 @@ interface WorkspaceProps {
   isSupabaseConnected: boolean;
   previewMode: PreviewMode;
   onPublish: () => void;
-  onCommit: (message: string) => void;
   onInitiateGitHubSave: () => void;
+  onPushToGitHub: (message: string) => void;
   onExportProject: () => void;
   isLoading: boolean;
 }
@@ -162,8 +163,137 @@ const createNewTabContent = (transpiledFiles: Record<string, string>): string =>
     `;
 };
 
+const SettingCard: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
+    <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <p className="text-sm text-gray-600 mb-4">{description}</p>
+        {children}
+    </div>
+);
 
-export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onCommit, onInitiateGitHubSave, onExportProject, isLoading }) => {
+interface ProjectSettingsPanelProps {
+  project: Project;
+  onInitiateGitHubSave: () => void;
+  onPushToGitHub: (message: string) => void;
+  onExportProject: () => void;
+  isLoading: boolean;
+  isSupabaseConnected: boolean;
+}
+
+const ProjectSettingsPanel: React.FC<ProjectSettingsPanelProps> = ({ project, onInitiateGitHubSave, onPushToGitHub, onExportProject, isLoading, isSupabaseConnected }) => {
+    const [commitMessage, setCommitMessage] = useState('');
+    const [customDomain, setCustomDomain] = useState('');
+
+    const connectedIntegrations = useMemo(() => {
+        const integrations = new Set<Integration>();
+        // Check for integrations connected via settings
+        INTEGRATION_DEFINITIONS.forEach(integration => {
+            if (integration.storageKey && typeof window !== 'undefined' && localStorage.getItem(integration.storageKey)) {
+                integrations.add(integration);
+            }
+        });
+        if (isSupabaseConnected) {
+             const supabaseIntegration = {
+                id: 'supabase',
+                name: 'Supabase',
+                icon: <span className="material-symbols-outlined text-green-500">cloud_done</span>,
+                description: 'Connected via main settings.'
+             } as Integration;
+             integrations.add(supabaseIntegration);
+        }
+        return Array.from(integrations);
+    }, [isSupabaseConnected]);
+
+    const handlePush = () => {
+        onPushToGitHub(commitMessage || `Update from Silo Build`);
+        setCommitMessage('');
+    };
+    
+    return (
+        <div className="h-full overflow-y-auto p-8 bg-gray-50/50">
+            <div className="max-w-2xl mx-auto space-y-6">
+                 <h2 className="text-2xl font-bold text-gray-900">Project Settings</h2>
+
+                <SettingCard title="GitHub Repository" description="Connect and push your project code to a GitHub repository.">
+                    {project.githubRepo ? (
+                        <div className="space-y-3">
+                             <p className="text-sm text-gray-700">Connected to: <a href={`https://github.com/${project.githubRepo}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">{project.githubRepo}</a></p>
+                             <input
+                                type="text"
+                                value={commitMessage}
+                                onChange={e => setCommitMessage(e.target.value)}
+                                placeholder="Commit message (optional)"
+                                className="w-full p-2 bg-white border border-gray-300 rounded-lg text-sm"
+                            />
+                            <button
+                                onClick={handlePush}
+                                disabled={isLoading}
+                                className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:bg-gray-400"
+                            >
+                                {isLoading ? 'Pushing...' : 'Push to GitHub'}
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onInitiateGitHubSave}
+                            className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors"
+                        >
+                            Connect to GitHub
+                        </button>
+                    )}
+                </SettingCard>
+                
+                 <SettingCard title="Connected Integrations" description="Services and APIs detected or configured for this project.">
+                    {connectedIntegrations.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {connectedIntegrations.map(int => (
+                                <div key={int.id} className="flex items-center space-x-2 p-2 bg-gray-100 rounded-lg">
+                                    <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center">{int.icon}</div>
+                                    <span className="text-sm font-medium truncate">{int.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No connected integrations found.</p>
+                    )}
+                     <a href="#/integrations" className="mt-4 inline-block text-sm text-blue-600 hover:underline">Manage Integrations &rarr;</a>
+                </SettingCard>
+
+                <SettingCard title="Custom Domain" description="Connect a custom domain to your project. (Coming Soon)">
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            value={customDomain}
+                            onChange={e => setCustomDomain(e.target.value)}
+                            placeholder="your-domain.com"
+                            className="w-full p-2 bg-white border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                            disabled
+                        />
+                        <button
+                            disabled
+                            className="px-6 py-2 bg-gray-300 text-gray-500 rounded-lg font-semibold cursor-not-allowed"
+                        >
+                            Connect
+                        </button>
+                    </div>
+                </SettingCard>
+                
+                 <SettingCard title="Export" description="Download your project files as a zip archive.">
+                    <button
+                        onClick={onExportProject}
+                        className="w-full flex items-center justify-center space-x-2 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm"
+                    >
+                        <span className="material-symbols-outlined text-base">download</span>
+                        <span>Download Project Code</span>
+                    </button>
+                </SettingCard>
+            </div>
+        </div>
+    );
+};
+
+
+export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, isSupabaseConnected, previewMode, onPublish, onInitiateGitHubSave, onPushToGitHub, onExportProject, isLoading }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -264,10 +394,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             onClick={() => setActiveTab('code')}
           />
           <TabButton
-            title="Source Control"
-            icon={<span className="material-symbols-outlined">history</span>}
-            isActive={activeTab === 'source-control'}
-            onClick={() => setActiveTab('source-control')}
+            title="Project Settings"
+            icon={<span className="material-symbols-outlined">settings</span>}
+            isActive={activeTab === 'settings'}
+            onClick={() => setActiveTab('settings')}
           />
           {sqlFile && (
             <TabButton
@@ -388,10 +518,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
             </div>
           </div>
         )}
-        {activeTab === 'source-control' && (
-            <div className="flex-1 overflow-auto">
-                <SourceControlPanel project={project} onCommit={onCommit} onInitiateGitHubSave={onInitiateGitHubSave} onExportProject={onExportProject} />
-            </div>
+        {activeTab === 'settings' && (
+            <ProjectSettingsPanel
+                project={project}
+                onInitiateGitHubSave={onInitiateGitHubSave}
+                onPushToGitHub={onPushToGitHub}
+                onExportProject={onExportProject}
+                isLoading={isLoading}
+                isSupabaseConnected={isSupabaseConnected}
+            />
         )}
         {activeTab === 'database' && (
           <div className="flex-1 overflow-auto p-4 pt-0">

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -157,13 +156,6 @@ export interface ProjectFile {
     code: string;
 }
 
-export interface Commit {
-  id: string;
-  message: string;
-  timestamp: number;
-  files: ProjectFile[];
-}
-
 export interface AppStoreSubmission {
   status: 'Not Submitted' | 'Submitted' | 'In Review' | 'Approved' | 'Rejected';
   version: string;
@@ -194,7 +186,6 @@ export interface Project {
   vercelProjectId?: string;
   vercelUrl?: string;
   githubRepo?: string;
-  commits?: Commit[];
   appStoreSubmission?: AppStoreSubmission;
   communityUrl?: string;
 }
@@ -359,7 +350,6 @@ const App: React.FC = () => {
                 vercelProjectId: p.vercelProjectId,
                 vercelUrl: p.vercelUrl,
                 githubRepo: p.githubRepo,
-                commits: p.commits || [],
                 appStoreSubmission: p.appStoreSubmission || undefined,
                 communityUrl: (p as any).communityUrl || undefined,
             };
@@ -1203,7 +1193,6 @@ ${integrationsList.join('\n')}
         files: initialFiles,
         messages: [],
         projectType,
-        commits: [],
     };
     
     setProjects(prev => [...prev, newProject]);
@@ -1316,41 +1305,29 @@ ${integrationsList.join('\n')}
     }
   };
 
-  const handleCommit = async (commitMessage: string) => {
-    if (!activeProject || !commitMessage.trim()) return;
+  const handlePushToGitHub = async (commitMessage: string) => {
+    if (!activeProject || !activeProject.githubRepo) return;
+    const token = localStorage.getItem('silo_github_token');
+    if (!token) {
+        setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
+        return;
+    }
 
     setIsLoading(true);
+    const finalMessage = commitMessage.trim() || `Update from Silo Build - ${new Date().toISOString()}`;
     
-    // 1. Save commit to local state
-    const newCommit: Commit = {
-        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        message: commitMessage.trim(),
-        timestamp: Date.now(),
-        files: JSON.parse(JSON.stringify(activeProject.files)), // Deep copy
-    };
-    const updatedCommits = [...(activeProject.commits || []), newCommit];
-    updateProjectState(activeProject.id, { commits: updatedCommits });
-
-    // 2. If linked to GitHub, push changes
-    if (activeProject.githubRepo) {
-        const token = localStorage.getItem('silo_github_token');
-        if (!token) {
-            setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
-            setIsLoading(false);
-            return;
-        }
-        
-        try {
-            await pushFilesToGitHub(token, activeProject.githubRepo, activeProject.files, commitMessage);
-            addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully pushed changes to ${activeProject.githubRepo}.` });
-        } catch (err: any) {
-            const errorMessage = `GitHub Push Error: ${err.message}`;
-            setErrors(prev => [errorMessage, ...prev]);
-            addMessageToProject(activeProject.id, { actor: 'system', text: `Failed to push changes to GitHub. ${err.message}` });
-        }
+    try {
+        await pushFilesToGitHub(token, activeProject.githubRepo, activeProject.files, finalMessage);
+        addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully pushed changes to ${activeProject.githubRepo}.` });
+    } catch (err: any) {
+        const errorMessage = `GitHub Push Error: ${err.message}`;
+        setErrors(prev => [errorMessage, ...prev]);
+        addMessageToProject(activeProject.id, { actor: 'system', text: `Failed to push changes to GitHub. ${err.message}` });
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
 
   const handleCreateRepoAndPush = async (repoName: string, description: string, isPrivate: boolean) => {
     if (!activeProject) return;
@@ -1387,9 +1364,6 @@ ${integrationsList.join('\n')}
         updateProjectState(activeProject.id, { githubRepo: repoFullName });
         addMessageToProject(activeProject.id, { actor: 'system', text: `Successfully created and connected to GitHub repository: ${repoFullName}` });
         setIsGitHubSaveModalOpen(false);
-        
-        // Make the first local commit match the initial push
-        handleCommit('Initial commit');
 
     } catch (err: any) {
         const errorMessage = `GitHub Error: ${err.message}`;
@@ -1982,128 +1956,18 @@ ${integrationsList.join('\n')}
         const zip = new JSZip();
         const projectName = activeProject.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-        // 1. Add user's source files
         activeProject.files.forEach(file => {
             zip.file(file.path, file.code);
         });
         
-        // 2. Add package.json
-        const packageJson = {
-            name: projectName,
-            version: "1.0.0",
-            main: "index.js",
-            scripts: {
-                "start": "expo start",
-                "android": "expo start --android",
-                "ios": "expo start --ios",
-                "web": "expo start --web",
-                "submit": "eas submit -p ios"
-            },
-            dependencies: {
-                "expo": "~51.0.8",
-                "expo-status-bar": "~1.12.1",
-                "react": "18.2.0",
-                "react-native": "0.74.1"
-            },
-            devDependencies: {
-                "@babel/core": "^7.20.0"
-            },
-            private: true
-        };
-        zip.file('package.json', JSON.stringify(packageJson, null, 2));
-        
-        // 3. Add app.json (Expo Config)
-        const appJson = {
-            "expo": {
-                "name": activeProject.name,
-                "slug": projectName,
-                "version": "1.0.0",
-                "orientation": "portrait",
-                "icon": "./assets/icon.png",
-                "userInterfaceStyle": "light",
-                "splash": {
-                    "image": "./assets/splash.png",
-                    "resizeMode": "contain",
-                    "backgroundColor": "#ffffff"
-                },
-                "ios": {
-                    "supportsTablet": true
-                },
-                "android": {
-                    "adaptiveIcon": {
-                        "foregroundImage": "./assets/adaptive-icon.png",
-                        "backgroundColor": "#ffffff"
-                    }
-                },
-                "web": {
-                    "favicon": "./assets/favicon.png"
-                }
-            }
-        };
-        zip.file('app.json', JSON.stringify(appJson, null, 2));
-
-        // 4. Add README.md with instructions
-        const readmeContent = `
-# ${activeProject.name}
-
-This project was generated by Silo Build. It's a React Native application configured for submission to the App Store using Expo Application Services (EAS).
-
-## How to Submit to the App Store
-
-Follow these steps to build your app and submit it for review.
-
-### Prerequisites
-
-1.  **Node.js & npm:** Make sure you have Node.js (LTS version) and npm installed. [Download here](https://nodejs.org/).
-2.  **EAS CLI:** Install the Expo Application Services command-line tool.
-    \`\`\`bash
-    npm install -g eas-cli
-    \`\`\`
-3.  **Apple Developer Account:** You need an active membership in the [Apple Developer Program](https://developer.apple.com/programs/enroll/).
-4.  **Expo Account:** Create a free account at [expo.dev](https://expo.dev/).
-
-### Setup & Submission
-
-1.  **Unzip & Install Dependencies:**
-    Unzip this project folder and navigate into it with your terminal. Then, install the required packages.
-    \`\`\`bash
-    cd ${projectName}
-    npm install
-    \`\`\`
-
-2.  **Log in to your accounts:**
-    Log in to your Expo account and your Apple Developer account.
-    \`\`\`bash
-    eas login
-    # You will be prompted for your Expo username/password.
-    
-    eas device:create
-    # Follow prompts to register your physical device if needed for testing.
-    \`\`\`
-
-3.  **Start the Submission Process:**
-    Run the EAS submit command. This will build your app on Expo's servers, and then guide you through the submission to App Store Connect.
-    \`\`\`bash
-    eas submit -p ios
-    \`\`\`
-    The build process can take some time. You can monitor its progress in the link provided in your terminal.
-
-5.  **Complete Submission in App Store Connect:**
-    Once the build is complete, EAS will upload it to App Store Connect. You may need to visit the [App Store Connect website](https://appstoreconnect.apple.com/) to add screenshots, descriptions, and other metadata before you can finally "Submit for Review".
-
-Good luck!
-`;
-        zip.file('README.md', readmeContent);
-
-        // 5. Generate and download the zip
         const blob = await zip.generateAsync({ type: 'blob' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `${projectName}.zip`;
+        link.download = `${projectName}-source.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(blob);
+        URL.revokeObjectURL(link.href);
     } catch (err: any) {
         console.error("Failed to export project:", err);
         setErrors(prev => [`Failed to create project ZIP. ${err.message}`, ...prev]);
@@ -2443,8 +2307,8 @@ Good luck!
                     setPublishState({ status: 'idle' });
                     setIsPublishModalOpen(true)
                 }}
-                onCommit={handleCommit}
                 onInitiateGitHubSave={() => setIsGitHubSaveModalOpen(true)}
+                onPushToGitHub={handlePushToGitHub}
                 onExportProject={handleExportProject}
                 isLoading={isLoading}
               />
