@@ -1,4 +1,38 @@
+
 import React from 'react';
+import { GoogleGeminiIcon, ProductHuntIcon } from './icons';
+
+const announcements = [
+     {
+      id: 'silo-1.5',
+      icon: <span className="material-symbols-outlined text-4xl text-blue-500">rocket_launch</span>,
+      title: 'Introducing Silo Build 1.5',
+      description: 'Now with Figma & GitHub imports, a new dev portal, and more!',
+      link: '#/developer-portal',
+      linkLabel: 'Learn More',
+    },
+    {
+      id: 'saashub-approved',
+      icon: <span className="material-symbols-outlined text-4xl text-blue-500">military_tech</span>,
+      title: 'Approved by SaaSHub',
+      description: 'Discover Silo Build among the best AI Development Tools.',
+      badgeHtml: `<a href='https://www.saashub.com/silo-build?utm_source=badge&utm_campaign=badge&utm_content=silo-build&badge_variant=color&badge_kind=approved' target='_blank'><img src="https://cdn-b.saashub.com/img/badges/approved-color.png?v=1" alt="Silo Build badge" style="max-width: 150px;"/></a>`,
+    },
+    {
+      id: 'google-gemini',
+      icon: <GoogleGeminiIcon />,
+      title: 'Silo Build x Google Gemini',
+      description: 'Integration of the Day: Power your apps with Gemini.',
+      link: '#/integrations',
+      linkLabel: 'Add Integration',
+    },
+    {
+      id: 'product-hunt',
+      icon: <ProductHuntIcon />,
+      title: 'We are live on Product Hunt!',
+      badgeHtml: `<a href="https://www.producthunt.com/products/silo-build?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-silo-build" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1027607&theme=light&t=1760711966482" alt="Silo Build - Create apps and websites by chatting with AI. | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>`,
+    },
+  ];
 
 const articles = [
   {
@@ -42,6 +76,38 @@ export const DocsPage: React.FC = () => {
           <p className="text-lg text-gray-600">The latest features, articles, and announcements from the Silo Build team.</p>
         </header>
 
+        <section className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">Highlights</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {announcements.map((announcement) => (
+                    <div key={announcement.id} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-shadow flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-start space-x-4 mb-4">
+                                <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg p-2 flex items-center justify-center">
+                                    {announcement.icon}
+                                </div>
+                                <h3 className="font-semibold text-lg text-black">{announcement.title}</h3>
+                            </div>
+                            {announcement.description && (
+                                <p className="text-sm text-gray-600">{announcement.description}</p>
+                            )}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end items-center">
+                            {announcement.linkLabel && (
+                                <a href={announcement.link} className="font-semibold text-sm text-blue-600 hover:underline">
+                                    {announcement.linkLabel} &rarr;
+                                </a>
+                            )}
+                            {announcement.badgeHtml && (
+                                <div dangerouslySetInnerHTML={{ __html: announcement.badgeHtml }} />
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+
+        <h2 className="text-3xl font-bold text-black mb-6">Recent Articles</h2>
         <div className="space-y-8">
           {articles.map((article, index) => (
             <div key={index} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-shadow">
