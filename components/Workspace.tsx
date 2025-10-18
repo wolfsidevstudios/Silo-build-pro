@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -8,6 +6,7 @@ import { FileExplorer } from './FileExplorer';
 import { FeatureSlideshow } from './FeatureSlideshow';
 import type { Project, PreviewMode } from '../App';
 import { INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS, Integration } from '../integrations';
+import { TokenInput, GITHUB_TOKEN_STORAGE_KEY } from './SettingsPage';
 
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
@@ -213,6 +212,16 @@ const ProjectSettingsPanel: React.FC<ProjectSettingsPanelProps> = ({ project, on
         <div className="h-full overflow-y-auto p-8 bg-gray-50/50">
             <div className="max-w-2xl mx-auto space-y-6">
                  <h2 className="text-2xl font-bold text-gray-900">Project Settings</h2>
+
+                 <SettingCard title="GitHub Authentication" description="Add your GitHub Personal Access Token to connect repositories.">
+                    <TokenInput
+                        id="github-token-workspace"
+                        placeholder="Enter your GitHub token"
+                        storageKey={GITHUB_TOKEN_STORAGE_KEY}
+                        helpText="Required to create and push to GitHub repositories."
+                        helpLink={{ href: 'https://github.com/settings/tokens', text: 'Create a token' }}
+                    />
+                </SettingCard>
 
                 <SettingCard title="GitHub Repository" description="Connect and push your project code to a GitHub repository.">
                     {project.githubRepo ? (

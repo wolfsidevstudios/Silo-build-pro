@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -9,7 +8,7 @@ import { Workspace } from './components/Workspace';
 import { TopNavBar } from './components/TopNavBar';
 import { HomePage } from './components/HomePage';
 import { ProfilePage } from './components/ProfilePage';
-import { SettingsPage } from './components/SettingsPage';
+import { SettingsPage, GITHUB_TOKEN_STORAGE_KEY, NETLIFY_TOKEN_STORAGE_KEY, VERCEL_TOKEN_STORAGE_KEY } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
 import DebugAssistPanel from './components/DebugAssistPanel';
 import { PublishModal, PublishState } from './components/PublishModal';
@@ -1307,7 +1306,7 @@ ${integrationsList.join('\n')}
 
   const handlePushToGitHub = async (commitMessage: string) => {
     if (!activeProject || !activeProject.githubRepo) return;
-    const token = localStorage.getItem('silo_github_token');
+    const token = localStorage.getItem(GITHUB_TOKEN_STORAGE_KEY);
     if (!token) {
         setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
         return;
@@ -1331,7 +1330,7 @@ ${integrationsList.join('\n')}
 
   const handleCreateRepoAndPush = async (repoName: string, description: string, isPrivate: boolean) => {
     if (!activeProject) return;
-    const token = localStorage.getItem('silo_github_token');
+    const token = localStorage.getItem(GITHUB_TOKEN_STORAGE_KEY);
     if (!token) {
         setErrors(prev => ['GitHub token not found. Please add it in Settings.', ...prev]);
         setIsGitHubSaveModalOpen(false);
@@ -1783,7 +1782,7 @@ ${integrationsList.join('\n')}
   const handleNetlifyPublish = async () => {
     if (!activeProject) return;
 
-    const token = localStorage.getItem('silo_netlify_token');
+    const token = localStorage.getItem(NETLIFY_TOKEN_STORAGE_KEY);
     if (!token) {
       setPublishState({ status: 'error', error: 'Netlify token not found. Please add it on the Settings page.' });
       return;
@@ -1799,6 +1798,7 @@ ${integrationsList.join('\n')}
         setPublishState({ status: 'creating_site', platform: 'netlify' });
         const siteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
           method: 'POST',
+          mode: 'cors',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!siteResponse.ok) {
@@ -1813,6 +1813,7 @@ ${integrationsList.join('\n')}
       setPublishState({ status: 'uploading', platform: 'netlify' });
       const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
         method: 'POST',
+        mode: 'cors',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
         body: zipBlob,
       });
@@ -1826,6 +1827,7 @@ ${integrationsList.join('\n')}
       setPublishState({ status: 'building', platform: 'netlify' });
       const pollDeploy = async (): Promise<string> => {
         const statusResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys/${deployId}`, {
+          mode: 'cors',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!statusResponse.ok) throw new Error('Failed to poll deploy status.');
@@ -1845,14 +1847,19 @@ ${integrationsList.join('\n')}
       setPublishState({ status: 'success', url: finalUrl, platform: 'netlify' });
       updateProjectState(activeProject.id, { netlifyUrl: finalUrl });
     } catch (err: any) {
-      console.error("Publishing error:", err);
-      setPublishState({ status: 'error', error: err.message, platform: 'netlify' });
+      console.error("Netlify Publishing Error Details:", err);
+      const errorMessage = err.message || 'An unknown error occurred.';
+      let detailedError = `Netlify publish failed: ${errorMessage}`;
+      if (errorMessage.toLowerCase().includes('failed to fetch')) {
+          detailedError += ' This could be a network issue, a CORS problem, or a browser extension blocking the request. Please check your browser console for more details.';
+      }
+      setPublishState({ status: 'error', error: detailedError, platform: 'netlify' });
     }
   };
 
   const handleVercelPublish = async () => {
     if (!activeProject) return;
-    const token = localStorage.getItem('silo_vercel_token');
+    const token = localStorage.getItem(VERCEL_TOKEN_STORAGE_KEY);
     if (!token) {
         setPublishState({ status: 'error', error: 'Vercel token not found. Please add it on the Settings page.', platform: 'vercel' });
         return;
@@ -2348,8 +2355,8 @@ ${integrationsList.join('\n')}
     return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} />;
   };
 
-  const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_netlify_token'));
-  const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem('silo_vercel_token'));
+  const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem(NETLIFY_TOKEN_STORAGE_KEY));
+  const isVercelConfigured = !!(typeof window !== 'undefined' && localStorage.getItem(VERCEL_TOKEN_STORAGE_KEY));
   const isCommunityConfigured = true;
 
   const path = location.startsWith('/') ? location : `/${location}`;

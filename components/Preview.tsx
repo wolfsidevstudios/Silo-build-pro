@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
@@ -235,14 +234,17 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
             formData.append('file', zipBlob, `${projectName}.zip`);
             formData.append('platform', 'ios');
 
-            const response = await fetch(`https://${apiToken}@api.appetize.io/v1/apps`, {
+            const response = await fetch('https://api.appetize.io/v1/apps', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${btoa(apiToken + ':')}`
+                },
                 body: formData,
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to upload to Appetize.io');
+                throw new Error(errorData.message || errorData.error || 'Failed to upload to Appetize.io');
             }
 
             const data = await response.json();

@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling, HomeBackground } from '../App';
 
-const API_KEY_STORAGE_KEY = 'gemini_api_key';
-const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
-const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
-const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
-const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
+export const API_KEY_STORAGE_KEY = 'gemini_api_key';
+export const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
+export const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
+export const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
+export const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
 
 type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'about';
 
@@ -67,9 +66,9 @@ const SettingSection: React.FC<{ title: string; description: string; children: R
     </div>
 );
 
-const TokenInput: React.FC<{
+export const TokenInput: React.FC<{
     id: string;
-    label: string;
+    label?: string;
     placeholder: string;
     storageKey: string;
     helpText: string;
@@ -96,9 +95,9 @@ const TokenInput: React.FC<{
 
     return (
         <div>
-            <label htmlFor={id} className="block text-sm font-medium text-gray-600 mb-2">
+            {label && <label htmlFor={id} className="block text-sm font-medium text-gray-600 mb-2">
                 {label}
-            </label>
+            </label>}
             <div className="relative w-full">
                 <input
                     id={id}
@@ -336,7 +335,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         <SettingSection title="Gemini API Key" description="Your API key is stored securely in your browser's local storage and is never sent to our servers.">
                             <TokenInput
                                 id="gemini-api-key"
-                                label=""
                                 placeholder="Enter your Gemini API Key"
                                 storageKey={API_KEY_STORAGE_KEY}
                                 helpText="Required for all AI code generation features."
@@ -474,7 +472,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         <SettingSection title="Netlify" description="Publish your projects to Netlify. Your token is stored in local storage.">
                            <TokenInput 
                                 id="netlify-token" 
-                                label="Netlify Personal Access Token" 
                                 placeholder="Enter your Netlify token" 
                                 storageKey={NETLIFY_TOKEN_STORAGE_KEY} 
                                 helpText=""
@@ -484,7 +481,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                         <SettingSection title="Vercel" description="Publish your projects to Vercel. Your token is stored in local storage.">
                             <TokenInput 
                                 id="vercel-token" 
-                                label="Vercel Access Token" 
                                 placeholder="Enter your Vercel token" 
                                 storageKey={VERCEL_TOKEN_STORAGE_KEY} 
                                 helpText="" 
