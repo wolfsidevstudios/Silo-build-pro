@@ -5,13 +5,64 @@ import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
 declare const Babel: any;
 declare const window: any;
+declare const JSZip: any;
 
 interface PreviewProps {
   files: ProjectFile[];
   onRuntimeError: (message: string) => void;
   previewMode: PreviewMode;
   projectType: ProjectType;
+  projectName: string;
 }
+
+const createExpoAppPackage = async (files: ProjectFile[], projectName: string): Promise<Blob> => {
+    const zip = new JSZip();
+    const cleanProjectName = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    // 1. Add user's source files
+    files.forEach(file => {
+        zip.file(file.path, file.code);
+    });
+    
+    // 2. Add package.json
+    const packageJson = {
+        name: cleanProjectName,
+        version: "1.0.0",
+        main: "index.js",
+        scripts: { "start": "expo start" },
+        dependencies: {
+            "expo": "~51.0.8",
+            "react": "18.2.0",
+            "react-native": "0.74.1"
+        },
+        private: true
+    };
+    zip.file('package.json', JSON.stringify(packageJson, null, 2));
+    
+    // 3. Add app.json (Expo Config)
+    const appJson = {
+        "expo": {
+            "name": projectName,
+            "slug": cleanProjectName,
+            "version": "1.0.0",
+            "main": "index.js", // Expo entry point
+            "platforms": ["ios", "android"],
+            "ios": { "supportsTablet": true },
+        }
+    };
+    zip.file('app.json', JSON.stringify(appJson, null, 2));
+
+    // 4. Add index.js (Expo entry file)
+    const indexJsContent = `
+import { registerRootComponent } from 'expo';
+import App from './src/App.tsx'; // Import from the existing file path
+registerRootComponent(App);
+    `;
+    zip.file('index.js', indexJsContent);
+
+    return zip.generateAsync({ type: 'blob' });
+};
+
 
 const createIframeContent = (transpiledFiles: Record<string, string>): string => {
     const iframeLogic = `
@@ -134,9 +185,11 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
     `;
 };
 
-export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType }) => {
+export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType, projectName }) => {
   const [iframeContent, setIframeContent] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [appetizePublicKey, setAppetizePublicKey] = useState<string | null>(null);
+  const [isUploadingToAppetize, setIsUploadingToAppetize] = useState(false);
 
   // Register the service worker once, only when in service-worker mode.
   useEffect(() => {
@@ -165,6 +218,52 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
 
   useEffect(() => {
     let isMounted = true;
+    
+    const uploadToAppetize = async () => {
+        if (!isMounted) return;
+        setIsUploadingToAppetize(true);
+        setAppetizePublicKey(null);
+        
+        try {
+            const apiToken = localStorage.getItem('silo_appetize_token');
+            if (!apiToken) {
+                throw new Error('Appetize.io API token not found. Please add it in Settings.');
+            }
+
+            const zipBlob = await createExpoAppPackage(files, projectName);
+
+            const formData = new FormData();
+            formData.append('file', zipBlob, `${projectName}.zip`);
+            formData.append('platform', 'ios');
+
+            const response = await fetch(`https://${apiToken}@api.appetize.io/v1/apps`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to upload to Appetize.io');
+            }
+
+            const data = await response.json();
+            if (data.publicKey) {
+                if (isMounted) {
+                    setAppetizePublicKey(data.publicKey);
+                }
+            } else {
+                throw new Error('No public key returned from Appetize.io');
+            }
+
+        } catch (err: any) {
+            onRuntimeError(`Appetize Error: ${err.message}`);
+        } finally {
+            if (isMounted) {
+                setIsUploadingToAppetize(false);
+            }
+        }
+    };
+
     const transpileAndLoad = async () => {
       if (projectType === 'html') {
           if (previewMode === 'service-worker') {
@@ -256,12 +355,46 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
           onRuntimeError(`Babel Transpilation Error: ${e.message}`);
       }
     };
-
-    transpileAndLoad();
     
+    if (previewMode === 'appetize') {
+        uploadToAppetize();
+    } else {
+        transpileAndLoad();
+    }
+
     return () => { isMounted = false; };
 
-  }, [files, onRuntimeError, previewMode, projectType]);
+  }, [files, onRuntimeError, previewMode, projectType, projectName]);
+
+  if (previewMode === 'appetize') {
+    if (isUploadingToAppetize) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-white text-black">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-gray-600">Uploading to Appetize.io...</p>
+                <p className="text-sm text-gray-500">This may take a moment.</p>
+            </div>
+        );
+    }
+    if (appetizePublicKey) {
+        const appetizeUrl = `https://appetize.io/embed/${appetizePublicKey}?device=iphone13pro&scale=75&autoplay=true&orientation=portrait&deviceColor=black`;
+        return (
+            <iframe
+                src={appetizeUrl}
+                title="Appetize.io Preview"
+                className="w-full h-full border-none"
+                allow="fullscreen"
+            />
+        );
+    }
+    return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-center p-4">
+            <h3 className="font-semibold text-gray-700">Preparing Appetize.io Preview</h3>
+            <p className="text-sm text-gray-500 mt-1">Please wait, or check the error panel if it fails.</p>
+        </div>
+    );
+  }
+
 
   if (previewMode === 'service-worker') {
     const initialSrc = projectType === 'html' ? '/index.html' : '/preview.html';

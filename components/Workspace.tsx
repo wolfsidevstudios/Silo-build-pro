@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -169,6 +170,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
   const { files } = project;
   const sqlFile = files.find(f => f.path === 'app.sql');
   const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
+  const isAppetizeMode = previewMode === 'appetize';
   
   useEffect(() => {
     const defaultFile = project.projectType === 'html' ? 'index.html' : 'src/App.tsx';
@@ -303,48 +305,50 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
           >
             <span className="material-symbols-outlined">open_in_new</span>
           </button>
-           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setPreviewDevice('desktop')}
-              title="Desktop Preview"
-              aria-label="Desktop Preview"
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
-                previewDevice === 'desktop'
-                  ? 'bg-black text-white shadow-md'
-                  : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
-              }`}
-            >
-              <span className="material-symbols-outlined text-xl">desktop_windows</span>
-            </button>
-            <button
-              onClick={() => setPreviewDevice('mobile')}
-              title="Mobile Preview"
-              aria-label="Mobile Preview"
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
-                previewDevice === 'mobile'
-                  ? 'bg-black text-white shadow-md'
-                  : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
-              }`}
-            >
-              <span className="material-symbols-outlined text-xl">smartphone</span>
-            </button>
-          </div>
+           {!isAppetizeMode && (
+            <div className="flex items-center space-x-2">
+                <button
+                onClick={() => setPreviewDevice('desktop')}
+                title="Desktop Preview"
+                aria-label="Desktop Preview"
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
+                    previewDevice === 'desktop'
+                    ? 'bg-black text-white shadow-md'
+                    : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
+                }`}
+                >
+                <span className="material-symbols-outlined text-xl">desktop_windows</span>
+                </button>
+                <button
+                onClick={() => setPreviewDevice('mobile')}
+                title="Mobile Preview"
+                aria-label="Mobile Preview"
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out ${
+                    previewDevice === 'mobile'
+                    ? 'bg-black text-white shadow-md'
+                    : 'bg-white/60 backdrop-blur-md border border-gray-200/60 text-gray-600 hover:bg-white/90 shadow-sm'
+                }`}
+                >
+                <span className="material-symbols-outlined text-xl">smartphone</span>
+                </button>
+            </div>
+           )}
         </div>
       </div>
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'preview' && (
-           previewDevice === 'desktop' ? (
+           (previewDevice === 'desktop' && !isAppetizeMode) ? (
             <div className="flex-1 overflow-auto p-4 pt-0">
               <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
                 {isLoading ? (
                   <FeatureSlideshow />
                 ) : (
-                  <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+                  <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
                 )}
               </div>
             </div>
           ) : (
-            // Mobile View
+            // Mobile View or Appetize View
             <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
               <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
                 <div
@@ -355,11 +359,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
                         className="w-full h-full bg-gray-900 rounded-[calc(60px-1px)] p-[5px]"
                     >
                         <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(60px-6px)]">
-                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>
+                            {!isAppetizeMode && <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>}
                             {isLoading ? (
                                 <FeatureSlideshow />
                             ) : (
-                                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} />
+                                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
                             )}
                         </div>
                     </div>

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling, HomeBackground } from '../App';
 
@@ -6,6 +8,7 @@ const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
 const VERCEL_TOKEN_STORAGE_KEY = 'silo_vercel_token';
 const GITHUB_TOKEN_STORAGE_KEY = 'silo_github_token';
 const EXPO_TOKEN_STORAGE_KEY = 'silo_expo_token';
+const APPETIZE_TOKEN_STORAGE_KEY = 'silo_appetize_token';
 
 type SettingsTab = 'general' | 'appearance' | 'deployments' | 'developer' | 'appstore' | 'about';
 
@@ -253,7 +256,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
         try {
             const keysToBackup = [
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
-                'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
+                'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token', 'silo_appetize_token',
                 'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
                 'silo_default_stack', 'silo_api_key_handling', 'silo_streaming_enabled', 'silo_free_ui_enabled',
                 'silo_home_background'
@@ -490,23 +493,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                                 helpLink={{ href: 'https://vercel.com/account/tokens', text: 'Create a token' }}
                             />
                         </SettingSection>
+                         <SettingSection title="Appetize.io" description="Preview your mobile apps on Appetize. Your token is stored in local storage.">
+                           <TokenInput 
+                                id="appetize-token" 
+                                label="Appetize API Token" 
+                                placeholder="Enter your Appetize API token" 
+                                storageKey={APPETIZE_TOKEN_STORAGE_KEY} 
+                                helpText=""
+                                helpLink={{ href: 'https://appetize.io/docs#api-token', text: 'Get your token' }}
+                           />
+                        </SettingSection>
                     </>
                 )}
                 {activeTab === 'developer' && (
                     <>
-                        <SettingSection title="Preview Mode" description="Iframe mode is sandboxed and secure. Service Worker mode offers faster reloads.">
+                        <SettingSection title="Preview Mode" description="Choose how to render your app preview. Appetize is for React Native mobile app simulation.">
                             <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
                                     onClick={() => props.onPreviewModeChange('iframe')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
-                                    Iframe (Secure)
+                                    Iframe
                                 </button>
                                 <button
                                     onClick={() => props.onPreviewModeChange('service-worker')}
-                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     Service Worker
+                                </button>
+                                 <button
+                                    onClick={() => props.onPreviewModeChange('appetize')}
+                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'appetize' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Appetize (Mobile)
                                 </button>
                             </div>
                         </SettingSection>

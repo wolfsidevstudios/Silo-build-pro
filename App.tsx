@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -139,7 +140,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi' | 'html' | 'shadcn';
-export type PreviewMode = 'service-worker' | 'iframe';
+export type PreviewMode = 'service-worker' | 'iframe' | 'appetize';
 export type ApiKeyHandling = 'hardcode' | 'env';
 export type HomeBackground = 'nebula' | 'sunset';
 
@@ -906,50 +907,62 @@ ${integrationsList.join('\n')}
       - **Backgrounds:** Backgrounds MUST be solid colors.
       - **Icons:** If needed, MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
     `;
-
-    switch (projectType) {
-        case 'single':
-            projectTypeInstructions = `
-                **Project Type:** Single File (React)
-                **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file.
-            `;
-            break;
-        case 'multi':
-            projectTypeInstructions = `
-                **Project Type:** Multi-File (React)
-                **Guideline:** You SHOULD break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure.
-            `;
-            break;
-        case 'shadcn':
-             projectTypeInstructions = `
-                **Project Type:** Multi-File React with shadcn/ui
-                **Critical shadcn/ui Rules:**
-                1.  You are building a web application using React and shadcn/ui.
-                2.  **Component Generation:** shadcn/ui components are NOT installed from npm. You MUST generate the full source code for every shadcn/ui component you use (e.g., Button, Card, Input, etc.).
-                3.  **File Structure:** Place generated shadcn/ui components inside the 'src/components/ui/' directory. Application components go in 'src/components/'.
-                4.  **Dependencies:** Many shadcn/ui components depend on Radix UI primitives (e.g., '@radix-ui/react-slot') and other libraries like 'class-variance-authority', 'clsx', 'tailwind-merge'. These are available via browser imports.
-                5.  **Styling:** You MUST use Tailwind CSS for all styling. A utility function 'cn' is available at 'src/lib/utils.ts' for merging Tailwind classes.
-                6.  **Pathing:** You MUST use relative paths for all local imports (e.g., \`import { cn } from '../../lib/utils.ts'\`). DO NOT use path aliases like '@/'.
-                7.  **Component Source:** Find source code for shadcn/ui components on their official documentation website. You must generate the full, correct code for them.
-            `;
-            break;
-        case 'html':
-            projectTypeInstructions = `
-                **Project Type:** Vanilla HTML/CSS/JS
-                **Constraint:** You MUST generate a standard, static web project with three files: 'index.html', 'style.css', and 'script.js'.
-                - If you are generating 'index.html': It MUST contain the full HTML structure and link to the other two files correctly: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
-                - If you are generating 'style.css': It MUST contain all the CSS styles.
-                - If you are generating 'script.js': It MUST contain all the JavaScript logic.
-                ${isFreeUi ? freeUiHtmlStylingGuidelines : `
-                **Design System & UI Guidelines:**
-                - **Overall Style:** Modern, clean, and aesthetically pleasing. Main background MUST be white.
-                - **Buttons:** MUST be pill-shaped (fully rounded). Primary buttons are solid black with white text. Secondary buttons are outlined with a thin black border.
-                - **Icons:** MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
-                - **Nav Bars:** If needed, should be pill-shaped, floating, with a frosted glass effect (\`backdrop-filter: blur(10px);\`).
-                `}
-                **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. DO NOT use Tailwind CSS.
-            `;
-            break;
+    
+    if (previewMode === 'appetize' && projectType !== 'html') {
+        projectTypeInstructions = `
+            **Project Environment: React Native (Expo) on Appetize.io**
+            **CRITICAL RULES:**
+            1.  You MUST generate React Native code for an Expo application.
+            2.  Import components from 'react-native' (e.g., \`import { View, Text, StyleSheet } from 'react-native'\`).
+            3.  DO NOT use any HTML tags (like \`<div>\`, \`<h1>\`, \`<span>\`). Use React Native components instead (e.g., \`<View>\`, \`<Text>\`).
+            4.  Styling MUST be done using React Native's \`StyleSheet.create\` API. DO NOT use CSS files, Tailwind CSS, or \`className\` props.
+            5.  The main application component MUST be the default export of "src/App.tsx".
+        `;
+    } else {
+        switch (projectType) {
+            case 'single':
+                projectTypeInstructions = `
+                    **Project Type:** Single File (React)
+                    **Constraint:** You MUST generate all code within a single file: 'src/App.tsx'. Do not create any other files or components. All logic, components, and styles must be contained within this one file.
+                `;
+                break;
+            case 'multi':
+                projectTypeInstructions = `
+                    **Project Type:** Multi-File (React)
+                    **Guideline:** You SHOULD break down the application into logical, reusable components, each in its own file (e.g., 'src/components/Button.tsx'). Follow a clean, modular file structure.
+                `;
+                break;
+            case 'shadcn':
+                 projectTypeInstructions = `
+                    **Project Type:** Multi-File React with shadcn/ui
+                    **Critical shadcn/ui Rules:**
+                    1.  You are building a web application using React and shadcn/ui.
+                    2.  **Component Generation:** shadcn/ui components are NOT installed from npm. You MUST generate the full source code for every shadcn/ui component you use (e.g., Button, Card, Input, etc.).
+                    3.  **File Structure:** Place generated shadcn/ui components inside the 'src/components/ui/' directory. Application components go in 'src/components/'.
+                    4.  **Dependencies:** Many shadcn/ui components depend on Radix UI primitives (e.g., '@radix-ui/react-slot') and other libraries like 'class-variance-authority', 'clsx', 'tailwind-merge'. These are available via browser imports.
+                    5.  **Styling:** You MUST use Tailwind CSS for all styling. A utility function 'cn' is available at 'src/lib/utils.ts' for merging Tailwind classes.
+                    6.  **Pathing:** You MUST use relative paths for all local imports (e.g., \`import { cn } from '../../lib/utils.ts'\`). DO NOT use path aliases like '@/'.
+                    7.  **Component Source:** Find source code for shadcn/ui components on their official documentation website. You must generate the full, correct code for them.
+                `;
+                break;
+            case 'html':
+                projectTypeInstructions = `
+                    **Project Type:** Vanilla HTML/CSS/JS
+                    **Constraint:** You MUST generate a standard, static web project with three files: 'index.html', 'style.css', and 'script.js'.
+                    - If you are generating 'index.html': It MUST contain the full HTML structure and link to the other two files correctly: \`<link rel="stylesheet" href="style.css">\` in the <head>, and \`<script src="script.js" defer></script>\` before the closing </body> tag.
+                    - If you are generating 'style.css': It MUST contain all the CSS styles.
+                    - If you are generating 'script.js': It MUST contain all the JavaScript logic.
+                    ${isFreeUi ? freeUiHtmlStylingGuidelines : `
+                    **Design System & UI Guidelines:**
+                    - **Overall Style:** Modern, clean, and aesthetically pleasing. Main background MUST be white.
+                    - **Buttons:** MUST be pill-shaped (fully rounded). Primary buttons are solid black with white text. Secondary buttons are outlined with a thin black border.
+                    - **Icons:** MUST use Google Material Symbols (outlined style), e.g., \`<span class="material-symbols-outlined">icon_name</span>\`.
+                    - **Nav Bars:** If needed, should be pill-shaped, floating, with a frosted glass effect (\`backdrop-filter: blur(10px);\`).
+                    `}
+                    **CRITICAL RULE:** DO NOT use React, JSX, TSX, or any frameworks. DO NOT use Tailwind CSS.
+                `;
+                break;
+        }
     }
 
     const reactStylingGuidelines = `
@@ -976,8 +989,8 @@ ${integrationsList.join('\n')}
       Your output must contain ONLY the code for this file. Do not include JSON, markdown, file paths, or any other explanatory text.
 
       ${projectTypeInstructions}
-      ${projectType !== 'html' ? (isFreeUi ? freeUiReactStylingGuidelines : reactStylingGuidelines) : ''}
-      ${projectType !== 'html' ? reactFileRules : ''}
+      ${previewMode !== 'appetize' && projectType !== 'html' ? (isFreeUi ? freeUiReactStylingGuidelines : reactStylingGuidelines) : ''}
+      ${previewMode !== 'appetize' && projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
       ${neonIntegrationPrompt}
@@ -2073,9 +2086,6 @@ Follow these steps to build your app and submit it for review.
     \`\`\`bash
     eas submit -p ios
     \`\`\`
-    The CLI will ask for your Apple ID and password. It may also ask if you want EAS to handle creating certificates and provisioning profiles. It's recommended to let EAS manage this for you.
-
-4.  **Wait for the Build:**
     The build process can take some time. You can monitor its progress in the link provided in your terminal.
 
 5.  **Complete Submission in App Store Connect:**
