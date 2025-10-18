@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling } from '../App';
+import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling, HomeBackground } from '../App';
 
 const API_KEY_STORAGE_KEY = 'gemini_api_key';
 const NETLIFY_TOKEN_STORAGE_KEY = 'silo_netlify_token';
@@ -147,6 +147,8 @@ interface SettingsPageProps {
   onStreamingEnabledChange: (enabled: boolean) => void;
   isFreeUiEnabled: boolean;
   onFreeUiEnabledChange: (enabled: boolean) => void;
+  homeBackground: HomeBackground;
+  onHomeBackgroundChange: (background: HomeBackground) => void;
 }
 
 const ApiSecretsSettings: React.FC<{
@@ -253,7 +255,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 'silo_projects', 'silo_supabase_config', 'silo_api_secrets',
                 'gemini_api_key', 'silo_netlify_token', 'silo_vercel_token', 'silo_github_token',
                 'gemini_model', 'silo_preview_mode', 'silo_editor_font_size', 'silo_product_hunt_token',
-                'silo_default_stack', 'silo_api_key_handling', 'silo_streaming_enabled', 'silo_free_ui_enabled'
+                'silo_default_stack', 'silo_api_key_handling', 'silo_streaming_enabled', 'silo_free_ui_enabled',
+                'silo_home_background'
             ];
             const backupData: { [key: string]: any } = { version: 1 };
             keysToBackup.forEach(key => {
@@ -387,6 +390,35 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 )}
                 {activeTab === 'appearance' && (
                      <>
+                        <SettingSection title="Home Background" description="Choose the background style for the home page.">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div
+                                    onClick={() => props.onHomeBackgroundChange('nebula')}
+                                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${props.homeBackground === 'nebula' ? 'border-blue-500 ring-2 ring-blue-500 ring-offset-2' : 'border-gray-300 hover:border-gray-400'}`}
+                                >
+                                    <div className="h-24 w-full bg-nebula-thumb"></div>
+                                    <p className="absolute bottom-2 left-2 text-white font-semibold text-sm bg-black/50 px-2 py-1 rounded">Nebula</p>
+                                    {props.homeBackground === 'nebula' && (
+                                        <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                                            <span className="material-symbols-outlined text-base">check</span>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div
+                                    onClick={() => props.onHomeBackgroundChange('sunset')}
+                                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${props.homeBackground === 'sunset' ? 'border-blue-500 ring-2 ring-blue-500 ring-offset-2' : 'border-gray-300 hover:border-gray-400'}`}
+                                >
+                                    <div className="h-24 w-full bg-sunset-thumb"></div>
+                                    <p className="absolute bottom-2 left-2 text-white font-semibold text-sm bg-black/50 px-2 py-1 rounded">Cosmic Sunset</p>
+                                    {props.homeBackground === 'sunset' && (
+                                        <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                                            <span className="material-symbols-outlined text-base">check</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </SettingSection>
                         <SettingSection title="Theme" description="Choose the look and feel of the interface.">
                              <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button

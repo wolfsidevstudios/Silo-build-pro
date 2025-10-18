@@ -140,6 +140,7 @@ export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi' | 'html' | 'shadcn';
 export type PreviewMode = 'service-worker' | 'iframe';
 export type ApiKeyHandling = 'hardcode' | 'env';
+export type HomeBackground = 'nebula' | 'sunset';
 
 export interface Message {
   actor: 'user' | 'ai' | 'system';
@@ -271,6 +272,7 @@ const App: React.FC = () => {
   const [apiKeyHandling, setApiKeyHandling] = useState<ApiKeyHandling>('hardcode');
   const [isStreamingEnabled, setIsStreamingEnabled] = useState(true);
   const [isFreeUiEnabled, setIsFreeUiEnabled] = useState(false);
+  const [homeBackground, setHomeBackground] = useState<HomeBackground>('nebula');
   
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(null);
   const [tempSupabaseToken, setTempSupabaseToken] = useState<string | null>(null);
@@ -383,6 +385,10 @@ const App: React.FC = () => {
       if (savedFreeUiEnabled) {
         setIsFreeUiEnabled(JSON.parse(savedFreeUiEnabled));
       }
+      const savedHomeBackground = localStorage.getItem('silo_home_background') as HomeBackground;
+      if (savedHomeBackground) {
+        setHomeBackground(savedHomeBackground);
+      }
       const savedApiSecrets = localStorage.getItem('silo_api_secrets');
       if (savedApiSecrets) {
         setApiSecrets(JSON.parse(savedApiSecrets));
@@ -470,6 +476,11 @@ const App: React.FC = () => {
     localStorage.setItem('silo_user_profile', JSON.stringify(userProfile));
   }, [userProfile]);
 
+  useEffect(() => {
+    document.body.className = '';
+    document.body.classList.add(`bg-${homeBackground}`);
+  }, [homeBackground]);
+
   const handleSetDefaultStack = (stack: ProjectType) => {
     setDefaultStack(stack);
     localStorage.setItem('silo_default_stack', stack);
@@ -488,6 +499,11 @@ const App: React.FC = () => {
   const handleFreeUiEnabledChange = (enabled: boolean) => {
     setIsFreeUiEnabled(enabled);
     localStorage.setItem('silo_free_ui_enabled', JSON.stringify(enabled));
+  };
+
+  const handleHomeBackgroundChange = (background: HomeBackground) => {
+    setHomeBackground(background);
+    localStorage.setItem('silo_home_background', background);
   };
 
   const handleProfileUpdate = (newProfile: UserProfile) => {
@@ -2347,6 +2363,8 @@ Good luck!
           onStreamingEnabledChange={handleStreamingEnabledChange}
           isFreeUiEnabled={isFreeUiEnabled}
           onFreeUiEnabledChange={handleFreeUiEnabledChange}
+          homeBackground={homeBackground}
+          onHomeBackgroundChange={handleHomeBackgroundChange}
         />
       );
     }

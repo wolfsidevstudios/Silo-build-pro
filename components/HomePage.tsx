@@ -408,6 +408,16 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
           </div>
         </form>
 
+        <div className="w-full max-w-4xl mx-auto my-8">
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 md:p-8">
+                <div className="flex justify-center items-center text-white text-center">
+                    <div className="animate-fade-in">
+                        <h3 className="text-3xl md:text-4xl font-semibold tracking-tight">Now serving users worldwide</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-center gap-3">
           {BASIC_PROMPTS.map((suggestion) => (
             <button

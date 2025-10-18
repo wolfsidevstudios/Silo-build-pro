@@ -49,8 +49,29 @@
         height: 100%;
         pointer-events: none;
         z-index: -1;
-        background-image: radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(240, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(180, 80%, 80%, 0.2) 0px, transparent 50%);
         background-repeat: no-repeat;
+        transition: background-image 0.5s ease-in-out;
+      }
+      body.bg-nebula::before {
+        background-image: radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(240, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(180, 80%, 80%, 0.2) 0px, transparent 50%);
+      }
+      body.bg-sunset::before {
+        background-image:
+          radial-gradient(ellipse 50% 40% at 20% 10%, hsla(275, 76%, 50%, 0.4), transparent),
+          radial-gradient(ellipse 40% 50% at 80% 90%, hsla(33, 100%, 50%, 0.4), transparent),
+          linear-gradient(to bottom, 
+            hsl(275, 76%, 20%) 0%,
+            hsl(300, 70%, 30%) 20%,
+            hsl(28, 100%, 50%) 80%,
+            hsl(275, 30%, 5%) 100%
+          );
+      }
+      .bg-nebula-thumb {
+        background-image: radial-gradient(at 0% 0%, hsla(22, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(300, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(240, 80%, 80%, 0.3) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(180, 80%, 80%, 0.2) 0px, transparent 50%);
+        background-color: #2e0249;
+      }
+      .bg-sunset-thumb {
+        background-image: linear-gradient(to bottom, hsl(275, 76%, 20%) 0%, hsl(28, 100%, 50%) 80%, hsl(275, 30%, 5%) 100%);
       }
       @keyframes grain {
         0%, 100% { transform: translate(0, 0); }
