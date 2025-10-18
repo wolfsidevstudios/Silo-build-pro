@@ -94,6 +94,17 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         getApiKeyUrl: 'https://neon.tech/docs/connect/connect-from-any-app#find-your-connection-string',
     },
     {
+        id: 'postgresql',
+        name: 'PostgreSQL',
+        icon: <span className="w-full h-full flex items-center justify-center text-3xl font-bold text-blue-600 bg-gray-100 rounded-lg">Pg</span>,
+        description: 'Connect to any standard PostgreSQL database.',
+        storageKey: 'silo_integration_postgresql',
+        keys: [{ name: 'connectionString', label: 'PostgreSQL Connection String' }],
+        usageInstructions: 'The application is connected to a PostgreSQL database. The connection string is `{{connectionString}}`. For frontend code, assume a backend API exists that uses this connection string to connect to the database. Make `fetch` requests to hypothetical API endpoints corresponding to the SQL schema (e.g., `/api/users`).',
+        category: 'Databases',
+        getApiKeyUrl: 'https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING',
+    },
+    {
         id: 'apple-signin',
         name: 'Sign in with Apple',
         icon: <AppleSignInIcon />,

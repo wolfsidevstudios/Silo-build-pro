@@ -63,38 +63,40 @@
       }
       body.bg-nebula::before {
         background-image:
-          /* Light blue shimmer at the bottom left */
-          radial-gradient(ellipse 30% 40% at 20% 90%, hsla(240, 100%, 80%, 0.35), transparent),
-          /* Main gradient from top to bottom */
+          /* Subtle shimmer */
+          radial-gradient(ellipse 40% 50% at 10% 80%, hsla(210, 100%, 80%, 0.2), transparent),
+          /* Main light gradient */
           linear-gradient(to bottom, 
-            hsl(35, 100%, 85%) 0%,    /* Light sunset peach */
-            hsl(320, 100%, 80%) 30%,  /* Light pink */
-            hsl(260, 60%, 40%) 75%,   /* Purple */
-            hsl(240, 70%, 35%) 100%  /* Dark blue */
+            hsl(200, 100%, 95%) 0%,  /* Pale sky blue */
+            hsl(300, 100%, 98%) 50%,  /* Faint lilac */
+            hsl(40, 100%, 95%) 100%   /* Soft sunrise yellow */
           );
       }
       body.bg-sunset::before {
         background-image:
-          radial-gradient(ellipse 50% 40% at 20% 10%, hsla(275, 76%, 50%, 0.4), transparent),
-          radial-gradient(ellipse 40% 50% at 80% 90%, hsla(33, 100%, 50%, 0.4), transparent),
+          /* Subtle shimmer */
+          radial-gradient(ellipse 40% 50% at 80% 20%, hsla(30, 100%, 80%, 0.3), transparent),
+          /* Main light gradient */
           linear-gradient(to bottom, 
-            hsl(275, 76%, 20%) 0%,
-            hsl(300, 70%, 30%) 20%,
-            hsl(28, 100%, 50%) 80%,
-            hsl(275, 30%, 5%) 100%
+            hsl(30, 100%, 92%) 0%,   /* Light peach */
+            hsl(50, 100%, 90%) 50%,   /* Soft gold */
+            hsl(270, 100%, 95%) 100%  /* Light lavender */
           );
       }
       .bg-nebula-thumb {
         background-image:
           linear-gradient(to bottom, 
-            hsl(35, 100%, 85%) 0%,    /* Light sunset peach */
-            hsl(320, 100%, 80%) 30%,  /* Light pink */
-            hsl(260, 60%, 40%) 75%,   /* Purple */
-            hsl(240, 70%, 35%) 100%  /* Dark blue */
+            hsl(200, 100%, 95%) 0%,  /* Pale sky blue */
+            hsl(300, 100%, 98%) 50%,  /* Faint lilac */
+            hsl(40, 100%, 95%) 100%   /* Soft sunrise yellow */
           );
       }
       .bg-sunset-thumb {
-        background-image: linear-gradient(to bottom, hsl(275, 76%, 20%) 0%, hsl(28, 100%, 50%) 80%, hsl(275, 30%, 5%) 100%);
+        background-image: linear-gradient(to bottom, 
+            hsl(30, 100%, 92%) 0%,   /* Light peach */
+            hsl(50, 100%, 90%) 50%,   /* Soft gold */
+            hsl(270, 100%, 95%) 100%  /* Light lavender */
+        );
       }
       @keyframes grain {
         0%, 100% { transform: translate(0, 0); }
@@ -117,7 +119,7 @@
         height: 200%;
         background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWCg4N+fn5TU1NfX19sbGxhYWFiYmJkg4ODg4N+fn5sbGxhYWFiYmJkg4ODg4N+fn5sbGxhYWFiYmJkg4ODg4N+fn5sbGxhYWFiYmJkg4ODg4N+fn5sbGxpK0b/AAAAF3RSTlMAVvApZEF/AFVo/AFo/AFa/AFa/AFa/AFa/AFpgn3yAAAAi0lEQVRIx9W2wQ6EIAxFW5lic257/5/56sV1EnRy4hG8kMKs0a374a2aHhTf44hP215rsz44PSoeOw9Z2SCSM4vSZb3Vq5t6vV/s5xOkRnvga+0Q0yE20tDSpg6MrQd3wP9Xg4DFgp+a23vU4jzlcsDRvJ7d7Xk8CSvW2GHc349g7sLPi3a9f0326kg/R2o7c/V7l4+1a3i3bZzBAAAAABJRU5ErkJggg==");
         animation: grain 1s steps(4) infinite;
-        opacity: 0.08;
+        opacity: 0.04;
         pointer-events: none;
         z-index: -1;
       }
