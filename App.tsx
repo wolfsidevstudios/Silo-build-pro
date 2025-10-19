@@ -33,6 +33,7 @@ import { CommunityAppViewerPage } from './components/CommunityAppViewerPage';
 import { StatusPage } from './components/StatusPage';
 import { AwardsPage } from './components/AwardsPage';
 import { AgentBuilderPage } from './components/AgentBuilderPage';
+import { SiloAiPage } from './components/SiloAiPage';
 
 
 declare const Babel: any;
@@ -2252,6 +2253,9 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
 
     if (path === '/home' || path === '/') {
       return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} />;
+    }
+    if (path === '/silo-ai') {
+        return <SiloAiPage />;
     }
     if (path === '/profile') {
       return <ProfilePage 
