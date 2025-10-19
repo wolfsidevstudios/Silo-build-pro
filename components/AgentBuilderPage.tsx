@@ -1,6 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
+import { SpreadsheetEditor, SpreadsheetData } from './SpreadsheetEditor';
+
 
 // --- TYPE DEFINITIONS ---
 interface Port {
@@ -34,6 +35,9 @@ interface Agent {
     description?: string;
     nodes: NodeData[];
     edges: EdgeData[];
+    trainingData?: string;
+    spreadsheets?: SpreadsheetData[];
+    webPages?: string[];
 }
 
 const LOCAL_STORAGE_KEY_AGENTS = 'silo_agents';
@@ -251,12 +255,29 @@ const TestAgentModal: React.FC<{ agent: Agent | undefined, isOpen: boolean, onCl
 
                 **Workflow Definition:**
                 ${JSON.stringify({ nodes: agent.nodes, edges: agent.edges }, null, 2)}
+                
+                **Available Data Sources:**
+
+                1. Training Instructions:
+                ${agent.trainingData || 'No training instructions provided.'}
+
+                2. Spreadsheets:
+                ${agent.spreadsheets && agent.spreadsheets.length > 0
+                    ? agent.spreadsheets.map(s => `Sheet Name: ${s.name}\nColumns: ${s.columns.join(', ')}\nData:\n${s.rows.map(r => r.join(' | ')).join('\n')}`).join('\n\n')
+                    : 'No spreadsheets available.'
+                }
+                
+                3. Web Page Knowledge Base:
+                ${agent.webPages && agent.webPages.length > 0
+                    ? agent.webPages.map(url => `- ${url}`).join('\n')
+                    : 'No websites provided.'
+                }
 
                 **Conversation History:**
                 ${historyText}
 
                 **Task:**
-                Based on the user's last message ("${currentInput}"), trace its path through the workflow and determine the agent's final response. Provide only the agent's response as a plain string, without any additional explanation or formatting.
+                Based on the user's last message ("${currentInput}"), trace its path through the workflow and use the available data sources (including the web pages) to determine the agent's final response. Provide only the agent's response as a plain string, without any additional explanation or formatting.
             `;
 
             const response = await ai.models.generateContent({
@@ -346,6 +367,9 @@ export const AgentBuilderPage: React.FC = () => {
     const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
+    const [activeView, setActiveView] = useState<'workflow' | 'data'>('workflow');
+    const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string | null>(null);
+    const [newUrl, setNewUrl] = useState('');
 
     const activeAgent = agents.find(agent => agent.id === activeAgentId);
     const nodesMap = new Map((activeAgent?.nodes || []).map(n => [n.id, n]));
@@ -372,6 +396,11 @@ export const AgentBuilderPage: React.FC = () => {
         }
     }, [agents]);
 
+    const updateActiveAgent = (updater: (agent: Agent) => Agent) => {
+        if (!activeAgentId) return;
+        setAgents(prev => prev.map(agent => agent.id === activeAgentId ? updater(agent) : agent));
+    };
+
     const handleAddAgent = () => {
         const newAgent: Agent = {
             id: `agent_${Date.now()}`,
@@ -379,6 +408,9 @@ export const AgentBuilderPage: React.FC = () => {
             description: 'A manually created agent workflow.',
             nodes: createDefaultNodes(),
             edges: createDefaultEdges(),
+            trainingData: '',
+            spreadsheets: [],
+            webPages: [],
         };
         setAgents(prev => [...prev, newAgent]);
         setActiveAgentId(newAgent.id);
@@ -427,6 +459,7 @@ export const AgentBuilderPage: React.FC = () => {
                    - If you have branches (from a guardrail or conditional), place the branches vertically, with a y-increment of about 150px.
                    - The 'end' node should be the rightmost node.
                 7. Ensure all IDs are unique strings. Use a clear naming convention (e.g., 'node_1', 'node_1_in', 'edge_1').
+                8. If the user's request implies storing or managing structured data (e.g., "product inventory", "customer list", "to-do items"), you MUST also define a spreadsheet for this data. The spreadsheet should have a descriptive name, a list of column headers, and 2-3 sample rows of data. If no structured data is needed, omit the \`spreadsheet\` key from your JSON response.
 
                 **CRITICAL:** Your entire response must be ONLY a single, valid JSON object matching the provided schema. Do not include any other text, markdown, or explanations.
 
@@ -470,6 +503,16 @@ export const AgentBuilderPage: React.FC = () => {
                         },
                         required: ['id', 'from', 'fromPort', 'to', 'toPort']
                     }},
+                    spreadsheet: {
+                        type: Type.OBJECT,
+                        nullable: true,
+                        properties: {
+                            name: { type: Type.STRING },
+                            columns: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            rows: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.STRING } } }
+                        },
+                        required: ['name', 'columns', 'rows']
+                    }
                 },
                 required: ['name', 'description', 'nodes', 'edges']
             };
@@ -485,7 +528,21 @@ export const AgentBuilderPage: React.FC = () => {
                 throw new Error("AI returned an invalid agent structure.");
             }
 
-            const newAgent: Agent = { ...agentData, id: `agent_${Date.now()}` };
+            const newAgent: Agent = { 
+                ...agentData, 
+                id: `agent_${Date.now()}`,
+                trainingData: '',
+                spreadsheets: [],
+                webPages: [],
+            };
+
+            if (agentData.spreadsheet) {
+                newAgent.spreadsheets?.push({
+                    id: `spreadsheet_${Date.now()}`,
+                    ...agentData.spreadsheet
+                });
+            }
+
 
             setAgents(prev => [...prev, newAgent]);
             setActiveAgentId(newAgent.id);
@@ -624,6 +681,55 @@ export const AgentBuilderPage: React.FC = () => {
         setTempEdgePos(null);
     };
 
+    const handleAddSpreadsheet = () => {
+        const newSpreadsheet: SpreadsheetData = {
+            id: `spreadsheet_${Date.now()}`,
+            name: `Data Sheet ${(activeAgent?.spreadsheets?.length || 0) + 1}`,
+            columns: ['Column A', 'Column B'],
+            rows: [['', ''], ['', '']],
+        };
+        updateActiveAgent(agent => ({
+            ...agent,
+            spreadsheets: [...(agent.spreadsheets || []), newSpreadsheet]
+        }));
+    };
+
+    const handleDeleteSpreadsheet = (spreadsheetId: string) => {
+        if (!window.confirm("Are you sure you want to delete this spreadsheet?")) return;
+        updateActiveAgent(agent => ({
+            ...agent,
+            spreadsheets: (agent.spreadsheets || []).filter(s => s.id !== spreadsheetId)
+        }));
+    };
+
+    const handleUpdateSpreadsheet = (updatedSpreadsheet: SpreadsheetData) => {
+        updateActiveAgent(agent => ({
+            ...agent,
+            spreadsheets: (agent.spreadsheets || []).map(s => s.id === updatedSpreadsheet.id ? updatedSpreadsheet : s)
+        }));
+    };
+
+    const handleAddUrl = () => {
+        if (!newUrl.trim()) return;
+        try {
+            new URL(newUrl); // Validate URL format
+            updateActiveAgent(agent => ({
+                ...agent,
+                webPages: [...(agent.webPages || []), newUrl.trim()]
+            }));
+            setNewUrl('');
+        } catch (_) {
+            alert("Please enter a valid URL.");
+        }
+    };
+
+    const handleDeleteUrl = (urlToDelete: string) => {
+        updateActiveAgent(agent => ({
+            ...agent,
+            webPages: (agent.webPages || []).filter(url => url !== urlToDelete)
+        }));
+    };
+
   return (
     <>
     <div className="flex h-screen bg-gray-100 pt-16">
@@ -657,53 +763,147 @@ export const AgentBuilderPage: React.FC = () => {
       </aside>
       <main className="flex-1 flex flex-col">
          <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center z-10">
-            <h1 className="text-2xl font-bold text-gray-900">{activeAgent?.name || 'Agent Builder'}</h1>
+            <div>
+                <input 
+                    type="text" 
+                    value={activeAgent?.name || ''} 
+                    onChange={(e) => updateActiveAgent(agent => ({ ...agent, name: e.target.value }))}
+                    className="text-2xl font-bold text-gray-900 bg-transparent outline-none focus:ring-1 focus:ring-blue-500 rounded-md -ml-2 px-2"
+                    placeholder="Agent Name"
+                    disabled={!activeAgent}
+                />
+                <div className="flex items-center space-x-4 mt-2">
+                     <button onClick={() => setActiveView('workflow')} className={`px-3 py-1 text-sm font-semibold rounded-full ${activeView === 'workflow' ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-200'}`}>Workflow</button>
+                     <button onClick={() => setActiveView('data')} className={`px-3 py-1 text-sm font-semibold rounded-full ${activeView === 'data' ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-200'}`}>Data</button>
+                </div>
+            </div>
             <div className="flex items-center space-x-2">
                 <button onClick={() => setIsTestViewOpen(true)} disabled={!activeAgent} className="px-4 py-2 text-sm bg-gray-200 rounded-full font-semibold hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">Test</button>
                 <button disabled={!activeAgent} className="px-4 py-2 text-sm bg-black text-white rounded-full font-semibold hover:bg-zinc-800 disabled:bg-gray-400 disabled:cursor-not-allowed">Publish</button>
             </div>
          </div>
          <div className="flex-1 flex overflow-hidden">
-             <div 
-                ref={canvasRef} 
-                className="flex-1 relative overflow-auto" 
-                style={{
-                    backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
-                    backgroundSize: '20px 20px',
-                }}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-             >
-                 {activeAgent ? (
-                    <>
-                    <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1, minWidth: '2000px', minHeight: '1000px' }}>
-                        {activeAgent.edges.map(edge => {
-                            const fromNode = nodesMap.get(edge.from);
-                            const toNode = nodesMap.get(edge.to);
-                            if (!fromNode || !toNode) return null;
-                            return <Edge key={edge.id} fromNode={fromNode} toNode={toNode} fromPortId={edge.fromPort} toPortId={edge.toPort} />;
-                        })}
-                        {tempEdgePos && <path d={getEdgePath(tempEdgePos.x1, tempEdgePos.y1, tempEdgePos.x2, tempEdgePos.y2)} stroke="#3b82f6" strokeWidth="2.5" fill="none" />}
-                    </svg>
+            {activeView === 'workflow' ? (
+                 <div 
+                    ref={canvasRef} 
+                    className="flex-1 relative overflow-auto" 
+                    style={{
+                        backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
+                        backgroundSize: '20px 20px',
+                    }}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                 >
+                     {activeAgent ? (
+                        <>
+                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1, minWidth: '2000px', minHeight: '1000px' }}>
+                            {activeAgent.edges.map(edge => {
+                                const fromNode = nodesMap.get(edge.from);
+                                const toNode = nodesMap.get(edge.to);
+                                if (!fromNode || !toNode) return null;
+                                return <Edge key={edge.id} fromNode={fromNode} toNode={toNode} fromPortId={edge.fromPort} toPortId={edge.toPort} />;
+                            })}
+                            {tempEdgePos && <path d={getEdgePath(tempEdgePos.x1, tempEdgePos.y1, tempEdgePos.x2, tempEdgePos.y2)} stroke="#3b82f6" strokeWidth="2.5" fill="none" />}
+                        </svg>
 
-                    {activeAgent.nodes.map(node => (
-                        <Node 
-                            key={node.id} 
-                            data={node} 
-                            onNodeMouseDown={(e) => handleNodeMouseDown(e, node.id)} 
-                            onPortMouseDown={(e, portId) => handlePortMouseDown(e, node.id, portId)}
-                            onPortMouseUp={(portId) => handlePortMouseUp(node.id, portId)}
+                        {activeAgent.nodes.map(node => (
+                            <Node 
+                                key={node.id} 
+                                data={node} 
+                                onNodeMouseDown={(e) => handleNodeMouseDown(e, node.id)} 
+                                onPortMouseDown={(e, portId) => handlePortMouseDown(e, node.id, portId)}
+                                onPortMouseUp={(portId) => handlePortMouseUp(node.id, portId)}
+                            />
+                        ))}
+                        </>
+                     ) : (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                            <p>Select an agent or create a new one to get started.</p>
+                        </div>
+                     )}
+                 </div>
+            ) : ( // Data View
+                <div className="flex-1 p-4 overflow-y-auto">
+                    {activeAgent && !selectedSpreadsheetId && (
+                        <div className="max-w-4xl mx-auto space-y-8">
+                             <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">Training Instructions</h3>
+                                <p className="text-sm text-gray-500 mb-2">Provide background information, FAQs, or specific instructions for the agent to use as context.</p>
+                                <textarea 
+                                    value={activeAgent.trainingData || ''}
+                                    onChange={e => updateActiveAgent(agent => ({ ...agent, trainingData: e.target.value }))}
+                                    rows={8}
+                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                    placeholder="e.g., You are a helpful assistant. If the user asks for a refund, direct them to the refund policy page..."
+                                />
+                             </div>
+                             <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">Web Pages</h3>
+                                <p className="text-sm text-gray-500 mb-2">Add website URLs or Minecraft server status APIs for the agent to use as a knowledge source.</p>
+                                <div className="flex space-x-2 mb-2">
+                                    <input 
+                                        type="url"
+                                        value={newUrl}
+                                        onChange={(e) => setNewUrl(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddUrl()}
+                                        placeholder="https://your-website.com"
+                                        className="w-full p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                    />
+                                    <button onClick={handleAddUrl} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700">Add</button>
+                                </div>
+                                <div className="space-y-2">
+                                    {(activeAgent.webPages || []).map((url) => (
+                                        <div key={url} className="group bg-white p-2 rounded-lg border border-gray-200 flex justify-between items-center">
+                                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 truncate flex-1 mr-2">{url}</a>
+                                            <button onClick={() => handleDeleteUrl(url)} className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(activeAgent.webPages?.length || 0) === 0 && <p className="text-center text-gray-500 py-4 text-sm">No web pages added yet.</p>}
+                                </div>
+                             </div>
+                              <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Spreadsheets</h3>
+                                        <p className="text-sm text-gray-500">Manage structured data like product lists or customer information.</p>
+                                    </div>
+                                    <button onClick={handleAddSpreadsheet} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700">+ New Sheet</button>
+                                </div>
+                                <div className="space-y-2">
+                                    {(activeAgent.spreadsheets || []).map(sheet => (
+                                        <div key={sheet.id} className="group bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center">
+                                            <div onClick={() => setSelectedSpreadsheetId(sheet.id)} className="cursor-pointer flex-1">
+                                                <p className="font-semibold">{sheet.name}</p>
+                                                <p className="text-xs text-gray-500">{sheet.rows.length} rows &bull; {sheet.columns.length} columns</p>
+                                            </div>
+                                             <button onClick={() => handleDeleteSpreadsheet(sheet.id)} className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(activeAgent.spreadsheets?.length || 0) === 0 && <p className="text-center text-gray-500 py-4 text-sm">No spreadsheets created yet.</p>}
+                                </div>
+                             </div>
+                        </div>
+                    )}
+                    {activeAgent && selectedSpreadsheetId && (
+                        <SpreadsheetEditor 
+                            spreadsheet={(activeAgent.spreadsheets || []).find(s => s.id === selectedSpreadsheetId)!}
+                            onUpdate={handleUpdateSpreadsheet}
+                            onBack={() => setSelectedSpreadsheetId(null)}
                         />
-                    ))}
-                    </>
-                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        <p>Select an agent or create a new one to get started.</p>
-                    </div>
-                 )}
-             </div>
+                    )}
+                    {!activeAgent && (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                            <p>Select an agent to manage its data.</p>
+                        </div>
+                    )}
+                </div>
+            )}
               <aside className="w-60 bg-white border-l border-gray-200 p-4 flex-shrink-0">
                 <h3 className="font-bold text-gray-800 mb-4">Nodes</h3>
                 <div className="space-y-3">
