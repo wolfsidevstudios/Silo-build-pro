@@ -1,6 +1,55 @@
-import React from 'react';
 
-const Node: React.FC<{ data: any; children?: React.ReactNode }> = ({ data, children }) => {
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+// --- TYPE DEFINITIONS ---
+interface Port {
+    id: string;
+    pos: number; // Position as a percentage of height
+}
+
+interface NodeData {
+    id: string;
+    type: 'start' | 'guardrail' | 'agent' | 'conditional' | 'end';
+    label: string;
+    sublabel?: string;
+    x: number;
+    y: number;
+    height: number;
+    inputs: Port[];
+    outputs: Port[];
+}
+
+interface EdgeData {
+    id: string;
+    from: string;
+    fromPort: string;
+    to: string;
+    toPort: string;
+}
+
+interface Agent {
+    id: string;
+    name: string;
+    nodes: NodeData[];
+    edges: EdgeData[];
+}
+
+const LOCAL_STORAGE_KEY_AGENTS = 'silo_agents';
+
+// --- DEFAULTS & MOCKS (for new agents) ---
+const createDefaultNodes = (): NodeData[] => [
+    { id: 'start', type: 'start', label: 'Start', x: 50, y: 230, height: 72, inputs: [], outputs: [{ id: 'start-out', pos: 50 }] },
+    { id: 'end', type: 'end', label: 'End', x: 510, y: 230, height: 72, inputs: [{ id: 'end-in', pos: 50 }], outputs: [] },
+];
+
+const createDefaultEdges = (): EdgeData[] => [
+    { id: `edge-${Date.now()}`, from: 'start', fromPort: 'start-out', to: 'end', toPort: 'end-in' },
+];
+
+
+// --- UI COMPONENTS ---
+
+const Node: React.FC<{ data: NodeData; children?: React.ReactNode; onMouseDown: (e: React.MouseEvent) => void }> = ({ data, children, onMouseDown }) => {
     const typeStyles: any = {
         start: { bg: 'bg-green-100', border: 'border-green-300', icon: 'play_circle', iconColor: 'text-green-600' },
         guardrail: { bg: 'bg-yellow-100', border: 'border-yellow-300', icon: 'security', iconColor: 'text-yellow-600' },
@@ -8,14 +57,14 @@ const Node: React.FC<{ data: any; children?: React.ReactNode }> = ({ data, child
         conditional: { bg: 'bg-purple-100', border: 'border-purple-300', icon: 'fork_right', iconColor: 'text-purple-600' },
         end: { bg: 'bg-gray-200', border: 'border-gray-300', icon: 'stop_circle', iconColor: 'text-gray-600' },
     };
-
     const style = typeStyles[data.type] || typeStyles.agent;
 
     return (
         <div
             id={data.id}
-            className={`absolute ${style.bg} ${style.border} border rounded-2xl shadow-lg flex flex-col transition-all duration-300 ease-in-out`}
-            style={{ left: data.x, top: data.y, minWidth: 180 }}
+            className={`absolute ${style.bg} ${style.border} border rounded-2xl shadow-lg flex flex-col transition-all duration-300 ease-in-out cursor-grab active:cursor-grabbing`}
+            style={{ left: data.x, top: data.y, minWidth: 180, zIndex: 10 }}
+            onMouseDown={onMouseDown}
         >
             <div className="flex items-center space-x-2 p-3 border-b border-black/10">
                 <span className={`material-symbols-outlined ${style.iconColor}`}>{style.icon}</span>
@@ -27,33 +76,29 @@ const Node: React.FC<{ data: any; children?: React.ReactNode }> = ({ data, child
             {children && <div className="p-1 space-y-1">{children}</div>}
             
             {data.inputs?.map((input: any) => (
-                <div key={input.id} id={input.id} className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400"></div>
+                <div key={input.id} id={input.id} className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400" style={{top: `${input.pos}%`}}></div>
             ))}
             
             {data.outputs?.map((output: any) => (
-                <div key={output.id} id={output.id} className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400"
-                    style={data.outputs.length > 1 ? { top: `${output.pos}%` } : {}}>
-                </div>
+                <div key={output.id} id={output.id} className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400" style={{top: `${output.pos}%`}}></div>
             ))}
         </div>
     );
 };
 
-const Edge: React.FC<{ fromNode: any; toNode: any; fromPort: string; toPort: string }> = ({ fromNode, toNode, fromPort, toPort }) => {
+const Edge: React.FC<{ fromNode: NodeData; toNode: NodeData; fromPortId: string; toPortId: string }> = ({ fromNode, toNode, fromPortId, toPortId }) => {
     const startX = fromNode.x + 180;
     const endX = toNode.x;
     
-    let startY: number, endY: number;
+    const fromPort = fromNode.outputs.find(o => o.id === fromPortId) || { pos: 50 };
+    const toPort = toNode.inputs.find(i => i.id === toPortId) || { pos: 50 };
 
-    const fromOutput = fromNode.outputs.find((o:any) => o.id === fromPort);
-    const toInput = toNode.inputs.find((i:any) => i.id === toPort);
+    const startY = fromNode.y + ((fromPort.pos / 100) * fromNode.height);
+    const endY = toNode.y + ((toPort.pos / 100) * toNode.height);
 
-    startY = fromNode.y + ((fromOutput.pos / 100) * fromNode.height);
-    endY = toNode.y + ((toInput.pos / 100) * toNode.height);
-
-    const controlX1 = startX + (endX - startX) / 2;
+    const controlX1 = startX + Math.max(50, (endX - startX) / 2);
     const controlY1 = startY;
-    const controlX2 = endX - (endX - startX) / 2;
+    const controlX2 = endX - Math.max(50, (endX - startX) / 2);
     const controlY2 = endY;
 
     return (
@@ -66,111 +111,206 @@ const Edge: React.FC<{ fromNode: any; toNode: any; fromPort: string; toPort: str
     );
 };
 
-const nodesData = [
-    { id: 'start', type: 'start', label: 'Start', x: 50, y: 230, height: 72, inputs: [], outputs: [{ id: 'start-out', pos: 50 }] },
-    { id: 'guardrail', type: 'guardrail', label: 'Jailbreak guardrail', x: 280, y: 150, height: 110, inputs: [{ id: 'guardrail-in', pos: 50 }], outputs: [{ id: 'guardrail-pass', pos: 35 }, { id: 'guardrail-fail', pos: 75 }] },
-    { id: 'end-1', type: 'end', label: 'End', x: 510, y: 260, height: 72, inputs: [{ id: 'end-1-in', pos: 50 }], outputs: [] },
-    { id: 'classifier', type: 'agent', label: 'Classification agent', sublabel: 'Agent', x: 510, y: 150, height: 72, inputs: [{ id: 'classifier-in', pos: 50 }], outputs: [{ id: 'classifier-out', pos: 50 }] },
-    { id: 'if-else', type: 'conditional', label: 'If / else', x: 740, y: 80, height: 212, inputs: [{ id: 'if-else-in', pos: 50 }], outputs: [{ id: 'if-return', pos: 15 }, { id: 'if-cancel', pos: 38 }, { id: 'if-info', pos: 62 }, { id: 'if-else-out', pos: 85 }] },
-    { id: 'return-agent', type: 'agent', label: 'Return agent', sublabel: 'Agent', x: 1020, y: 40, height: 72, inputs: [{ id: 'return-agent-in', pos: 50 }], outputs: [{ id: 'return-agent-out', pos: 50 }] },
-    { id: 'retention-agent', type: 'agent', label: 'Retention Agent', sublabel: 'Agent', x: 1020, y: 125, height: 72, inputs: [{ id: 'retention-agent-in', pos: 50 }], outputs: [{ id: 'retention-agent-out', pos: 50 }] },
-    { id: 'info-agent', type: 'agent', label: 'Information agent', sublabel: 'Agent', x: 1020, y: 210, height: 72, inputs: [{ id: 'info-agent-in', pos: 50 }], outputs: [{ id: 'info-agent-out', pos: 50 }] },
-    { id: 'end-2', type: 'end', label: 'End', x: 1020, y: 295, height: 72, inputs: [{ id: 'end-2-in', pos: 50 }], outputs: [] },
-];
+const TestAgentModal: React.FC<{ agentName: string, isOpen: boolean, onClose: () => void }> = ({ agentName, isOpen, onClose }) => {
+    if (!isOpen) return null;
 
-const edgesData = [
-    { from: 'start', fromPort: 'start-out', to: 'guardrail', toPort: 'guardrail-in' },
-    { from: 'guardrail', fromPort: 'guardrail-pass', to: 'classifier', toPort: 'classifier-in' },
-    { from: 'guardrail', fromPort: 'guardrail-fail', to: 'end-1', toPort: 'end-1-in' },
-    { from: 'classifier', fromPort: 'classifier-out', to: 'if-else', toPort: 'if-else-in' },
-    { from: 'if-else', fromPort: 'if-return', to: 'return-agent', toPort: 'return-agent-in' },
-    { from: 'if-else', fromPort: 'if-cancel', to: 'retention-agent', toPort: 'retention-agent-in' },
-    { from: 'if-else', fromPort: 'if-info', to: 'info-agent', toPort: 'info-agent-in' },
-    { from: 'if-else', fromPort: 'if-else-out', to: 'end-2', toPort: 'end-2-in' },
-];
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white w-full h-full max-w-4xl max-h-[80vh] rounded-2xl shadow-xl flex flex-col relative" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                    <h2 className="text-xl font-bold text-gray-800">{agentName}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </header>
+                <main className="flex-1 p-4 overflow-y-auto">
+                    {/* Chat history will be rendered here */}
+                    <div className="text-center text-gray-500">
+                        Test view for your agent.
+                    </div>
+                </main>
+                <footer className="p-4 border-t border-gray-200 flex-shrink-0">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Send a message..."
+                            className="w-full p-4 pr-16 bg-gray-100 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button className="absolute top-1/2 right-2.5 -translate-y-1/2 w-10 h-10 bg-black text-white rounded-full flex items-center justify-center hover:bg-zinc-800 transition-colors">
+                            <span className="material-symbols-outlined">arrow_upward</span>
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    );
+}
 
 export const AgentBuilderPage: React.FC = () => {
-  const nodesMap = new Map(nodesData.map(n => [n.id, n]));
+    const [agents, setAgents] = useState<Agent[]>([]);
+    const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+    const [isTestViewOpen, setIsTestViewOpen] = useState(false);
+    const canvasRef = useRef<HTMLDivElement>(null);
+    const [draggingNode, setDraggingNode] = useState<{ id: string, offsetX: number, offsetY: number } | null>(null);
+
+    const activeAgent = agents.find(agent => agent.id === activeAgentId);
+    const nodesMap = new Map(activeAgent?.nodes.map(n => [n.id, n]));
+
+    useEffect(() => {
+        const savedAgents = localStorage.getItem(LOCAL_STORAGE_KEY_AGENTS);
+        if (savedAgents) {
+            const parsedAgents = JSON.parse(savedAgents);
+            setAgents(parsedAgents);
+            if (parsedAgents.length > 0 && !activeAgentId) {
+                setActiveAgentId(parsedAgents[0].id);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (agents.length > 0) {
+            localStorage.setItem(LOCAL_STORAGE_KEY_AGENTS, JSON.stringify(agents));
+        }
+    }, [agents]);
+
+    const handleAddAgent = () => {
+        const newAgent: Agent = {
+            id: `agent_${Date.now()}`,
+            name: `New Agent ${agents.length + 1}`,
+            nodes: createDefaultNodes(),
+            edges: createDefaultEdges(),
+        };
+        setAgents(prev => [...prev, newAgent]);
+        setActiveAgentId(newAgent.id);
+    };
+
+    const handleDeleteAgent = (agentId: string) => {
+        if (!window.confirm("Are you sure you want to delete this agent?")) return;
+        setAgents(prev => {
+            const newAgents = prev.filter(a => a.id !== agentId);
+            if (activeAgentId === agentId) {
+                setActiveAgentId(newAgents.length > 0 ? newAgents[0].id : null);
+            }
+            if(newAgents.length === 0) {
+                localStorage.removeItem(LOCAL_STORAGE_KEY_AGENTS);
+            }
+            return newAgents;
+        });
+    };
+
+    const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const node = nodesMap.get(nodeId);
+        if (node && canvasRef.current) {
+            const canvasRect = canvasRef.current.getBoundingClientRect();
+            // Adjust for scroll position of the canvas
+            const offsetX = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - node.x;
+            const offsetY = e.clientY - canvasRect.top + canvasRef.current.scrollTop - node.y;
+            setDraggingNode({ id: nodeId, offsetX, offsetY });
+        }
+    };
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!draggingNode || !canvasRef.current || !activeAgentId) return;
+
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - draggingNode.offsetX;
+        const y = e.clientY - canvasRect.top + canvasRef.current.scrollTop - draggingNode.offsetY;
+
+        setAgents(prevAgents => prevAgents.map(agent => {
+            if (agent.id === activeAgentId) {
+                return {
+                    ...agent,
+                    nodes: agent.nodes.map(node =>
+                        node.id === draggingNode.id ? { ...node, x: Math.max(0, x), y: Math.max(0, y) } : node
+                    ),
+                };
+            }
+            return agent;
+        }));
+    }, [draggingNode, activeAgentId]);
+
+    const handleMouseUp = useCallback(() => {
+        setDraggingNode(null);
+    }, []);
+
+    useEffect(() => {
+        const canvasElement = canvasRef.current;
+        if (canvasElement) {
+             // We attach to window to catch mouseup even if it's outside the canvas
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [handleMouseMove, handleMouseUp]);
+
 
   return (
+    <>
     <div className="flex h-screen bg-gray-100 pt-16">
       <aside className="w-72 bg-white border-r border-gray-200 p-4 flex flex-col">
         <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">My Agents</h2>
-            <button className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+            <button onClick={handleAddAgent} className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 <span className="material-symbols-outlined">add</span>
             </button>
         </div>
-        <div className="space-y-2">
-            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                <p className="font-semibold text-blue-800">Customer Service Bot</p>
-                <p className="text-xs text-blue-600">Active</p>
-            </div>
-             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 hover:bg-gray-100">
-                <p className="font-semibold text-gray-700">Internal Docs Q&A</p>
-                <p className="text-xs text-gray-500">Inactive</p>
-            </div>
+        <div className="space-y-2 overflow-y-auto">
+            {agents.map(agent => (
+                 <div key={agent.id} onClick={() => setActiveAgentId(agent.id)} className={`group p-3 rounded-lg cursor-pointer ${activeAgentId === agent.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className={`font-semibold ${activeAgentId === agent.id ? 'text-blue-800' : 'text-gray-700'}`}>{agent.name}</p>
+                            <p className="text-xs text-gray-500">{agent.nodes.length} nodes</p>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id); }} className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="material-symbols-outlined text-base">delete</span>
+                        </button>
+                    </div>
+                </div>
+            ))}
         </div>
       </aside>
       <main className="flex-1 flex flex-col">
-         <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Customer Service Bot</h1>
+         <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center z-10">
+            <h1 className="text-2xl font-bold text-gray-900">{activeAgent?.name || 'Agent Builder'}</h1>
             <div className="flex items-center space-x-2">
-                <button className="px-4 py-2 text-sm bg-gray-200 rounded-full font-semibold hover:bg-gray-300">Test</button>
-                <button className="px-4 py-2 text-sm bg-black text-white rounded-full font-semibold hover:bg-zinc-800">Publish</button>
+                <button onClick={() => setIsTestViewOpen(true)} disabled={!activeAgent} className="px-4 py-2 text-sm bg-gray-200 rounded-full font-semibold hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">Test</button>
+                <button disabled={!activeAgent} className="px-4 py-2 text-sm bg-black text-white rounded-full font-semibold hover:bg-zinc-800 disabled:bg-gray-400 disabled:cursor-not-allowed">Publish</button>
             </div>
          </div>
-         <div className="flex-1 relative overflow-auto" style={{
+         <div ref={canvasRef} className="flex-1 relative overflow-auto" style={{
             backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
             backgroundSize: '20px 20px',
          }}>
-             <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
-                {edgesData.map(edge => {
-                    const fromNode = nodesMap.get(edge.from);
-                    const toNode = nodesMap.get(edge.to);
-                    if (!fromNode || !toNode) return null;
-                    return <Edge key={`${edge.from}-${edge.to}`} fromNode={fromNode} toNode={toNode} fromPort={edge.fromPort} toPort={edge.toPort} />;
-                })}
-            </svg>
+             {activeAgent ? (
+                <>
+                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 0, minWidth: '2000px', minHeight: '1000px' }}>
+                    {activeAgent.edges.map(edge => {
+                        const fromNode = nodesMap.get(edge.from);
+                        const toNode = nodesMap.get(edge.to);
+                        if (!fromNode || !toNode) return null;
+                        return <Edge key={edge.id} fromNode={fromNode} toNode={toNode} fromPortId={edge.fromPort} toPortId={edge.toPort} />;
+                    })}
+                </svg>
 
-            {nodesData.map(node => (
-                <Node key={node.id} data={node}>
-                    {node.id === 'guardrail' && (
-                        <>
-                            <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm text-gray-700">Pass</p>
-                                <div id="guardrail-pass" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '35%'}}></div>
-                            </div>
-                            <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm text-gray-700">Fail</p>
-                                <div id="guardrail-fail" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '75%'}}></div>
-                            </div>
-                        </>
-                    )}
-                     {node.id === 'if-else' && (
-                        <>
-                            <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm font-mono text-gray-700">return_item</p>
-                                <div id="if-return" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '15%'}}></div>
-                            </div>
-                             <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm font-mono text-gray-700">cancel_subscription</p>
-                                <div id="if-cancel" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '38%'}}></div>
-                            </div>
-                             <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm font-mono text-gray-700">get_information</p>
-                                <div id="if-info" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '62%'}}></div>
-                            </div>
-                             <div className="flex items-center justify-between p-2 rounded-lg relative">
-                                <p className="text-sm text-gray-700">Else</p>
-                                <div id="if-else-out" className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full" style={{top: '85%'}}></div>
-                            </div>
-                        </>
-                    )}
-                </Node>
-            ))}
+                {activeAgent.nodes.map(node => (
+                    <Node key={node.id} data={node} onMouseDown={(e) => handleNodeMouseDown(e, node.id)} />
+                ))}
+                </>
+             ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                    <p>Select an agent or create a new one to get started.</p>
+                </div>
+             )}
          </div>
       </main>
     </div>
+    <TestAgentModal agentName={activeAgent?.name || ''} isOpen={isTestViewOpen} onClose={() => setIsTestViewOpen(false)} />
+    </>
   );
 };
