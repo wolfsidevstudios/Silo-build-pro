@@ -7,6 +7,7 @@ interface Message {
     actor: 'user' | 'ai' | 'app';
     text?: string;
     appId?: string;
+    appName?: string;
     results?: any; // Structured results from an app
 }
 
@@ -17,7 +18,41 @@ interface PexelsImage {
     alt: string;
 }
 
-// --- Helper Components ---
+interface SpotifyTrack {
+    id: string;
+    name: string;
+    artist: string;
+    albumArtUrl: string;
+    trackUrl: string;
+}
+
+interface YouTubeVideo {
+    id: string;
+    title: string;
+    channel: string;
+    thumbnailUrl: string;
+    videoUrl: string;
+}
+
+interface FinnhubQuote {
+    symbol: string;
+    price: number;
+    change: number;
+    percentChange: number;
+    status: 'up' | 'down' | 'neutral';
+}
+
+interface GoogleMapPlace {
+    placeId: string;
+    name: string;
+    address: string;
+    rating: number;
+    mapsUrl: string;
+}
+
+
+// --- UI Panel Components ---
+
 const PexelsResultsPanel: React.FC<{ results: { images: PexelsImage[] } }> = ({ results }) => {
     if (!results || !results.images) return null;
     return (
@@ -25,7 +60,7 @@ const PexelsResultsPanel: React.FC<{ results: { images: PexelsImage[] } }> = ({ 
             {results.images.map(image => (
                 <div key={image.id} className="bg-gray-200 rounded-lg overflow-hidden group relative aspect-square">
                     <img src={image.src} alt={image.alt} className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <p className="font-bold truncate">{image.alt}</p>
                         <p>by {image.photographer}</p>
                     </div>
@@ -34,6 +69,105 @@ const PexelsResultsPanel: React.FC<{ results: { images: PexelsImage[] } }> = ({ 
         </div>
     );
 };
+
+const SpotifyResultsPanel: React.FC<{ results: { tracks: SpotifyTrack[] } }> = ({ results }) => {
+    if (!results || !results.tracks) return null;
+    return (
+        <div className="space-y-3">
+            {results.tracks.map(track => (
+                <a key={track.id} href={track.trackUrl} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <img src={track.albumArtUrl} alt={`Album art for ${track.name}`} className="w-16 h-16 rounded-md object-cover" />
+                    <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{track.name}</p>
+                        <p className="text-sm text-gray-600">{track.artist}</p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400">arrow_forward_ios</span>
+                </a>
+            ))}
+        </div>
+    );
+};
+
+const YouTubeResultsPanel: React.FC<{ results: { videos: YouTubeVideo[] } }> = ({ results }) => {
+    if (!results || !results.videos) return null;
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {results.videos.map(video => (
+                <a key={video.id} href={video.videoUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-50 hover:bg-gray-100 rounded-lg overflow-hidden transition-colors group">
+                    <div className="aspect-video bg-black relative">
+                        <img src={video.thumbnailUrl} alt={`Thumbnail for ${video.title}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="material-symbols-outlined text-5xl text-white/80">play_circle</span>
+                        </div>
+                    </div>
+                    <div className="p-3">
+                        <p className="font-semibold text-sm text-gray-900 line-clamp-2">{video.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">{video.channel}</p>
+                    </div>
+                </a>
+            ))}
+        </div>
+    );
+};
+
+const FinnhubResultsPanel: React.FC<{ results: FinnhubQuote }> = ({ results }) => {
+    const isUp = results.status === 'up';
+    const colorClass = isUp ? 'text-green-600' : (results.status === 'down' ? 'text-red-600' : 'text-gray-600');
+    const bgClass = isUp ? 'bg-green-50' : (results.status === 'down' ? 'bg-red-50' : 'bg-gray-100');
+    const icon = isUp ? 'arrow_upward' : (results.status === 'down' ? 'arrow_downward' : 'remove');
+
+    return (
+        <div className={`p-4 rounded-lg border ${bgClass} border-gray-200`}>
+            <div className="flex justify-between items-center">
+                <p className="text-2xl font-bold font-mono">{results.symbol}</p>
+                <p className="text-3xl font-semibold">{results.price.toFixed(2)}</p>
+            </div>
+            <div className={`flex justify-end items-center space-x-2 mt-1 ${colorClass}`}>
+                <span className="material-symbols-outlined">{icon}</span>
+                <span className="font-semibold">{results.change.toFixed(2)} ({results.percentChange.toFixed(2)}%)</span>
+            </div>
+        </div>
+    );
+};
+
+const StarRating: React.FC<{ rating: number; className?: string }> = ({ rating, className }) => {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+    return (
+        <div className={`flex items-center ${className}`}>
+            {[...Array(fullStars)].map((_, i) => <span key={`full-${i}`} className="material-symbols-outlined text-yellow-500 text-base">star</span>)}
+            {halfStar && <span className="material-symbols-outlined text-yellow-500 text-base">star_half</span>}
+            {[...Array(emptyStars)].map((_, i) => <span key={`empty-${i}`} className="material-symbols-outlined text-gray-300 text-base">star</span>)}
+            <span className="ml-2 text-sm text-gray-600 font-semibold">{rating.toFixed(1)}</span>
+        </div>
+    );
+};
+
+const GoogleMapsResultsPanel: React.FC<{ results: { places: GoogleMapPlace[] } }> = ({ results }) => {
+    if (!results || !results.places) return null;
+    return (
+        <div className="space-y-3">
+            {results.places.map(place => (
+                <a key={place.placeId} href={place.mapsUrl} target="_blank" rel="noopener noreferrer" className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <p className="font-semibold text-gray-900">{place.name}</p>
+                    <p className="text-sm text-gray-600 mt-1">{place.address}</p>
+                    <StarRating rating={place.rating} className="mt-2" />
+                </a>
+            ))}
+        </div>
+    );
+};
+
+
+const AppPanels: { [key: string]: React.FC<any> } = {
+    pexels: PexelsResultsPanel,
+    spotify: SpotifyResultsPanel,
+    youtube: YouTubeResultsPanel,
+    finnhub: FinnhubResultsPanel,
+    'google-maps': GoogleMapsResultsPanel,
+};
+
 
 const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
     const baseStyle = "p-3 rounded-xl max-w-lg mb-4 shadow-sm";
@@ -49,21 +183,24 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
         return <div className={`${baseStyle} ${aiStyle}`}>{message.text}</div>;
     }
 
-    if (message.actor === 'app' && message.appId === 'pexels') {
-        return (
-            <div className={`${baseStyle} ${appStyle}`}>
-                <p className="text-sm font-semibold mb-2 text-gray-700">Here are some images from Pexels:</p>
-                <PexelsResultsPanel results={message.results} />
-            </div>
-        );
+    if (message.actor === 'app' && message.appId) {
+        const PanelComponent = AppPanels[message.appId];
+        if (PanelComponent) {
+            return (
+                <div className={`${baseStyle} ${appStyle}`}>
+                    <p className="text-sm font-semibold mb-2 text-gray-700">Here are the results from {message.appName}:</p>
+                    <PanelComponent results={message.results} />
+                </div>
+            );
+        }
     }
     
     // Fallback for other app panels
     if (message.actor === 'app') {
         return (
              <div className={`${baseStyle} ${aiStyle}`}>
-                <p className="font-bold mb-2">Data from {message.appId}</p>
-                <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(message.results, null, 2)}</pre>
+                <p className="font-bold mb-2">Data from {message.appName}</p>
+                <pre className="text-xs whitespace-pre-wrap bg-gray-100 p-2 rounded">{JSON.stringify(message.results, null, 2)}</pre>
              </div>
         )
     }
@@ -99,10 +236,10 @@ export const SiloAiPage: React.FC = () => {
 
     const getAiClient = () => {
         const userApiKey = localStorage.getItem('gemini_api_key');
-        if (!userApiKey) {
+        if (!userApiKey && !process.env.API_KEY) {
             throw new Error("Gemini API key is not set. Please add it in Settings.");
         }
-        return new GoogleGenAI({ apiKey: userApiKey });
+        return new GoogleGenAI({ apiKey: userApiKey || process.env.API_KEY as string });
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -135,12 +272,15 @@ export const SiloAiPage: React.FC = () => {
         try {
             if (!activeApp) {
                 setMessages(prev => [...prev, { actor: 'ai', text: "Please select an app by typing '/' to begin." }]);
+                setIsLoading(false);
                 return;
             }
             
             const ai = getAiClient();
             
-            // App-specific logic
+            let response;
+            let results;
+            
             if (activeApp.id === 'pexels') {
                 const pexelsSchema = {
                   type: Type.OBJECT,
@@ -151,7 +291,7 @@ export const SiloAiPage: React.FC = () => {
                         type: Type.OBJECT,
                         properties: {
                           id: { type: Type.STRING },
-                          src: { type: Type.STRING, description: "A realistic-looking image URL from 'images.pexels.com', e.g., 'https://images.pexels.com/photos/12345/pexels-photo-12345.jpeg?auto=compress&cs=tinysrgb&w=600'" },
+                          src: { type: Type.STRING, description: "A realistic-looking image URL from 'images.pexels.com', using a width of 600, e.g., 'https://images.pexels.com/photos/12345/pexels-photo-12345.jpeg?auto=compress&cs=tinysrgb&w=600'" },
                           photographer: { type: Type.STRING },
                           alt: { type: Type.STRING }
                         },
@@ -161,23 +301,41 @@ export const SiloAiPage: React.FC = () => {
                   },
                   required: ['images']
                 };
+                const prompt = `You are an AI assistant that interfaces with the Pexels API. User's request: "${trimmedInput}". Your task is to act as if you queried the Pexels API and return a JSON object with realistic-looking data that matches the user's request and the provided schema. Generate 6 image results. Your response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: pexelsSchema } });
+                results = JSON.parse(response.text);
 
-                const prompt = `You are an AI assistant that interfaces with the Pexels API.
-                    User's request: "${trimmedInput}"
-                    Your task is to act as if you queried the Pexels API and return a JSON object with realistic-looking data that matches the user's request and the provided schema. Generate 6 image results.
-                    Your response MUST be ONLY the JSON object.`;
-                
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: { responseMimeType: 'application/json', responseSchema: pexelsSchema }
-                });
+            } else if (activeApp.id === 'spotify') {
+                const spotifySchema = { type: Type.OBJECT, properties: { tracks: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, artist: { type: Type.STRING }, albumArtUrl: { type: Type.STRING, description: "A realistic URL from i.scdn.co" }, trackUrl: { type: Type.STRING, description: "A realistic URL from open.spotify.com/track/..." } }, required: ['id', 'name', 'artist', 'albumArtUrl', 'trackUrl'] } } }, required: ['tracks'] };
+                const prompt = `You are an AI assistant for Spotify. User's request: "${trimmedInput}". Return a JSON object of 5 realistic tracks matching the request and the schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: spotifySchema } });
+                results = JSON.parse(response.text);
 
-                const results = JSON.parse(response.text);
-                setMessages(prev => [...prev, { actor: 'app', appId: 'pexels', results }]);
+            } else if (activeApp.id === 'youtube') {
+                const youtubeSchema = { type: Type.OBJECT, properties: { videos: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, title: { type: Type.STRING }, channel: { type: Type.STRING }, thumbnailUrl: { type: Type.STRING, description: "A realistic URL from i.ytimg.com" }, videoUrl: { type: Type.STRING, description: "A realistic URL from youtube.com/watch?v=..." } }, required: ['id', 'title', 'channel', 'thumbnailUrl', 'videoUrl'] } } }, required: ['videos'] };
+                const prompt = `You are an AI assistant for YouTube. User's request: "${trimmedInput}". Return a JSON object of 4 realistic videos matching the request and schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: youtubeSchema } });
+                results = JSON.parse(response.text);
+
+            } else if (activeApp.id === 'finnhub') {
+                const finnhubSchema = { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, price: { type: Type.NUMBER }, change: { type: Type.NUMBER }, percentChange: { type: Type.NUMBER }, status: { type: Type.STRING, enum: ['up', 'down', 'neutral'] } }, required: ['symbol', 'price', 'change', 'percentChange', 'status'] };
+                const prompt = `You are an AI stock market assistant for Finnhub. User's request: "${trimmedInput}". Return a JSON object with a realistic stock quote for the requested symbol. Determine the 'status' based on the 'change' value. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: finnhubSchema } });
+                results = JSON.parse(response.text);
+
+            } else if (activeApp.id === 'google-maps') {
+                const mapsSchema = { type: Type.OBJECT, properties: { places: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { placeId: { type: Type.STRING }, name: { type: Type.STRING }, address: { type: Type.STRING }, rating: { type: Type.NUMBER, description: "A number between 1 and 5" }, mapsUrl: { type: Type.STRING, description: "A realistic google.com/maps URL" } }, required: ['placeId', 'name', 'address', 'rating', 'mapsUrl'] } } }, required: ['places'] };
+                const prompt = `You are an AI assistant for Google Maps. User's request: "${trimmedInput}". Return a JSON object of 3 realistic places matching the request and schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: mapsSchema } });
+                results = JSON.parse(response.text);
+
             } else {
                  setMessages(prev => [...prev, { actor: 'ai', text: `I'm ready to chat with ${activeApp.name}, but my developer hasn't built my special panel for it yet!` }]);
+                 setIsLoading(false);
+                 return;
             }
+
+            setMessages(prev => [...prev, { actor: 'app', appId: activeApp.id, appName: activeApp.name, results }]);
 
         } catch (e: any) {
             const errorMessage = `An error occurred: ${e.message}`;
