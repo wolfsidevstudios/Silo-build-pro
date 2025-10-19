@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 export interface Integration {
@@ -304,7 +305,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'x-twitter',
         name: 'X (Twitter)',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>X (Twitter)</title><path fill="#000000" fillRule="evenodd" d="M5 1a4 4 0 0 0-4 4v14a4 4 0 0 0 4 4h14a4 4 0 0 0 4-4V5a4 4 0 0 0-4-4zm-.334 3.5a.75.75 0 0 0-.338 1.154l5.614 7.45l-5.915 6.345l-.044.051H6.03l4.83-5.179l3.712 4.928a.75.75 0 0 0 .337.251h4.422a.75.75 0 0 0 .336-1.154l-5.614-7.45L20.017 4.5h-2.05l-4.83 5.18l-3.714-4.928a.75.75 0 0 0-.337-.252zm10.88 13.548L6.431 5.952H8.45l9.114 12.095z" clipRule="evenodd"/></svg>,
         description: 'Integrate tweets, user timelines, and social sharing.',
         storageKey: 'silo_integration_x',
         keys: [{ name: 'bearerToken', label: 'Bearer Token' }],
@@ -314,7 +315,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'discord',
         name: 'Discord',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>Discord</title><g fill="none"><rect width="256" height="256" fill="#5865F2" rx="60"/><g clipPath="url(#skillIconsDiscord0)"><path fill="#fff" d="M197.308 64.797a164.918 164.918 0 0 0-40.709-12.627a.618.618 0 0 0-.654.31c-1.758 3.126-3.706 7.206-5.069 10.412c-15.373-2.302-30.666-2.302-45.723 0c-1.364-3.278-3.382-7.286-5.148-10.412a.643.643 0 0 0-.655-.31a164.472 164.472 0 0 0-40.709 12.627a.583.583 0 0 0-.268.23c-25.928 38.736-33.03 76.52-29.546 113.836a.685.685 0 0 0 .26.468c17.106 12.563 33.677 20.19 49.94 25.245a.648.648 0 0 0 .702-.23c3.847-5.254 7.276-10.793 10.217-16.618a.633.633 0 0 0-.347-.881c-5.44-2.064-10.619-4.579-15.601-7.436a.642.642 0 0 1-.063-1.064a86.364 86.364 0 0 0 3.098-2.428a.618.618 0 0 1 .646-.088c32.732 14.944 68.167 14.944 100.512 0a.617.617 0 0 1 .655.08a79.613 79.613 0 0 0 3.106 2.436a.642.642 0 0 1-.055 1.064a102.622 102.622 0 0 1-15.609 7.428a.638.638 0 0 0-.339.889a133.075 133.075 0 0 0 10.208 16.61a.636.636 0 0 0 .702.238c16.342-5.055 32.913-12.682 50.02-25.245a.646.646 0 0 0 .26-.46c4.17-43.141-6.985-80.616-29.571-113.836a.506.506 0 0 0-.26-.238ZM94.834 156.142c-9.855 0-17.975-9.047-17.975-20.158s7.963-20.158 17.975-20.158c10.09 0 18.131 9.127 17.973 20.158c0 11.111-7.962 20.158-17.974 20.158Zm66.456 0c-9.855 0-17.974-9.047-17.974-20.158s7.962-20.158 17.974-20.158c10.09 0 18.131 9.127 17.974 20.158c0 11.111-7.884 20.158-17.974 20.158Z"/></g><defs><clipPath id="skillIconsDiscord0"><path fill="#fff" d="M28 51h200v154.93H28z"/></clipPath></defs></g></svg>,
         description: 'Integrate with Discord servers, channels, and user authentication.',
         storageKey: 'silo_integration_discord',
         keys: [{ name: 'clientId', label: 'Client ID' }],
@@ -444,7 +445,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'notion',
         name: 'Notion',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514c-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233l4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z" fill="#000000"></path></svg>,
         description: 'Integrate with Notion pages, databases, and users.',
         storageKey: 'silo_integration_notion',
         keys: [{ name: 'apiToken', label: 'Internal Integration Token' }],
@@ -454,7 +455,8 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'airtable',
         name: 'Airtable',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 256 215"><path fill="#FFBF00" d="M114.259 2.701L18.86 42.176c-5.305 2.195-5.25 9.73.089 11.847l95.797 37.989a35.544 35.544 0 0 0 26.208 0l95.799-37.99c5.337-2.115 5.393-9.65.086-11.846L141.442 2.7a35.549 35.549 0 0 0-27.183 0"/><path fill="#26B5F8" d="M136.35 112.757v94.902c0 4.514 4.55 7.605 8.746 5.942l106.748-41.435a6.39 6.39 0 0 0 4.035-5.941V71.322c0-4.514-4.551-7.604-8.747-5.941l-106.748 41.434a6.392 6.392 0 0 0-4.035 5.942"/><path fill="#ED3049" d="m111.423 117.654l-31.68 15.296l-3.217 1.555L9.65 166.548C5.411 168.593 0 165.504 0 160.795V71.72c0-1.704.874-3.175 2.046-4.283a7.266 7.266 0 0 1 1.618-1.213c1.598-.959 3.878-1.215 5.816-.448l101.41 40.18c5.155 2.045 5.56 9.268.533 11.697"/><path fillOpacity=".25" d="m111.423 117.654l-31.68 15.296L2.045 67.438a7.266 7.266 0 0 1 1.618-1.213c1.598-.959 3.878-1.215 5.816-.448l101.41 40.18c5.155 2.045 5.56 9.268.533 11.697"/></svg>,
+        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M11.992 1.966c-0.434 0 -0.87 0.086 -1.28 0.257L1.779 5.917c-0.503 0.208 -0.49 0.908 0.012 1.116l8.982 3.558a3.266 3.266 0 0 0 2.454 0l8.982 -3.558c0.503 -0.196 0.503 -0.908 0.012 -1.116l-8.957 -3.694a3.255 3.255 0 0 0 -1.272 -0.257zM23.4 8.056a0.589 0.589 0 0 0 -0.222 0.045l-10.012 3.877a0.612 0.612 0 0 0 -0.38 0.564v8.896a0.6 0.6 0 0 0 0.821 0.552L23.62 18.1a0.583 0.583 0 0 0 0.38 -0.551V8.653a0.6 0.6 0 0 0 -0.6 -0.596zM0.676 8.095a0.644 0.644 0 0 0 -0.48 0.19C0.086 8.396 0 8.53 0 8.69v8.355c0 0.442 0.515 0.737 0.908 0.54l6.27 -3.006 0.307 -0.147 2.969 -1.436c0.466 -0.22 0.43 -0.908 -0.061 -1.092L0.883 8.138a0.57 0.57 0 0 0 -0.207 -0.044z" fill="#000000"></path>
+    </svg>,
         description: 'Spreadsheet-database hybrid, with the features of a database but applied to a spreadsheet.',
         storageKey: 'silo_integration_airtable',
         keys: [
@@ -477,7 +479,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'trello',
         name: 'Trello',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>Trello</title><path fill="#0079BF" d="M21.147 0H2.853A2.86 2.86 0 0 0 0 2.853v18.294A2.86 2.86 0 0 0 2.853 24h18.294A2.86 2.86 0 0 0 24 21.147V2.853A2.86 2.86 0 0 0 21.147 0zM10.34 17.287a.953.953 0 0 1-.953.953h-4a.954.954 0 0 1-.954-.953V5.38a.953.953 0 0 1 .954-.953h4a.954.954 0 0 1 .953.953zm9.233-5.467a.944.944 0 0 1-.953.947h-4a.947.947 0 0 1-.953-.947V5.38a.953.953 0 0 1 .953-.953h4a.954.954 0 0 1 .953.953z"/></svg>,
         description: 'Web-based Kanban-style list-making application.',
         storageKey: 'silo_integration_trello',
         keys: [
@@ -490,7 +492,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'asana',
         name: 'Asana',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 256 237" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>Asana</title><path fill="#F06A6A" d="M200.325 125.27c-30.749 0-55.675 24.927-55.675 55.677s24.926 55.677 55.675 55.677S256 211.696 256 180.947c0-30.75-24.926-55.677-55.675-55.677Zm-144.65.005C24.927 125.275 0 150.197 0 180.947c0 30.75 24.927 55.677 55.675 55.677c30.75 0 55.678-24.928 55.678-55.677c0-30.75-24.928-55.672-55.678-55.672Zm128-69.6c0 30.75-24.927 55.68-55.674 55.68c-30.75 0-55.676-24.93-55.676-55.68C72.325 24.928 97.25 0 128 0c30.747 0 55.673 24.93 55.673 55.674Z"/></svg>,
         description: 'Work management platform teams use to stay focused on the goals, projects, and daily tasks.',
         storageKey: 'silo_integration_asana',
         keys: [{ name: 'personalAccessToken', label: 'Personal Access Token' }],
@@ -500,7 +502,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'jira',
         name: 'Jira',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>Jira</title><defs><linearGradient id="logosJira0" x1="98.031%" x2="58.888%" y1=".161%" y2="40.766%"><stop offset="18%" stopColor="#0052CC"/><stop offset="100%" stopColor="#2684FF"/></linearGradient><linearGradient id="logosJira1" x1="100.665%" x2="55.402%" y1=".455%" y2="44.727%"><stop offset="18%" stopColor="#0052CC"/><stop offset="100%" stopColor="#2684FF"/></linearGradient></defs><path fill="#2684FF" d="M244.658 0H121.707a55.502 55.502 0 0 0 55.502 55.502h22.649V77.37c.02 30.625 24.841 55.447 55.466 55.467V10.666C255.324 4.777 250.55 0 244.658 0Z"/><path fill="url(#logosJira0)" d="M183.822 61.262H60.872c.019 30.625 24.84 55.447 55.466 55.467h22.649v21.938c.039 30.625 24.877 55.43 55.502 55.43V71.93c0-5.891-4.776-10.667-10.667-10.667Z"/><path fill="url(#logosJira1)" d="M122.951 122.489H0c0 30.653 24.85 55.502 55.502 55.502h22.72v21.867c.02 30.597 24.798 55.408 55.396 55.466V133.156c0-5.891-4.776-10.667-10.667-10.667Z"/></svg>,
         description: 'Issue tracking product developed by Atlassian.',
         storageKey: 'silo_integration_jira',
         keys: [
@@ -561,7 +563,7 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
     {
         id: 'spotify',
         name: 'Spotify',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>,
+        icon: <svg role="img" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path fill="none" stroke="#1DB954" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="M27.198 15.945v16.373l-.005-.004c0 4.917-4.175 8.917-9.34 8.917s-9.353-4-9.353-8.917c0-4.51 3.52-8.234 8.074-8.816"></path><path fill="none" stroke="#1DB954" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="M20.805 32.047V15.675l.002-.003c0-4.917 4.175-8.903 9.34-8.903s9.353 3.986 9.353 8.903c0 4.582-3.637 8.364-8.321 8.844"></path></svg>,
         description: 'Digital music, podcast, and video service.',
         storageKey: 'silo_integration_spotify',
         keys: [{ name: 'clientId', label: 'Client ID' }],
