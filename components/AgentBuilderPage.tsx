@@ -1,5 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { GoogleGenAI, Type } from '@google/genai';
 
 // --- TYPE DEFINITIONS ---
 interface Port {
@@ -36,7 +38,7 @@ interface Agent {
 
 const LOCAL_STORAGE_KEY_AGENTS = 'silo_agents';
 
-// --- DEFAULTS & MOCKS (for new agents) ---
+// --- DEFAULTS & TEMPLATES ---
 const createDefaultNodes = (): NodeData[] => [
     { id: 'start', type: 'start', label: 'Start', x: 50, y: 230, height: 72, inputs: [], outputs: [{ id: 'start-out', pos: 50 }] },
     { id: 'end', type: 'end', label: 'End', x: 510, y: 230, height: 72, inputs: [{ id: 'end-in', pos: 50 }], outputs: [] },
@@ -46,10 +48,33 @@ const createDefaultEdges = (): EdgeData[] => [
     { id: `edge-${Date.now()}`, from: 'start', fromPort: 'start-out', to: 'end', toPort: 'end-in' },
 ];
 
+const NODE_TEMPLATES = [
+  { type: 'agent', label: 'Agent', sublabel: 'Performs a task', height: 100, inputs: [{ id: 'in', pos: 50 }], outputs: [{ id: 'out', pos: 50 }] },
+  { type: 'guardrail', label: 'Guardrail', sublabel: 'Enforces rules', height: 120, inputs: [{ id: 'in', pos: 50 }], outputs: [{ id: 'out-pass', pos: 35 }, { id: 'out-fail', pos: 65 }] },
+  { type: 'conditional', label: 'Conditional', sublabel: 'Routes based on logic', height: 120, inputs: [{ id: 'in', pos: 50 }], outputs: [{ id: 'out-true', pos: 35 }, { id: 'out-false', pos: 65 }] },
+];
+
+// Helper function to get Gemini client
+const getAiClient = () => {
+    const userApiKey = localStorage.getItem('gemini_api_key');
+    const apiKey = userApiKey || (process.env.API_KEY as string);
+    
+    if (!apiKey) {
+      throw new Error("Gemini API key is not set. Please add it in Settings.");
+    }
+    return new GoogleGenAI({ apiKey });
+}
+
 
 // --- UI COMPONENTS ---
 
-const Node: React.FC<{ data: NodeData; children?: React.ReactNode; onMouseDown: (e: React.MouseEvent) => void }> = ({ data, children, onMouseDown }) => {
+const Node: React.FC<{ 
+    data: NodeData; 
+    children?: React.ReactNode; 
+    onNodeMouseDown: (e: React.MouseEvent) => void;
+    onPortMouseDown: (e: React.MouseEvent, portId: string) => void;
+    onPortMouseUp: (portId: string) => void;
+}> = ({ data, children, onNodeMouseDown, onPortMouseDown, onPortMouseUp }) => {
     const typeStyles: any = {
         start: { bg: 'bg-green-100', border: 'border-green-300', icon: 'play_circle', iconColor: 'text-green-600' },
         guardrail: { bg: 'bg-yellow-100', border: 'border-yellow-300', icon: 'security', iconColor: 'text-yellow-600' },
@@ -64,7 +89,7 @@ const Node: React.FC<{ data: NodeData; children?: React.ReactNode; onMouseDown: 
             id={data.id}
             className={`absolute ${style.bg} ${style.border} border rounded-2xl shadow-lg flex flex-col transition-all duration-300 ease-in-out cursor-grab active:cursor-grabbing`}
             style={{ left: data.x, top: data.y, minWidth: 180, zIndex: 10 }}
-            onMouseDown={onMouseDown}
+            onMouseDown={onNodeMouseDown}
         >
             <div className="flex items-center space-x-2 p-3 border-b border-black/10">
                 <span className={`material-symbols-outlined ${style.iconColor}`}>{style.icon}</span>
@@ -76,14 +101,35 @@ const Node: React.FC<{ data: NodeData; children?: React.ReactNode; onMouseDown: 
             {children && <div className="p-1 space-y-1">{children}</div>}
             
             {data.inputs?.map((input: any) => (
-                <div key={input.id} id={input.id} className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400" style={{top: `${input.pos}%`}}></div>
+                <div 
+                    key={input.id} 
+                    id={input.id} 
+                    className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400 cursor-crosshair" 
+                    style={{top: `${input.pos}%`}}
+                    onMouseUp={() => onPortMouseUp(input.id)}
+                ></div>
             ))}
             
             {data.outputs?.map((output: any) => (
-                <div key={output.id} id={output.id} className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400" style={{top: `${output.pos}%`}}></div>
+                <div 
+                    key={output.id} 
+                    id={output.id} 
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-400 rounded-full hover:bg-blue-400 cursor-crosshair" 
+                    style={{top: `${output.pos}%`}}
+                    onMouseDown={(e) => onPortMouseDown(e, output.id)}
+                ></div>
             ))}
         </div>
     );
+};
+
+const getEdgePath = (startX: number, startY: number, endX: number, endY: number): string => {
+    const dx = endX - startX;
+    const controlX1 = startX + Math.max(50, dx / 2.5);
+    const controlY1 = startY;
+    const controlX2 = endX - Math.max(50, dx / 2.5);
+    const controlY2 = endY;
+    return `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
 };
 
 const Edge: React.FC<{ fromNode: NodeData; toNode: NodeData; fromPortId: string; toPortId: string }> = ({ fromNode, toNode, fromPortId, toPortId }) => {
@@ -96,14 +142,9 @@ const Edge: React.FC<{ fromNode: NodeData; toNode: NodeData; fromPortId: string;
     const startY = fromNode.y + ((fromPort.pos / 100) * fromNode.height);
     const endY = toNode.y + ((toPort.pos / 100) * toNode.height);
 
-    const controlX1 = startX + Math.max(50, (endX - startX) / 2);
-    const controlY1 = startY;
-    const controlX2 = endX - Math.max(50, (endX - startX) / 2);
-    const controlY2 = endY;
-
     return (
         <path
-            d={`M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`}
+            d={getEdgePath(startX, startY, endX, endY)}
             stroke="#9ca3af"
             strokeWidth="2.5"
             fill="none"
@@ -152,9 +193,12 @@ export const AgentBuilderPage: React.FC = () => {
     const [isTestViewOpen, setIsTestViewOpen] = useState(false);
     const canvasRef = useRef<HTMLDivElement>(null);
     const [draggingNode, setDraggingNode] = useState<{ id: string, offsetX: number, offsetY: number } | null>(null);
+    const [connecting, setConnecting] = useState<{ nodeId: string, portId: string } | null>(null);
+    const [tempEdgePos, setTempEdgePos] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
 
     const activeAgent = agents.find(agent => agent.id === activeAgentId);
-    const nodesMap = new Map(activeAgent?.nodes.map(n => [n.id, n]));
+    // FIX: Correctly initialize nodesMap with a typed array to prevent type inference issues.
+    const nodesMap = new Map((activeAgent?.nodes || []).map(n => [n.id, n]));
 
     useEffect(() => {
         const savedAgents = localStorage.getItem(LOCAL_STORAGE_KEY_AGENTS);
@@ -204,50 +248,121 @@ export const AgentBuilderPage: React.FC = () => {
         const node = nodesMap.get(nodeId);
         if (node && canvasRef.current) {
             const canvasRect = canvasRef.current.getBoundingClientRect();
-            // Adjust for scroll position of the canvas
             const offsetX = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - node.x;
             const offsetY = e.clientY - canvasRect.top + canvasRef.current.scrollTop - node.y;
             setDraggingNode({ id: nodeId, offsetX, offsetY });
         }
     };
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!draggingNode || !canvasRef.current || !activeAgentId) return;
+    const handleDragStart = (e: React.DragEvent, nodeType: string) => {
+        e.dataTransfer.setData('silo/node-type', nodeType);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (!canvasRef.current || !activeAgentId) return;
+
+        const nodeType = e.dataTransfer.getData('silo/node-type');
+        if (!nodeType) return;
+        
+        const template = NODE_TEMPLATES.find(t => t.type === nodeType);
+        if (!template) return;
 
         const canvasRect = canvasRef.current.getBoundingClientRect();
-        const x = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - draggingNode.offsetX;
-        const y = e.clientY - canvasRect.top + canvasRef.current.scrollTop - draggingNode.offsetY;
+        const x = e.clientX - canvasRect.left + canvasRef.current.scrollLeft;
+        const y = e.clientY - canvasRect.top + canvasRef.current.scrollTop;
 
-        setAgents(prevAgents => prevAgents.map(agent => {
-            if (agent.id === activeAgentId) {
-                return {
+        const uniqueId = Date.now();
+        const newNode: NodeData = {
+            id: `${nodeType}_${uniqueId}`,
+            type: template.type as NodeData['type'],
+            label: template.label,
+            sublabel: template.sublabel,
+            x,
+            y,
+            height: template.height,
+            inputs: template.inputs.map(p => ({ ...p, id: `${nodeType}_${uniqueId}_${p.id}` })),
+            outputs: template.outputs.map(p => ({ ...p, id: `${nodeType}_${uniqueId}_${p.id}` })),
+        };
+
+        setAgents(prev => prev.map(agent => 
+            agent.id === activeAgentId 
+                ? { ...agent, nodes: [...agent.nodes, newNode] }
+                : agent
+        ));
+    };
+    
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portId: string) => {
+        e.stopPropagation();
+        setConnecting({ nodeId, portId });
+    };
+
+    const handlePortMouseUp = (nodeId: string, portId: string) => {
+        if (connecting) {
+            if (connecting.nodeId === nodeId) return;
+
+            const fromNode = nodesMap.get(connecting.nodeId);
+            const fromPort = fromNode?.outputs.find(p => p.id === connecting.portId);
+            const toNode = nodesMap.get(nodeId);
+            const toPort = toNode?.inputs.find(i => i.id === portId);
+
+            if (fromNode && toNode && fromPort && toPort) {
+                const newEdge: EdgeData = {
+                    id: `edge-${Date.now()}`,
+                    from: connecting.nodeId,
+                    fromPort: connecting.portId,
+                    to: nodeId,
+                    toPort: portId,
+                };
+                setAgents(prev => prev.map(agent =>
+                    agent.id === activeAgentId
+                        ? { ...agent, edges: [...agent.edges, newEdge] }
+                        : agent
+                ));
+            }
+        }
+    };
+    
+    const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (draggingNode) {
+             if (!canvasRef.current || !activeAgentId) return;
+            const canvasRect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - canvasRect.left + e.currentTarget.scrollLeft - draggingNode.offsetX;
+            const y = e.clientY - canvasRect.top + e.currentTarget.scrollTop - draggingNode.offsetY;
+            setAgents(prevAgents => prevAgents.map(agent => 
+                agent.id === activeAgentId ? {
                     ...agent,
                     nodes: agent.nodes.map(node =>
                         node.id === draggingNode.id ? { ...node, x: Math.max(0, x), y: Math.max(0, y) } : node
                     ),
-                };
-            }
-            return agent;
-        }));
-    }, [draggingNode, activeAgentId]);
-
-    const handleMouseUp = useCallback(() => {
-        setDraggingNode(null);
-    }, []);
-
-    useEffect(() => {
-        const canvasElement = canvasRef.current;
-        if (canvasElement) {
-             // We attach to window to catch mouseup even if it's outside the canvas
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+                } : agent
+            ));
         }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [handleMouseMove, handleMouseUp]);
+        if (connecting && canvasRef.current) {
+            const startPortEl = document.getElementById(connecting.portId);
+            if (startPortEl) {
+                const canvasRect = canvasRef.current.getBoundingClientRect();
+                const startRect = startPortEl.getBoundingClientRect();
+                const x1 = startRect.left - canvasRect.left + canvasRef.current.scrollLeft + startRect.width / 2;
+                const y1 = startRect.top - canvasRect.top + canvasRef.current.scrollTop + startRect.height / 2;
+                const x2 = e.clientX - canvasRect.left + canvasRef.current.scrollLeft;
+                const y2 = e.clientY - canvasRect.top + canvasRef.current.scrollTop;
+                setTempEdgePos({ x1, y1, x2, y2 });
+            }
+        }
+    };
 
+    const handleCanvasMouseUp = () => {
+        setDraggingNode(null);
+        setConnecting(null);
+        setTempEdgePos(null);
+    };
 
   return (
     <>
@@ -283,31 +398,64 @@ export const AgentBuilderPage: React.FC = () => {
                 <button disabled={!activeAgent} className="px-4 py-2 text-sm bg-black text-white rounded-full font-semibold hover:bg-zinc-800 disabled:bg-gray-400 disabled:cursor-not-allowed">Publish</button>
             </div>
          </div>
-         <div ref={canvasRef} className="flex-1 relative overflow-auto" style={{
-            backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-         }}>
-             {activeAgent ? (
-                <>
-                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 0, minWidth: '2000px', minHeight: '1000px' }}>
-                    {activeAgent.edges.map(edge => {
-                        const fromNode = nodesMap.get(edge.from);
-                        const toNode = nodesMap.get(edge.to);
-                        if (!fromNode || !toNode) return null;
-                        return <Edge key={edge.id} fromNode={fromNode} toNode={toNode} fromPortId={edge.fromPort} toPortId={edge.toPort} />;
-                    })}
-                </svg>
+         <div className="flex-1 flex overflow-hidden">
+             <div 
+                ref={canvasRef} 
+                className="flex-1 relative overflow-auto" 
+                style={{
+                    backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
+                }}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+             >
+                 {activeAgent ? (
+                    <>
+                    <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1, minWidth: '2000px', minHeight: '1000px' }}>
+                        {activeAgent.edges.map(edge => {
+                            const fromNode = nodesMap.get(edge.from);
+                            const toNode = nodesMap.get(edge.to);
+                            if (!fromNode || !toNode) return null;
+                            return <Edge key={edge.id} fromNode={fromNode} toNode={toNode} fromPortId={edge.fromPort} toPortId={edge.toPort} />;
+                        })}
+                        {tempEdgePos && <path d={getEdgePath(tempEdgePos.x1, tempEdgePos.y1, tempEdgePos.x2, tempEdgePos.y2)} stroke="#3b82f6" strokeWidth="2.5" fill="none" />}
+                    </svg>
 
-                {activeAgent.nodes.map(node => (
-                    <Node key={node.id} data={node} onMouseDown={(e) => handleNodeMouseDown(e, node.id)} />
-                ))}
-                </>
-             ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                    <p>Select an agent or create a new one to get started.</p>
+                    {activeAgent.nodes.map(node => (
+                        <Node 
+                            key={node.id} 
+                            data={node} 
+                            onNodeMouseDown={(e) => handleNodeMouseDown(e, node.id)} 
+                            onPortMouseDown={(e, portId) => handlePortMouseDown(e, node.id, portId)}
+                            onPortMouseUp={(portId) => handlePortMouseUp(node.id, portId)}
+                        />
+                    ))}
+                    </>
+                 ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                        <p>Select an agent or create a new one to get started.</p>
+                    </div>
+                 )}
+             </div>
+              <aside className="w-60 bg-white border-l border-gray-200 p-4 flex-shrink-0">
+                <h3 className="font-bold text-gray-800 mb-4">Nodes</h3>
+                <div className="space-y-3">
+                    {NODE_TEMPLATES.map(nodeTmpl => (
+                        <div 
+                            key={nodeTmpl.type} 
+                            draggable 
+                            onDragStart={(e) => handleDragStart(e, nodeTmpl.type)}
+                            className="p-3 border border-gray-300 rounded-lg cursor-grab bg-gray-50 hover:bg-gray-100 active:cursor-grabbing active:bg-blue-100"
+                        >
+                            <p className="font-semibold text-sm">{nodeTmpl.label}</p>
+                            <p className="text-xs text-gray-500">{nodeTmpl.sublabel}</p>
+                        </div>
+                    ))}
                 </div>
-             )}
-         </div>
+              </aside>
+          </div>
       </main>
     </div>
     <TestAgentModal agentName={activeAgent?.name || ''} isOpen={isTestViewOpen} onClose={() => setIsTestViewOpen(false)} />
