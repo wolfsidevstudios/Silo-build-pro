@@ -50,6 +50,29 @@ interface GoogleMapPlace {
     mapsUrl: string;
 }
 
+interface GiphyGif {
+    id: string;
+    title: string;
+    url: string;
+    pageUrl: string;
+}
+
+interface UnsplashPhoto {
+    id: string;
+    url: string;
+    photographer: string;
+    description: string | null;
+    userProfileUrl: string;
+}
+
+interface SoundCloudTrack {
+    id: string;
+    title: string;
+    user: string;
+    artworkUrl: string;
+    trackUrl: string;
+}
+
 
 // --- UI Panel Components ---
 
@@ -159,6 +182,57 @@ const GoogleMapsResultsPanel: React.FC<{ results: { places: GoogleMapPlace[] } }
     );
 };
 
+const GiphyResultsPanel: React.FC<{ results: { gifs: GiphyGif[] } }> = ({ results }) => {
+    if (!results || !results.gifs) return null;
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {results.gifs.map(gif => (
+                <a key={gif.id} href={gif.pageUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-200 rounded-lg overflow-hidden group relative aspect-square">
+                    <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="material-symbols-outlined text-4xl text-white/80">open_in_new</span>
+                    </div>
+                </a>
+            ))}
+        </div>
+    );
+};
+
+const UnsplashResultsPanel: React.FC<{ results: { photos: UnsplashPhoto[] } }> = ({ results }) => {
+    if (!results || !results.photos) return null;
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {results.photos.map(photo => (
+                <div key={photo.id} className="bg-gray-200 rounded-lg overflow-hidden group relative aspect-square">
+                    <img src={photo.url} alt={photo.description || 'Unsplash Photo'} className="w-full h-full object-cover" />
+                    <a href={photo.userProfileUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="font-bold truncate">{photo.description || 'Untitled'}</p>
+                        <p>by {photo.photographer}</p>
+                    </a>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const SoundCloudResultsPanel: React.FC<{ results: { tracks: SoundCloudTrack[] } }> = ({ results }) => {
+    if (!results || !results.tracks) return null;
+    return (
+        <div className="space-y-3">
+            {results.tracks.map(track => (
+                <a key={track.id} href={track.trackUrl} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                    <img src={track.artworkUrl} alt={`Artwork for ${track.title}`} className="w-16 h-16 rounded-md object-cover" />
+                    <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{track.title}</p>
+                        <p className="text-sm text-gray-600">{track.user}</p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400">arrow_forward_ios</span>
+                </a>
+            ))}
+        </div>
+    );
+};
+
 
 const AppPanels: { [key: string]: React.FC<any> } = {
     pexels: PexelsResultsPanel,
@@ -166,6 +240,9 @@ const AppPanels: { [key: string]: React.FC<any> } = {
     youtube: YouTubeResultsPanel,
     finnhub: FinnhubResultsPanel,
     'google-maps': GoogleMapsResultsPanel,
+    giphy: GiphyResultsPanel,
+    unsplash: UnsplashResultsPanel,
+    soundcloud: SoundCloudResultsPanel,
 };
 
 
@@ -303,6 +380,80 @@ export const SiloAiPage: React.FC = () => {
                 };
                 const prompt = `You are an AI assistant that interfaces with the Pexels API. User's request: "${trimmedInput}". Your task is to act as if you queried the Pexels API and return a JSON object with realistic-looking data that matches the user's request and the provided schema. Generate 6 image results. Your response MUST be ONLY the JSON object.`;
                 response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: pexelsSchema } });
+                results = JSON.parse(response.text);
+
+            } else if (activeApp.id === 'giphy') {
+                const giphySchema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        gifs: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    id: { type: Type.STRING },
+                                    title: { type: Type.STRING },
+                                    url: { type: Type.STRING, description: "A realistic-looking GIF URL from media.giphy.com" },
+                                    pageUrl: { type: Type.STRING, description: "A realistic URL to the Giphy page" }
+                                },
+                                required: ['id', 'title', 'url', 'pageUrl']
+                            }
+                        }
+                    },
+                    required: ['gifs']
+                };
+                const prompt = `You are an AI assistant for Giphy. User's request: "${trimmedInput}". Return a JSON object of 6 realistic GIFs matching the request and schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: giphySchema } });
+                results = JSON.parse(response.text);
+
+            } else if (activeApp.id === 'unsplash') {
+                const unsplashSchema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        photos: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    id: { type: Type.STRING },
+                                    url: { type: Type.STRING, description: "A realistic image URL from images.unsplash.com with width and quality parameters" },
+                                    photographer: { type: Type.STRING },
+                                    description: { type: Type.STRING, nullable: true },
+                                    userProfileUrl: { type: Type.STRING, description: "A realistic URL to the photographer's profile on unsplash.com" }
+                                },
+                                required: ['id', 'url', 'photographer', 'description', 'userProfileUrl']
+                            }
+                        }
+                    },
+                    required: ['photos']
+                };
+                const prompt = `You are an AI assistant for Unsplash. User's request: "${trimmedInput}". Return a JSON object of 6 realistic photos matching the request and schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: unsplashSchema } });
+                results = JSON.parse(response.text);
+            
+            } else if (activeApp.id === 'soundcloud') {
+                const soundcloudSchema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        tracks: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    id: { type: Type.STRING },
+                                    title: { type: Type.STRING },
+                                    user: { type: Type.STRING, description: "The artist or user who uploaded the track" },
+                                    artworkUrl: { type: Type.STRING, description: "A realistic URL from i1.sndcdn.com" },
+                                    trackUrl: { type: Type.STRING, description: "A realistic URL to the track page on soundcloud.com" }
+                                },
+                                required: ['id', 'title', 'user', 'artworkUrl', 'trackUrl']
+                            }
+                        }
+                    },
+                    required: ['tracks']
+                };
+                const prompt = `You are an AI assistant for SoundCloud. User's request: "${trimmedInput}". Return a JSON object of 5 realistic tracks matching the request and schema. Response MUST be ONLY the JSON object.`;
+                response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: soundcloudSchema } });
                 results = JSON.parse(response.text);
 
             } else if (activeApp.id === 'spotify') {
