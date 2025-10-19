@@ -1,7 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import type { Integration } from '../integrations';
+
+declare const Prism: any;
 
 const LOCAL_STORAGE_KEY = 'silo_custom_integrations';
 
@@ -18,6 +20,110 @@ const emptyIntegration: CustomIntegration = {
     category: '',
     prompt: '',
 };
+
+const openApiSpec = {
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Silo Build Community API",
+    "version": "1.0.0",
+    "description": "API for interacting with the Silo Build community showcase, allowing developers to retrieve and manage community-published applications."
+  },
+  "servers": [
+    {
+      "url": "https://yzymxzmxdnzfwvsezbwm.supabase.co/rest/v1",
+      "description": "Community Database Server (Supabase)"
+    }
+  ],
+  "paths": {
+    "/community_apps": {
+      "get": {
+        "summary": "List Community Apps",
+        "description": "Retrieves a list of all applications published to the community showcase.",
+        "parameters": [
+          {
+            "name": "apikey",
+            "in": "header",
+            "required": true,
+            "description": "The public anon key for the Supabase project.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of community apps.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CommunityApp" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/community_apps?name=eq.{appName}": {
+      "get": {
+        "summary": "Get App by Name",
+        "description": "Retrieves the details of a specific application by its unique name.",
+        "parameters": [
+          {
+            "name": "appName",
+            "in": "path",
+            "required": true,
+            "description": "The unique name of the app to retrieve.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "apikey",
+            "in": "header",
+            "required": true,
+            "description": "The public anon key for the Supabase project.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App details.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommunityApp" }
+              }
+            }
+          },
+          "404": { "description": "App not found." }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProjectFile": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "example": "src/App.tsx" },
+          "code": { "type": "string", "example": "import React from 'react';" }
+        }
+      },
+      "CommunityApp": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "my-cool-app" },
+          "description": { "type": "string", "example": "A really cool app." },
+          "created_at": { "type": "string", "format": "date-time" },
+          "project_files": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectFile" }
+          },
+          "project_type": { "type": "string", "enum": ["single", "multi", "html", "shadcn"] }
+        }
+      }
+    }
+  }
+};
+
 
 const IntegrationCard: React.FC<{ integration: CustomIntegration }> = ({ integration }) => (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col justify-between aspect-square transition-all duration-300 hover:shadow-xl hover:border-blue-300">
@@ -40,6 +146,16 @@ export const DeveloperPortalPage: React.FC = () => {
     const [githubUrl, setGithubUrl] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [activeMainTab, setActiveMainTab] = useState<'integrations' | 'api'>('integrations');
+    const apiCodeRef = useRef<HTMLElement>(null);
+
+
+    useEffect(() => {
+        if (activeMainTab === 'api' && apiCodeRef.current && Prism) {
+            Prism.highlightElement(apiCodeRef.current);
+        }
+    }, [activeMainTab]);
+
 
     useEffect(() => {
         try {
@@ -249,6 +365,20 @@ A Developer
         window.location.href = `mailto:survivalcreativeminecraftadven@gmail.com,rocio1976ramirezpena@gmail.com?subject=${subject}&body=${body}`;
     };
 
+    const handleDownloadSpec = () => {
+        const jsonString = JSON.stringify(openApiSpec, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'silo-build-community-api.openapi.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+
     return (
         <div className="flex flex-col h-full p-8 pt-28 overflow-y-auto">
             <div className="w-full max-w-7xl mx-auto">
@@ -256,124 +386,159 @@ A Developer
                     <h1 className="text-5xl font-bold text-black mb-2">Developer Portal</h1>
                     <p className="text-lg text-gray-600">Build, test, and submit your own integrations for Silo Build.</p>
                 </header>
+                
+                <div className="border-b border-gray-300 mb-8 flex justify-center">
+                    <button onClick={() => setActiveMainTab('integrations')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeMainTab === 'integrations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-black'}`}>
+                        Integrations
+                    </button>
+                    <button onClick={() => setActiveMainTab('api')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeMainTab === 'api' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-black'}`}>
+                        API Documentation
+                    </button>
+                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Builder */}
-                    <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
-                        <div className="flex border-b border-gray-300 mb-4">
-                            {(['manual', 'ai', 'github'] as const).map(tab => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveBuilderTab(tab)}
-                                    className={`px-4 py-2 text-sm font-semibold capitalize transition-colors ${activeBuilderTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-black'}`}
-                                >
-                                    {tab === 'ai' ? 'AI Assistant' : tab === 'github' ? 'Import from GitHub' : 'Manual Builder'}
-                                </button>
-                            ))}
-                        </div>
+                {activeMainTab === 'integrations' && (
+                    <>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Builder */}
+                            <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
+                                <div className="flex border-b border-gray-300 mb-4">
+                                    {(['manual', 'ai', 'github'] as const).map(tab => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setActiveBuilderTab(tab)}
+                                            className={`px-4 py-2 text-sm font-semibold capitalize transition-colors ${activeBuilderTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-black'}`}
+                                        >
+                                            {tab === 'ai' ? 'AI Assistant' : tab === 'github' ? 'Import from GitHub' : 'Manual Builder'}
+                                        </button>
+                                    ))}
+                                </div>
 
-                        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>}
+                                {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>}
 
-                        {activeBuilderTab === 'manual' && (
-                            <>
-                                <h2 className="text-2xl font-bold mb-4">Integration Builder</h2>
-                                <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
-                                    <input type="text" placeholder="Integration Name" value={currentIntegration.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
-                                    <textarea placeholder="Description" value={currentIntegration.description} onChange={e => handleInputChange('description', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-20 resize-none" />
-                                    <input type="text" placeholder="Category (e.g., AI & Developer Tools)" value={currentIntegration.category} onChange={e => handleInputChange('category', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
-                                    <textarea placeholder="Icon (paste SVG code)" value={currentIntegration.icon} onChange={e => handleInputChange('icon', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none font-mono" />
-                                    
-                                    <div>
-                                        <h3 className="font-semibold mb-2">API Keys</h3>
-                                        <div className="space-y-2">
-                                            {(currentIntegration.keys || []).map((key, index) => (
-                                                <div key={index} className="flex items-center space-x-2">
-                                                    <input type="text" placeholder="Key Name (e.g., apiKey)" value={key.name} onChange={e => handleKeyChange(index, 'name', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg" />
-                                                    <input type="text" placeholder="Key Label (e.g., API Key)" value={key.label} onChange={e => handleKeyChange(index, 'label', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg" />
-                                                    <button onClick={() => removeKey(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
+                                {activeBuilderTab === 'manual' && (
+                                    <>
+                                        <h2 className="text-2xl font-bold mb-4">Integration Builder</h2>
+                                        <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
+                                            <input type="text" placeholder="Integration Name" value={currentIntegration.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                            <textarea placeholder="Description" value={currentIntegration.description} onChange={e => handleInputChange('description', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-20 resize-none" />
+                                            <input type="text" placeholder="Category (e.g., AI & Developer Tools)" value={currentIntegration.category} onChange={e => handleInputChange('category', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                            <textarea placeholder="Icon (paste SVG code)" value={currentIntegration.icon} onChange={e => handleInputChange('icon', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none font-mono" />
+                                            
+                                            <div>
+                                                <h3 className="font-semibold mb-2">API Keys</h3>
+                                                <div className="space-y-2">
+                                                    {(currentIntegration.keys || []).map((key, index) => (
+                                                        <div key={index} className="flex items-center space-x-2">
+                                                            <input type="text" placeholder="Key Name (e.g., apiKey)" value={key.name} onChange={e => handleKeyChange(index, 'name', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg" />
+                                                            <input type="text" placeholder="Key Label (e.g., API Key)" value={key.label} onChange={e => handleKeyChange(index, 'label', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg" />
+                                                            <button onClick={() => removeKey(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
+                                                <button onClick={addKey} className="mt-2 text-sm text-blue-600 hover:underline">Add Key</button>
+                                            </div>
+                                            <textarea placeholder="Usage Instructions for AI (use {{keyName}} for placeholders)" value={currentIntegration.usageInstructions} onChange={e => handleInputChange('usageInstructions', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none" />
                                         </div>
-                                        <button onClick={addKey} className="mt-2 text-sm text-blue-600 hover:underline">Add Key</button>
+                                        <div className="flex space-x-2 mt-4">
+                                        <button onClick={handleNew} className="w-full py-2 bg-gray-200 text-black rounded-lg font-semibold hover:bg-gray-300 transition-colors">New</button>
+                                        <button onClick={handleSave} className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors">Save to My Integrations</button>
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {activeBuilderTab === 'ai' && (
+                                    <div className="space-y-4">
+                                        <h2 className="text-2xl font-bold">AI Assistant</h2>
+                                        <p className="text-sm text-gray-600">Describe the integration you want to create, and the AI will generate the configuration for you.</p>
+                                        <textarea placeholder="e.g., An integration for the Pexels API which provides free stock photos. It needs an API key." value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-32 resize-none" />
+                                        <button onClick={handleGenerateWithAI} disabled={isLoading} className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400">
+                                            {isLoading ? 'Generating...' : 'Generate with AI'}
+                                        </button>
                                     </div>
-                                    <textarea placeholder="Usage Instructions for AI (use {{keyName}} for placeholders)" value={currentIntegration.usageInstructions} onChange={e => handleInputChange('usageInstructions', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-24 resize-none" />
-                                </div>
-                                <div className="flex space-x-2 mt-4">
-                                <button onClick={handleNew} className="w-full py-2 bg-gray-200 text-black rounded-lg font-semibold hover:bg-gray-300 transition-colors">New</button>
-                                <button onClick={handleSave} className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors">Save to My Integrations</button>
-                                </div>
-                            </>
-                        )}
-                        
-                        {activeBuilderTab === 'ai' && (
-                            <div className="space-y-4">
-                                <h2 className="text-2xl font-bold">AI Assistant</h2>
-                                <p className="text-sm text-gray-600">Describe the integration you want to create, and the AI will generate the configuration for you.</p>
-                                <textarea placeholder="e.g., An integration for the Pexels API which provides free stock photos. It needs an API key." value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg h-32 resize-none" />
-                                <button onClick={handleGenerateWithAI} disabled={isLoading} className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400">
-                                    {isLoading ? 'Generating...' : 'Generate with AI'}
-                                </button>
-                            </div>
-                        )}
+                                )}
 
-                        {activeBuilderTab === 'github' && (
-                            <div className="space-y-4">
-                                <h2 className="text-2xl font-bold">Import from GitHub</h2>
-                                <p className="text-sm text-gray-600">Enter the URL of a public GitHub repository. We'll look for an `integration.json` file in the root directory.</p>
-                                <input type="url" placeholder="https://github.com/your-username/your-repo" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
-                                <button onClick={handleImportFromGitHub} disabled={isLoading} className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:bg-gray-400">
-                                    {isLoading ? 'Importing...' : 'Import'}
-                                </button>
+                                {activeBuilderTab === 'github' && (
+                                    <div className="space-y-4">
+                                        <h2 className="text-2xl font-bold">Import from GitHub</h2>
+                                        <p className="text-sm text-gray-600">Enter the URL of a public GitHub repository. We'll look for an `integration.json` file in the root directory.</p>
+                                        <input type="url" placeholder="https://github.com/your-username/your-repo" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                        <button onClick={handleImportFromGitHub} disabled={isLoading} className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:bg-gray-400">
+                                            {isLoading ? 'Importing...' : 'Import'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* Preview */}
+                            <div className="space-y-6">
+                                <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-4">Live Preview</h2>
+                                    <div className="grid grid-cols-2 gap-4">
+                                    <IntegrationCard integration={currentIntegration} />
+                                    </div>
+                                </div>
+                                <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-4">Test & Submit</h2>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="font-semibold mb-2 text-sm">AI Prompt Preview</h3>
+                                            <pre className="text-xs bg-gray-100 p-2 rounded-lg whitespace-pre-wrap font-mono">{aiPromptPreview}</pre>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold mb-2 text-sm">JSON Definition</h3>
+                                            <pre className="text-xs bg-gray-100 p-2 rounded-lg whitespace-pre-wrap font-mono h-32 overflow-auto">{JSON.stringify(currentIntegration, null, 2)}</pre>
+                                        </div>
+                                        <button onClick={handleSubmitForReview} disabled={!currentIntegration.name} className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400">Submit for Review</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-12 pt-8 border-t border-gray-200">
+                            <h2 className="text-2xl font-bold mb-4">My Integrations</h2>
+                            {myIntegrations.length === 0 ? (
+                                <p className="text-gray-500">You haven't saved any integrations yet. Use the builder above to get started!</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {myIntegrations.map(int => (
+                                        <div key={int.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-semibold">{int.name}</p>
+                                                <p className="text-sm text-gray-600">{int.description}</p>
+                                            </div>
+                                            <div className="flex space-x-2">
+                                                <button onClick={() => handleEdit(int)} className="p-2 hover:bg-gray-100 rounded-full"><span className="material-symbols-outlined">edit</span></button>
+                                                <button onClick={() => handleDelete(int.id)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {activeMainTab === 'api' && (
+                    <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 className="text-2xl font-bold">Community API Specification</h2>
+                                <p className="text-sm text-gray-600 mt-1">OpenAPI 3.0 documentation for the Silo Build Community API.</p>
+                            </div>
+                            <button onClick={handleDownloadSpec} className="flex items-center space-x-2 px-4 py-2 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors text-sm">
+                                <span className="material-symbols-outlined text-base">download</span>
+                                <span>Download JSON</span>
+                            </button>
+                        </div>
+                        <div className="h-[70vh] overflow-auto">
+                            <pre className="language-json rounded-xl !bg-gray-800 text-white text-sm">
+                                <code ref={apiCodeRef}>
+                                    {JSON.stringify(openApiSpec, null, 2)}
+                                </code>
+                            </pre>
+                        </div>
                     </div>
-
-                    {/* Preview */}
-                    <div className="space-y-6">
-                        <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-4">Live Preview</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                               <IntegrationCard integration={currentIntegration} />
-                            </div>
-                        </div>
-                        <div className="bg-white/50 backdrop-blur-lg border border-gray-200 rounded-2xl p-6 shadow-xl">
-                             <h2 className="text-2xl font-bold mb-4">Test & Submit</h2>
-                             <div className="space-y-4">
-                                <div>
-                                    <h3 className="font-semibold mb-2 text-sm">AI Prompt Preview</h3>
-                                    <pre className="text-xs bg-gray-100 p-2 rounded-lg whitespace-pre-wrap font-mono">{aiPromptPreview}</pre>
-                                </div>
-                                 <div>
-                                    <h3 className="font-semibold mb-2 text-sm">JSON Definition</h3>
-                                    <pre className="text-xs bg-gray-100 p-2 rounded-lg whitespace-pre-wrap font-mono h-32 overflow-auto">{JSON.stringify(currentIntegration, null, 2)}</pre>
-                                </div>
-                                 <button onClick={handleSubmitForReview} disabled={!currentIntegration.name} className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400">Submit for Review</button>
-                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-12 pt-8 border-t border-gray-200">
-                    <h2 className="text-2xl font-bold mb-4">My Integrations</h2>
-                     {myIntegrations.length === 0 ? (
-                        <p className="text-gray-500">You haven't saved any integrations yet. Use the builder above to get started!</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {myIntegrations.map(int => (
-                                <div key={int.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center">
-                                    <div>
-                                        <p className="font-semibold">{int.name}</p>
-                                        <p className="text-sm text-gray-600">{int.description}</p>
-                                    </div>
-                                    <div className="flex space-x-2">
-                                        <button onClick={() => handleEdit(int)} className="p-2 hover:bg-gray-100 rounded-full"><span className="material-symbols-outlined">edit</span></button>
-                                        <button onClick={() => handleDelete(int.id)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
         </div>
     );
