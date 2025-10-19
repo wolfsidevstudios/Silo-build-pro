@@ -32,6 +32,7 @@ interface EdgeData {
 interface Agent {
     id: string;
     name: string;
+    description?: string;
     nodes: NodeData[];
     edges: EdgeData[];
 }
@@ -67,6 +68,64 @@ const getAiClient = () => {
 
 
 // --- UI COMPONENTS ---
+const AIBuilderModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onGenerate: (prompt: string) => void;
+    isLoading: boolean;
+    error: string | null;
+}> = ({ isOpen, onClose, onGenerate, isLoading, error }) => {
+    const [prompt, setPrompt] = useState('');
+
+    if (!isOpen) return null;
+
+    const handleGenerateClick = () => {
+        if (prompt.trim()) {
+            onGenerate(prompt);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col relative" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-gray-800">Build Agent with AI</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </header>
+                <main className="p-6">
+                    {isLoading ? (
+                        <div className="text-center py-10">
+                            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <p className="text-gray-600 mt-4">Generating agent workflow... Please wait.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-gray-600 mb-4">Describe the agent you want to create. The AI will generate the nodes, connections, and overall workflow for you.</p>
+                            <textarea
+                                value={prompt}
+                                onChange={e => setPrompt(e.target.value)}
+                                rows={5}
+                                placeholder="e.g., A customer support agent that first checks for angry sentiment. If the user is angry, offer a discount. Otherwise, try to answer their question."
+                                className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+                            <button
+                                onClick={handleGenerateClick}
+                                disabled={!prompt.trim()}
+                                className="mt-4 w-full py-3 bg-black text-white rounded-full font-semibold hover:bg-zinc-800 transition-colors disabled:bg-gray-400"
+                            >
+                                Generate Agent
+                            </button>
+                        </>
+                    )}
+                </main>
+            </div>
+        </div>
+    );
+};
+
 
 const Node: React.FC<{ 
     data: NodeData; 
@@ -152,14 +211,17 @@ const Edge: React.FC<{ fromNode: NodeData; toNode: NodeData; fromPortId: string;
     );
 };
 
-const TestAgentModal: React.FC<{ agentName: string, isOpen: boolean, onClose: () => void }> = ({ agentName, isOpen, onClose }) => {
+const TestAgentModal: React.FC<{ agentName: string, agentDescription?: string, isOpen: boolean, onClose: () => void }> = ({ agentName, agentDescription, isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white w-full h-full max-w-4xl max-h-[80vh] rounded-2xl shadow-xl flex flex-col relative" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                    <h2 className="text-xl font-bold text-gray-800">{agentName}</h2>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">{agentName}</h2>
+                      {agentDescription && <p className="text-sm text-gray-500 mt-1">{agentDescription}</p>}
+                    </div>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
                         <span className="material-symbols-outlined">close</span>
                     </button>
@@ -195,18 +257,25 @@ export const AgentBuilderPage: React.FC = () => {
     const [draggingNode, setDraggingNode] = useState<{ id: string, offsetX: number, offsetY: number } | null>(null);
     const [connecting, setConnecting] = useState<{ nodeId: string, portId: string } | null>(null);
     const [tempEdgePos, setTempEdgePos] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+    const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationError, setGenerationError] = useState<string | null>(null);
 
     const activeAgent = agents.find(agent => agent.id === activeAgentId);
-    // FIX: Correctly initialize nodesMap with a typed array to prevent type inference issues.
     const nodesMap = new Map((activeAgent?.nodes || []).map(n => [n.id, n]));
 
     useEffect(() => {
         const savedAgents = localStorage.getItem(LOCAL_STORAGE_KEY_AGENTS);
         if (savedAgents) {
-            const parsedAgents = JSON.parse(savedAgents);
-            setAgents(parsedAgents);
-            if (parsedAgents.length > 0 && !activeAgentId) {
-                setActiveAgentId(parsedAgents[0].id);
+            try {
+                const parsedAgents = JSON.parse(savedAgents);
+                setAgents(parsedAgents);
+                if (parsedAgents.length > 0 && !activeAgentId) {
+                    setActiveAgentId(parsedAgents[0].id);
+                }
+            } catch (e) {
+                console.error("Failed to parse agents from local storage", e);
+                localStorage.removeItem(LOCAL_STORAGE_KEY_AGENTS);
             }
         }
     }, []);
@@ -221,6 +290,7 @@ export const AgentBuilderPage: React.FC = () => {
         const newAgent: Agent = {
             id: `agent_${Date.now()}`,
             name: `New Agent ${agents.length + 1}`,
+            description: 'A manually created agent workflow.',
             nodes: createDefaultNodes(),
             edges: createDefaultEdges(),
         };
@@ -242,14 +312,116 @@ export const AgentBuilderPage: React.FC = () => {
         });
     };
 
+    const handleGenerateAgentWithAI = async (prompt: string) => {
+        setIsGenerating(true);
+        setGenerationError(null);
+        try {
+            const ai = getAiClient();
+            
+            const generationPrompt = `
+                You are an expert agent workflow designer. Your task is to design a workflow for an agent builder tool based on a user's request.
+                You must generate a JSON object representing the agent, including its name, description, nodes, and edges.
+
+                **Available Node Types:**
+                - \`start\`: The entry point. It has one output port with id 'start-out'. Every workflow must have exactly one start node.
+                - \`end\`: The exit point. It has one input port with id 'end-in'. Every workflow must have exactly one end node.
+                - \`agent\`: Represents a task or action (e.g., an API call, a calculation). It has one input port ('in') and one output port ('out'). Give it a descriptive label.
+                - \`guardrail\`: A safety or policy check. It has one input port ('in') and two output ports ('out-pass', 'out-fail'). Give it a descriptive label for the check it performs.
+                - \`conditional\`: A branching logic node (if/else). It has one input port ('in') and two output ports ('out-true', 'out-false'). Label it with the condition being checked.
+
+                **Instructions:**
+                1. Read the user's request carefully.
+                2. Determine a suitable name and a brief description for the agent.
+                3. Design a logical workflow using the available node types.
+                4. Define all necessary nodes. Each node needs a unique \`id\`, a \`type\`, a short \`label\`, an optional \`sublabel\`, and x/y coordinates for its position.
+                5. Define all the edges to connect the nodes. Each edge needs a unique \`id\`, and must specify the source node/port and target node/port. Port IDs must be unique per node.
+                6. Arrange the nodes on a virtual canvas from left-to-right.
+                   - The 'start' node MUST be at \`x: 50, y: 230\`.
+                   - Place subsequent nodes with an x-increment of about 250px.
+                   - If you have branches (from a guardrail or conditional), place the branches vertically, with a y-increment of about 150px.
+                   - The 'end' node should be the rightmost node.
+                7. Ensure all IDs are unique strings. Use a clear naming convention (e.g., 'node_1', 'node_1_in', 'edge_1').
+
+                **CRITICAL:** Your entire response must be ONLY a single, valid JSON object matching the provided schema. Do not include any other text, markdown, or explanations.
+
+                **User Request:** "${prompt}"
+            `;
+
+            const portSchema = {
+                type: Type.OBJECT,
+                properties: { id: { type: Type.STRING }, pos: { type: Type.NUMBER } },
+                required: ['id', 'pos']
+            };
+
+            const agentSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    nodes: { type: Type.ARRAY, items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            type: { type: Type.STRING, enum: ['start', 'guardrail', 'agent', 'conditional', 'end'] },
+                            label: { type: Type.STRING },
+                            sublabel: { type: Type.STRING, nullable: true },
+                            x: { type: Type.NUMBER },
+                            y: { type: Type.NUMBER },
+                            height: { type: Type.NUMBER },
+                            inputs: { type: Type.ARRAY, items: portSchema },
+                            outputs: { type: Type.ARRAY, items: portSchema },
+                        },
+                        required: ['id', 'type', 'label', 'x', 'y', 'height', 'inputs', 'outputs']
+                    }},
+                    edges: { type: Type.ARRAY, items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            from: { type: Type.STRING },
+                            fromPort: { type: Type.STRING },
+                            to: { type: Type.STRING },
+                            toPort: { type: Type.STRING },
+                        },
+                        required: ['id', 'from', 'fromPort', 'to', 'toPort']
+                    }},
+                },
+                required: ['name', 'description', 'nodes', 'edges']
+            };
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: generationPrompt,
+                config: { responseMimeType: 'application/json', responseSchema: agentSchema }
+            });
+
+            const agentData = JSON.parse(response.text);
+            if (!agentData.name || !agentData.nodes || !agentData.edges) {
+                throw new Error("AI returned an invalid agent structure.");
+            }
+
+            const newAgent: Agent = { ...agentData, id: `agent_${Date.now()}` };
+
+            setAgents(prev => [...prev, newAgent]);
+            setActiveAgentId(newAgent.id);
+            setIsAiBuilderOpen(false);
+
+        } catch (e: any) {
+            console.error("AI Agent Generation Error:", e);
+            setGenerationError(`Failed to generate agent: ${e.message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
         e.preventDefault();
         e.stopPropagation();
         const node = nodesMap.get(nodeId);
         if (node && canvasRef.current) {
             const canvasRect = canvasRef.current.getBoundingClientRect();
-            const offsetX = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - node.x;
-            const offsetY = e.clientY - canvasRect.top + canvasRef.current.scrollTop - node.y;
+            // FIX: Explicitly cast `node` as `NodeData` to resolve 'property does not exist on type unknown' error.
+            const offsetX = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - (node as NodeData).x;
+            const offsetY = e.clientY - canvasRect.top + canvasRef.current.scrollTop - (node as NodeData).y;
             setDraggingNode({ id: nodeId, offsetX, offsetY });
         }
     };
@@ -307,9 +479,11 @@ export const AgentBuilderPage: React.FC = () => {
         if (connecting) {
             if (connecting.nodeId === nodeId) return;
 
-            const fromNode = nodesMap.get(connecting.nodeId);
+            // FIX: Explicitly type `fromNode` as `NodeData` to resolve 'property does not exist on type unknown' error.
+            const fromNode = nodesMap.get(connecting.nodeId) as NodeData | undefined;
             const fromPort = fromNode?.outputs.find(p => p.id === connecting.portId);
-            const toNode = nodesMap.get(nodeId);
+            // FIX: Explicitly type `toNode` as `NodeData` to resolve 'property does not exist on type unknown' error.
+            const toNode = nodesMap.get(nodeId) as NodeData | undefined;
             const toPort = toNode?.inputs.find(i => i.id === portId);
 
             if (fromNode && toNode && fromPort && toPort) {
@@ -370,9 +544,14 @@ export const AgentBuilderPage: React.FC = () => {
       <aside className="w-72 bg-white border-r border-gray-200 p-4 flex flex-col">
         <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">My Agents</h2>
-            <button onClick={handleAddAgent} className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                <span className="material-symbols-outlined">add</span>
-            </button>
+            <div className="flex space-x-2">
+                <button onClick={() => setIsAiBuilderOpen(true)} title="Build with AI" className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                    <span className="material-symbols-outlined">auto_awesome</span>
+                </button>
+                <button onClick={handleAddAgent} title="Add New Agent" className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                    <span className="material-symbols-outlined">add</span>
+                </button>
+            </div>
         </div>
         <div className="space-y-2 overflow-y-auto">
             {agents.map(agent => (
@@ -458,7 +637,19 @@ export const AgentBuilderPage: React.FC = () => {
           </div>
       </main>
     </div>
-    <TestAgentModal agentName={activeAgent?.name || ''} isOpen={isTestViewOpen} onClose={() => setIsTestViewOpen(false)} />
+    <AIBuilderModal
+        isOpen={isAiBuilderOpen}
+        onClose={() => setIsAiBuilderOpen(false)}
+        onGenerate={handleGenerateAgentWithAI}
+        isLoading={isGenerating}
+        error={generationError}
+    />
+    <TestAgentModal 
+        agentName={activeAgent?.name || ''}
+        agentDescription={activeAgent?.description}
+        isOpen={isTestViewOpen} 
+        onClose={() => setIsTestViewOpen(false)} 
+    />
     </>
   );
 };
