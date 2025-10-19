@@ -1,5 +1,5 @@
 import React from 'react';
-import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon, JasperIcon, RunwayIcon, UberIcon, TikTokIcon, VenmoIcon, RedditIcon, SoundCloudIcon, KofiIcon, RssIcon, CloudflareIcon, GoogleMapsIcon, HuggingFaceIcon, CohereIcon, SentryIcon, DatadogIcon, GitLabIcon, BitbucketIcon, FirebaseIcon, MongoDBIcon, FaunaIcon, SquareIcon, BraintreeIcon, SlackIcon, MailchimpIcon, TelegramIcon, TrelloIcon, AsanaIcon, GoogleDriveIcon, DropboxIcon, Auth0Icon, OktaIcon, FacebookLoginIcon, LinkedInLoginIcon } from './components/icons';
+import { YouTubeIcon, OpenAIIcon, SpotifyIcon, StripeIcon, GitHubIcon, PayPalIcon, PinterestIcon, ProductHuntIcon, TwilioIcon, DiscordIcon, XIcon, SendGridIcon, OpenWeatherIcon, PexelsIcon, UnsplashIcon, NotionIcon, AirtableIcon, ShopifyIcon, GiphyIcon, GoogleAnalyticsIcon, GoogleGmailIcon, GoogleCalendarIcon, GooglePayIcon, GoogleAdsenseIcon, GoogleGeminiIcon, AppleSignInIcon, AppleMapKitIcon, AppleMusicIcon, AppleICloudIcon, JasperIcon, RunwayIcon, UberIcon, TikTokIcon, VenmoIcon, RedditIcon, SoundCloudIcon, KofiIcon, RssIcon, CloudflareIcon, GoogleMapsIcon } from './components/icons';
 
 export interface Integration {
     id: string;
@@ -103,39 +103,6 @@ export const INTEGRATION_DEFINITIONS: Integration[] = [
         usageInstructions: 'The application is connected to a PostgreSQL database. The connection string is `{{connectionString}}`. For frontend code, assume a backend API exists that uses this connection string to connect to the database. Make `fetch` requests to hypothetical API endpoints corresponding to the SQL schema (e.g., `/api/users`).',
         category: 'Databases & Backend-as-a-Service',
         getApiKeyUrl: 'https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING',
-    },
-    {
-        id: 'firebase',
-        name: 'Firebase',
-        icon: <FirebaseIcon />,
-        description: 'Build apps fast, without managing infrastructure.',
-        storageKey: 'silo_integration_firebase',
-        keys: [ { name: 'apiKey', label: 'API Key' }, { name: 'authDomain', label: 'Auth Domain' }, { name: 'projectId', label: 'Project ID' } ],
-        usageInstructions: 'Use the Firebase JS SDK. Initialize with your config: `apiKey: "{{apiKey}}", authDomain: "{{authDomain}}", projectId: "{{projectId}}"`.',
-        category: 'Databases & Backend-as-a-Service',
-        getApiKeyUrl: 'https://console.firebase.google.com/',
-    },
-    {
-        id: 'mongodb',
-        name: 'MongoDB',
-        icon: <MongoDBIcon />,
-        description: 'Connect to a MongoDB Atlas cluster or self-hosted instance.',
-        storageKey: 'silo_integration_mongodb',
-        keys: [{ name: 'connectionString', label: 'MongoDB Connection String' }],
-        usageInstructions: 'The application is connected to a MongoDB database. The connection string is `{{connectionString}}`. For frontend code, assume a backend API exists that uses this connection string.',
-        category: 'Databases & Backend-as-a-Service',
-        getApiKeyUrl: 'https://www.mongodb.com/docs/atlas/getting-started/',
-    },
-    {
-        id: 'fauna',
-        name: 'Fauna',
-        icon: <FaunaIcon />,
-        description: 'A distributed document-relational database delivered as a cloud API.',
-        storageKey: 'silo_integration_fauna',
-        keys: [{ name: 'secret', label: 'Fauna Secret Key' }],
-        usageInstructions: 'Use the Fauna JS driver. Initialize the client with your secret: `new faunadb.Client({ secret: "{{secret}}" })`.',
-        category: 'Databases & Backend-as-a-Service',
-        getApiKeyUrl: 'https://dashboard.fauna.com/keys',
     },
     {
         id: 'apple-signin',
