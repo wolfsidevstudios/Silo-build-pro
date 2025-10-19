@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -211,7 +210,85 @@ const Edge: React.FC<{ fromNode: NodeData; toNode: NodeData; fromPortId: string;
     );
 };
 
-const TestAgentModal: React.FC<{ agentName: string, agentDescription?: string, isOpen: boolean, onClose: () => void }> = ({ agentName, agentDescription, isOpen, onClose }) => {
+const TestAgentModal: React.FC<{ agent: Agent | undefined, isOpen: boolean, onClose: () => void }> = ({ agent, isOpen, onClose }) => {
+    interface Message {
+        actor: 'user' | 'ai' | 'system';
+        text: string;
+    }
+
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [userInput, setUserInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isLoading]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setMessages([]);
+            setUserInput('');
+            setIsLoading(false);
+        }
+    }, [isOpen]);
+
+    const handleSend = async () => {
+        if (!userInput.trim() || isLoading || !agent) return;
+
+        const currentInput = userInput;
+        const newMessages: Message[] = [...messages, { actor: 'user', text: currentInput }];
+        setMessages(newMessages);
+        setUserInput('');
+        setIsLoading(true);
+
+        try {
+            const ai = getAiClient();
+            const historyText = newMessages.map(m => `${m.actor}: ${m.text}`).join('\n');
+
+            const prompt = `
+                You are simulating an agent's response based on a defined workflow and a conversation history.
+
+                **Workflow Definition:**
+                ${JSON.stringify({ nodes: agent.nodes, edges: agent.edges }, null, 2)}
+
+                **Conversation History:**
+                ${historyText}
+
+                **Task:**
+                Based on the user's last message ("${currentInput}"), trace its path through the workflow and determine the agent's final response. Provide only the agent's response as a plain string, without any additional explanation or formatting.
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            
+            setMessages(prev => [...prev, { actor: 'ai', text: response.text }]);
+
+        } catch (e: any) {
+            setMessages(prev => [...prev, { actor: 'system', text: `Error: ${e.message}` }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
+        const baseStyle = "p-3 rounded-xl max-w-lg mb-2 text-sm shadow";
+        const userStyle = "bg-blue-600 text-white self-end";
+        const aiStyle = "bg-gray-200 text-gray-800 self-start";
+        const systemStyle = "bg-red-100 text-red-800 self-center text-xs italic w-full text-center";
+
+        const getStyle = () => {
+            switch (message.actor) {
+                case 'user': return `${baseStyle} ${userStyle}`;
+                case 'ai': return `${baseStyle} ${aiStyle}`;
+                case 'system': return `${baseStyle} ${systemStyle}`;
+            }
+        };
+        return <div className={getStyle()}>{message.text}</div>;
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -219,27 +296,36 @@ const TestAgentModal: React.FC<{ agentName: string, agentDescription?: string, i
             <div className="bg-white w-full h-full max-w-4xl max-h-[80vh] rounded-2xl shadow-xl flex flex-col relative" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-800">{agentName}</h2>
-                      {agentDescription && <p className="text-sm text-gray-500 mt-1">{agentDescription}</p>}
+                      <h2 className="text-xl font-bold text-gray-800">{agent?.name}</h2>
+                      {agent?.description && <p className="text-sm text-gray-500 mt-1">{agent.description}</p>}
                     </div>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
                         <span className="material-symbols-outlined">close</span>
                     </button>
                 </header>
-                <main className="flex-1 p-4 overflow-y-auto">
-                    {/* Chat history will be rendered here */}
-                    <div className="text-center text-gray-500">
-                        Test view for your agent.
-                    </div>
+                <main className="flex-1 p-4 overflow-y-auto flex flex-col space-y-2">
+                    {messages.map((msg, index) => <ChatMessage key={index} message={msg} />)}
+                    {isLoading && (
+                        <div className="self-start bg-gray-200 p-3 rounded-lg flex items-center space-x-2 shadow">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
                 </main>
                 <footer className="p-4 border-t border-gray-200 flex-shrink-0">
                     <div className="relative">
                         <input
                             type="text"
+                            value={userInput}
+                            onChange={e => setUserInput(e.target.value)}
+                            onKeyPress={e => e.key === 'Enter' && handleSend()}
                             placeholder="Send a message..."
+                            disabled={isLoading}
                             className="w-full p-4 pr-16 bg-gray-100 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <button className="absolute top-1/2 right-2.5 -translate-y-1/2 w-10 h-10 bg-black text-white rounded-full flex items-center justify-center hover:bg-zinc-800 transition-colors">
+                        <button onClick={handleSend} disabled={isLoading || !userInput.trim()} className="absolute top-1/2 right-2.5 -translate-y-1/2 w-10 h-10 bg-black text-white rounded-full flex items-center justify-center hover:bg-zinc-800 transition-colors disabled:bg-gray-400">
                             <span className="material-symbols-outlined">arrow_upward</span>
                         </button>
                     </div>
@@ -645,8 +731,7 @@ export const AgentBuilderPage: React.FC = () => {
         error={generationError}
     />
     <TestAgentModal 
-        agentName={activeAgent?.name || ''}
-        agentDescription={activeAgent?.description}
+        agent={activeAgent}
         isOpen={isTestViewOpen} 
         onClose={() => setIsTestViewOpen(false)} 
     />
