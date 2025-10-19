@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import type { Integration } from '../integrations';
@@ -14,7 +15,14 @@ interface ApiKey {
   key: string;
   displayKey: string;
   createdAt: string;
+  scopes: string[];
 }
+
+const AVAILABLE_SCOPES = [
+    { id: 'builds:create', description: 'Create new app builds.' },
+    { id: 'builds:read', description: 'Read the status of builds.' },
+];
+
 
 const emptyIntegration: CustomIntegration = {
     id: '',
@@ -181,6 +189,8 @@ export const DeveloperPortalPage: React.FC = () => {
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState('');
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+    const [selectedScopes, setSelectedScopes] = useState<string[]>(AVAILABLE_SCOPES.map(s => s.id));
+    const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({});
 
     // My Integrations State
     const [myIntegrations, setMyIntegrations] = useState<CustomIntegration[]>([]);
@@ -203,8 +213,15 @@ export const DeveloperPortalPage: React.FC = () => {
             const savedIntegrations = localStorage.getItem(LOCAL_STORAGE_KEY_INTEGRATIONS);
             if (savedIntegrations) setMyIntegrations(JSON.parse(savedIntegrations));
             
-            const savedKeys = localStorage.getItem(LOCAL_STORAGE_KEY_API_KEYS);
-            if (savedKeys) setApiKeys(JSON.parse(savedKeys));
+            const savedKeysRaw = localStorage.getItem(LOCAL_STORAGE_KEY_API_KEYS);
+            if (savedKeysRaw) {
+                const savedKeys = JSON.parse(savedKeysRaw);
+                const migratedKeys = savedKeys.map((key: any) => ({
+                    ...key,
+                    scopes: key.scopes || AVAILABLE_SCOPES.map(s => s.id)
+                }));
+                setApiKeys(migratedKeys);
+            }
         } catch (e) {
             console.error("Failed to load data from local storage", e);
         }
@@ -221,6 +238,12 @@ export const DeveloperPortalPage: React.FC = () => {
 
     // --- My API Keys Logic ---
 
+    const handleScopeChange = (scopeId: string) => {
+        setSelectedScopes(prev => 
+            prev.includes(scopeId) ? prev.filter(s => s !== scopeId) : [...prev, scopeId]
+        );
+    };
+
     const handleGenerateKey = () => {
         if (!newKeyName.trim()) return;
         const rawKey = `silo_sk_${crypto.randomUUID().replace(/-/g, '')}`;
@@ -229,12 +252,14 @@ export const DeveloperPortalPage: React.FC = () => {
             key: rawKey,
             displayKey: `${rawKey.substring(0, 11)}...${rawKey.substring(rawKey.length - 4)}`,
             createdAt: new Date().toISOString(),
+            scopes: selectedScopes,
         };
         const updatedKeys = [...apiKeys, newKey];
         setApiKeys(updatedKeys);
         localStorage.setItem(LOCAL_STORAGE_KEY_API_KEYS, JSON.stringify(updatedKeys));
         setGeneratedKey(rawKey);
         setNewKeyName('');
+        setSelectedScopes(AVAILABLE_SCOPES.map(s => s.id));
     };
     
     const handleDeleteKey = (keyToDelete: string) => {
@@ -243,6 +268,14 @@ export const DeveloperPortalPage: React.FC = () => {
             setApiKeys(updatedKeys);
             localStorage.setItem(LOCAL_STORAGE_KEY_API_KEYS, JSON.stringify(updatedKeys));
         }
+    };
+    
+    const handleCopyKey = (key: string) => {
+        navigator.clipboard.writeText(key);
+        setCopyStatus({ [key]: true });
+        setTimeout(() => {
+            setCopyStatus(prev => ({ ...prev, [key]: false }));
+        }, 2000);
     };
 
     // --- My Integrations Logic ---
@@ -342,13 +375,29 @@ export const DeveloperPortalPage: React.FC = () => {
                                 <p className="text-center text-gray-500 py-8">You haven't generated any API keys yet.</p>
                             ) : (
                                 apiKeys.map(apiKey => (
-                                    <div key={apiKey.key} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
-                                        <div>
-                                            <p className="font-semibold">{apiKey.name}</p>
-                                            <p className="text-sm text-gray-500 font-mono">{apiKey.displayKey}</p>
-                                            <p className="text-xs text-gray-400 mt-1">Created on {new Date(apiKey.createdAt).toLocaleDateString()}</p>
+                                    <div key={apiKey.key} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-semibold">{apiKey.name}</p>
+                                                <p className="text-sm text-gray-500 font-mono">{apiKey.displayKey}</p>
+                                                <p className="text-xs text-gray-400 mt-1">Created on {new Date(apiKey.createdAt).toLocaleDateString()}</p>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <button onClick={() => handleCopyKey(apiKey.key)} className="flex items-center space-x-1 px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-semibold hover:bg-gray-100">
+                                                     <span className="material-symbols-outlined text-sm">{copyStatus[apiKey.key] ? 'check' : 'content_copy'}</span>
+                                                     <span>{copyStatus[apiKey.key] ? 'Copied!' : 'Copy Key'}</span>
+                                                </button>
+                                                <button onClick={() => handleDeleteKey(apiKey.key)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
+                                            </div>
                                         </div>
-                                        <button onClick={() => handleDeleteKey(apiKey.key)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><span className="material-symbols-outlined">delete</span></button>
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                            <p className="text-xs font-semibold text-gray-500 mb-2">PERMISSIONS</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {apiKey.scopes.map(scope => (
+                                                    <span key={scope} className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full font-mono">{scope}</span>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -357,20 +406,44 @@ export const DeveloperPortalPage: React.FC = () => {
                 )}
                  {isKeyModalOpen && (
                     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center" onClick={() => setIsKeyModalOpen(false)}>
-                        <div className="bg-white rounded-2xl p-8 w-full max-w-md relative text-black" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white rounded-2xl p-8 w-full max-w-lg relative text-black" onClick={e => e.stopPropagation()}>
                            <button onClick={() => setIsKeyModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black transition-colors"><span className="material-symbols-outlined">close</span></button>
                             {generatedKey ? (
                                 <>
                                     <h2 className="text-xl font-bold mb-2">API Key Generated</h2>
-                                    <p className="text-sm text-gray-600 mb-4">Store this key securely. You will not be able to see it again.</p>
-                                    <div className="bg-gray-100 p-3 rounded-lg font-mono text-sm break-all">{generatedKey}</div>
+                                    <p className="text-sm text-gray-600 mb-4">This is the only time your key will be shown in full. Copy it and store it securely.</p>
+                                    <div className="bg-gray-100 p-3 rounded-lg font-mono text-sm break-all relative">
+                                        {generatedKey}
+                                        <button onClick={() => handleCopyKey(generatedKey)} className="absolute top-2 right-2 p-1.5 bg-white rounded-md text-gray-600 hover:bg-gray-200">
+                                            <span className="material-symbols-outlined text-base">{copyStatus[generatedKey] ? 'check' : 'content_copy'}</span>
+                                        </button>
+                                    </div>
                                     <button onClick={() => setIsKeyModalOpen(false)} className="mt-4 w-full py-2 bg-black text-white rounded-lg font-semibold">Done</button>
                                 </>
                             ) : (
                                 <>
                                     <h2 className="text-xl font-bold mb-4">Generate New API Key</h2>
-                                    <input type="text" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="Key Name (e.g., My Awesome Tool)" className="w-full p-2 border border-gray-300 rounded-lg mb-4" />
-                                    <button onClick={handleGenerateKey} disabled={!newKeyName.trim()} className="w-full py-2 bg-black text-white rounded-lg font-semibold disabled:bg-gray-400">Generate Key</button>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-600 mb-1">Key Name</label>
+                                            <input type="text" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="e.g., My Awesome Tool" className="w-full p-2 border border-gray-300 rounded-lg" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-600 mb-2">Permissions</label>
+                                            <div className="space-y-2">
+                                                {AVAILABLE_SCOPES.map(scope => (
+                                                    <label key={scope.id} className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                        <input type="checkbox" checked={selectedScopes.includes(scope.id)} onChange={() => handleScopeChange(scope.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                                        <div className="ml-3 text-sm">
+                                                            <p className="font-mono font-medium text-gray-900">{scope.id}</p>
+                                                            <p className="text-gray-500">{scope.description}</p>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button onClick={handleGenerateKey} disabled={!newKeyName.trim()} className="mt-6 w-full py-2 bg-black text-white rounded-lg font-semibold disabled:bg-gray-400">Generate Key</button>
                                 </>
                             )}
                         </div>
@@ -391,15 +464,15 @@ export const DeveloperPortalPage: React.FC = () => {
                             <div>
                                 <h3 className="text-lg font-semibold">Endpoints</h3>
                                 <div className="mt-2 border-t border-gray-200 pt-4">
-                                    <h4 className="font-semibold"><span className="font-mono text-sm bg-green-100 text-green-800 px-2 py-1 rounded-md">POST</span> /v1/builds</h4>
+                                    <h4 className="font-semibold"><span className="font-mono text-sm bg-green-100 text-green-800 px-2 py-1 rounded-md">POST</span> /api/v1/builds</h4>
                                     <p className="text-sm text-gray-600 mt-1">Creates a new app build job.</p>
                                     <h5 className="font-semibold text-sm mt-3">Request Body</h5>
                                     <CodeBlock language="json" code={`{\n  "prompt": "a simple to-do list app",\n  "projectType": "multi"\n}`} />
                                     <h5 className="font-semibold text-sm mt-3">Example Request</h5>
-                                    <CodeBlock language="bash" code={`curl -X POST https://api.silobuild.com/v1/builds \\\n     -H "Authorization: Bearer YOUR_API_KEY" \\\n     -H "Content-Type: application/json" \\\n     -d '{\n       "prompt": "a simple to-do list app",\n       "projectType": "multi"\n     }'`} />
+                                    <CodeBlock language="bash" code={`curl -X POST https://silo-build-pro.vercel.app/api/v1/builds \\\n     -H "Authorization: Bearer YOUR_API_KEY" \\\n     -H "Content-Type: application/json" \\\n     -d '{\n       "prompt": "a simple to-do list app",\n       "projectType": "multi"\n     }'`} />
                                 </div>
                                 <div className="mt-6 border-t border-gray-200 pt-4">
-                                    <h4 className="font-semibold"><span className="font-mono text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">GET</span> /v1/builds/{'{buildId}'}</h4>
+                                    <h4 className="font-semibold"><span className="font-mono text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">GET</span> /api/v1/builds/{'{buildId}'}</h4>
                                     <p className="text-sm text-gray-600 mt-1">Retrieves the status and results of a build job.</p>
                                     <h5 className="font-semibold text-sm mt-3">Example Response (Completed)</h5>
                                     <CodeBlock language="json" code={`{\n  "buildId": "build_abc123",\n  "status": "completed",\n  "files": [\n    {\n      "path": "src/App.tsx",\n      "code": "import React from 'react'; ..."\n    }\n  ]\n}`} />
