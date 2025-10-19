@@ -78,6 +78,8 @@ export const CommunityAppViewerPage: React.FC<CommunityAppViewerPageProps> = ({ 
             <Preview 
                 files={project.files}
                 projectType={project.projectType}
+                // FIX: Pass the appName as projectName to the Preview component.
+                projectName={appName}
                 previewMode="iframe" // Always use iframe for security in community apps
                 onRuntimeError={(msg) => setRuntimeError(msg)}
             />

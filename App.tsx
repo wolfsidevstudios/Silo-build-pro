@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -199,9 +200,12 @@ export interface SupabaseConfig {
   accessToken: string;
 }
 
-const communitySupabaseConfig = {
+const communitySupabaseConfig: SupabaseConfig = {
   url: 'https://yzymxzmxdnzfwvsezbwm.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6eW14em14ZG56Znd2c2V6YndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDM4NjMsImV4cCI6MjA3NjI3OTg2M30.NwM5VnsFmX7kE5W67fxMvxJk5u5VhBCkkfWURjfwNqg',
+  // FIX: Added missing properties projectRef and accessToken to conform to SupabaseConfig type.
+  projectRef: 'yzymxzmxdnzfwvsezbwm',
+  accessToken: '',
 };
 
 const FEATURE_NOTIFICATIONS: Omit<Notification, 'read'>[] = [
