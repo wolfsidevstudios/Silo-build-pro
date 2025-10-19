@@ -46,6 +46,12 @@ const openApiSpec = {
             "required": true,
             "description": "The public anon key for the Supabase project.",
             "schema": { "type": "string" }
+          },
+          {
+            "name": "select",
+            "in": "query",
+            "description": "Fields to return. `*` returns all fields.",
+            "schema": { "type": "string", "default": "*" }
           }
         ],
         "responses": {
@@ -66,7 +72,7 @@ const openApiSpec = {
     "/community_apps?name=eq.{appName}": {
       "get": {
         "summary": "Get App by Name",
-        "description": "Retrieves the details of a specific application by its unique name.",
+        "description": "Retrieves the details of a specific application by its unique name using a query parameter.",
         "parameters": [
           {
             "name": "appName",
@@ -88,7 +94,10 @@ const openApiSpec = {
             "description": "App details.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CommunityApp" }
+                "schema": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/CommunityApp" }
+                }
               }
             }
           },
