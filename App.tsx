@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -35,6 +32,7 @@ import { CommunityPage } from './components/CommunityPage';
 import { CommunityAppViewerPage } from './components/CommunityAppViewerPage';
 import { StatusPage } from './components/StatusPage';
 import { AwardsPage } from './components/AwardsPage';
+import { AgentBuilderPage } from './components/AgentBuilderPage';
 
 
 declare const Babel: any;
@@ -2307,6 +2305,9 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
      if (path === '/integrations') {
       return <IntegrationsPage />;
     }
+    if (path === '/agents') {
+      return <AgentBuilderPage />;
+    }
     if (path === '/developer-portal') {
       return <DeveloperPortalPage />;
     }
@@ -2407,7 +2408,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
   const isCommunityConfigured = true;
 
   const path = location.startsWith('/') ? location : `/${location}`;
-  const isDarkPage = path === '/profile';
+  const isDarkPage = ['/profile', '/agents'].includes(path);
   const isCommunityAppView = !!path.match(/^\/community\/([^/]+)$/);
   const isHomePage = path === '/home' || path === '/';
 
