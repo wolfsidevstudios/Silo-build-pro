@@ -3,26 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <title>Silo Build Preview</title>
+    <!-- Basic scripts for all modes -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
+    <!-- UMD builds for iframe mode / customRequire -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+    <script src="https://esm.sh/clsx?globalName=clsx"></script>
+    <script src="https://esm.sh/tailwind-merge?globalName=twMerge"></script>
+    <script src="https://esm.sh/class-variance-authority?globalName=cva"></script>
+    <script src="https://esm.sh/@radix-ui/react-slot?globalName=RadixSlot"></script>
   </head>
   <body>
     <div id="preview-root"></div>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "react-router-dom": "https://esm.sh/react-router-dom@6",
-        "clsx": "https://esm.sh/clsx@2.1.1",
-        "tailwind-merge": "https://esm.sh/tailwind-merge@2.4.0",
-        "class-variance-authority": "https://esm.sh/class-variance-authority@0.7.0",
-        "@radix-ui/react-slot": "https://esm.sh/@radix-ui/react-slot@1.1.0"
-      }
-    }
-    </script>
     <script>
       const originalConsole = { ...window.console };
       const serializeArg = (arg) => {
@@ -76,6 +72,8 @@
 
       window.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'execute_code') {
+          // Flag that we are in iframe hot-reload mode
+          window.SiloIsIframeMode = true;
           try {
             eval(event.data.code);
           } catch (e) {
@@ -85,50 +83,58 @@
       });
     </script>
     <script type="module">
-      import React from 'react';
-      import ReactDOM from 'react-dom/client';
+      // This script is for Service Worker mode.
+      // We delay its execution slightly to allow the parent frame to send an
+      // 'EXECUTE_CODE' message, which would set `window.SiloIsIframeMode` to true.
+      // If that flag is set, we don't run this block.
+      setTimeout(async () => {
+        if (window.SiloIsIframeMode) {
+          return;
+        }
 
-      const handleError = (err) => {
-          console.error("Preview Error:", err);
-          try {
-              // We still want to send the error to the parent to display in the UI.
-              window.parent.postMessage({ type: 'error', message: err.message }, '*');
-          } catch (e) {
-              // This might fail if we are in a sandboxed iframe without allow-same-origin.
-              console.error('Failed to post error message to parent:', e);
-          }
-      };
+        const React = await import('react');
+        const ReactDOM = await import('react-dom/client');
 
-      window.addEventListener('error', (event) => {
-        event.preventDefault();
-        handleError(event.error);
-      });
+        const handleError = (err) => {
+            console.error("Preview Error:", err);
+            try {
+                window.parent.postMessage({ type: 'error', message: err.message }, '*');
+            } catch (e) {
+                console.error('Failed to post error message to parent:', e);
+            }
+        };
 
-      window.addEventListener('unhandledrejection', (event) => {
+        window.addEventListener('error', (event) => {
           event.preventDefault();
-          handleError(event.reason);
-      });
+          handleError(event.error);
+        });
 
-      try {
-        // The service worker will intercept this import and serve the transpiled code.
-        const AppContainer = await import('/src/App.tsx');
-        
-        if (!AppContainer || typeof AppContainer.default === 'undefined') {
-          throw new Error('The entry point "src/App.tsx" must have a default export.');
+        window.addEventListener('unhandledrejection', (event) => {
+            event.preventDefault();
+            handleError(event.reason);
+        });
+
+        try {
+          // The service worker will intercept this import and serve the transpiled code.
+          const AppContainer = await import('/src/App.tsx');
+          
+          if (!AppContainer || typeof AppContainer.default === 'undefined') {
+            throw new Error('The entry point "src/App.tsx" must have a default export.');
+          }
+
+          const App = AppContainer.default;
+          
+          if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
+              throw new Error('The default export of "src/App.tsx" must be a React component.');
+          }
+
+          const rootElement = document.getElementById('preview-root');
+          const root = ReactDOM.createRoot(rootElement);
+          root.render(React.createElement(App));
+        } catch (err) {
+          handleError(err);
         }
-
-        const App = AppContainer.default;
-        
-        if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
-            throw new Error('The default export of "src/App.tsx" must be a React component.');
-        }
-
-        const rootElement = document.getElementById('preview-root');
-        const root = ReactDOM.createRoot(rootElement);
-        root.render(React.createElement(App));
-      } catch (err) {
-        handleError(err);
-      }
+      }, 50);
     </script>
   </body>
 </html>

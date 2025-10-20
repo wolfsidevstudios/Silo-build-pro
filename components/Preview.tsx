@@ -126,129 +126,111 @@ registerRootComponent(App);
 };
 
 
-const createIframeContent = (transpiledFiles: Record<string, string>): string => {
-    const iframeLogic = `
-        const handleError = (err) => {
-            console.error("Preview Error:", err);
-            try {
-                // We still want to send the error to the parent to display in the UI.
-                window.parent.postMessage({ type: 'error', message: err.message }, '*');
-            } catch (e) {
-                // This might fail if we are in a sandboxed iframe without allow-same-origin.
-                console.error('Failed to post error message to parent:', e);
-            }
-        };
+const createHotUpdateCode = (transpiledFiles: Record<string, string>): string => {
+  const logic = `
+    const handleError = (err) => {
+        console.error("Preview Error:", err);
+        try {
+            window.parent.postMessage({ type: 'error', message: err.message }, '*');
+        } catch (e) {
+            console.error('Failed to post error message to parent:', e);
+        }
+    };
 
+    if (!window.SiloErrorListenersAttached) {
         window.addEventListener('error', (event) => {
           event.preventDefault();
           handleError(event.error);
         });
-
         window.addEventListener('unhandledrejection', (event) => {
             event.preventDefault();
             handleError(event.reason);
         });
-
-        const transpiledModules = ${JSON.stringify(transpiledFiles)};
-        const moduleCache = {};
-
-        const resolveModulePath = (currentPath, requiredPath) => {
-            if (!requiredPath.startsWith('.')) return requiredPath;
-            const pathParts = currentPath.split('/');
-            pathParts.pop();
-            requiredPath.split('/').forEach(part => {
-                if (part === '.') return;
-                if (part === '..') {
-                    if (pathParts.length > 0) pathParts.pop();
-                } else {
-                    pathParts.push(part);
-                }
-            });
-            const basePath = pathParts.join('/');
-            if (transpiledModules.hasOwnProperty(basePath)) return basePath;
-            const extensions = ['.tsx', '.ts', '.jsx', '.js'];
-            for (const ext of extensions) {
-                const pathWithExt = basePath + ext;
-                if (transpiledModules.hasOwnProperty(pathWithExt)) return pathWithExt;
-                const indexPath = basePath + '/index' + ext;
-                if (transpiledModules.hasOwnProperty(indexPath)) return indexPath;
+        window.SiloErrorListenersAttached = true;
+    }
+    
+    const transpiledModules = ${JSON.stringify(transpiledFiles)};
+    const moduleCache = {};
+    const resolveModulePath = (currentPath, requiredPath) => {
+        if (!requiredPath.startsWith('.')) return requiredPath;
+        const pathParts = currentPath.split('/');
+        pathParts.pop();
+        requiredPath.split('/').forEach(part => {
+            if (part === '.') return;
+            if (part === '..') {
+                if (pathParts.length > 0) pathParts.pop();
+            } else {
+                pathParts.push(part);
             }
-            return basePath;
-        };
-        
-        const customRequire = (path, currentPath) => {
-            if (path === 'react') return window.React;
-            if (path === 'react-dom/client') return window.ReactDOM;
-            if (path === 'react-router-dom') return window.ReactRouterDOM;
-            if (path === 'clsx') return window.clsx;
-            if (path === 'tailwind-merge') return { twMerge: window.twMerge };
-            if (path === 'class-variance-authority') return window.cva;
-            if (path === '@radix-ui/react-slot') return window.RadixSlot;
-
-            const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
-            if (moduleCache[resolvedPath]) return moduleCache[resolvedPath].exports;
-            const code = transpiledModules[resolvedPath];
-            if (code === undefined) throw new Error(\`Module not found: Could not resolve "\${path}" from "\${currentPath || 'entry point'}". Attempted to load "\${resolvedPath}".\`);
-            const exports = {};
-            const module = { exports };
-            const factory = new Function('require', 'module', 'exports', code);
-            factory(p => customRequire(p, resolvedPath), module, exports);
-            moduleCache[resolvedPath] = module;
-            return module.exports;
-        };
-
-        try {
-            const rootElement = document.getElementById('preview-root');
-            if (!rootElement) throw new Error("Preview failed: root element '#preview-root' not found.");
-            
-            const entryPoint = 'src/App.tsx';
-            if (!transpiledModules[entryPoint]) throw new Error('Entry point "src/App.tsx" not found.');
-
-            const AppContainer = customRequire(entryPoint);
-            if (!AppContainer || typeof AppContainer.default === 'undefined') {
-                throw new Error('The entry point "src/App.tsx" must have a default export.');
-            }
-            const App = AppContainer.default;
-            if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
-                throw new Error('The default export of "src/App.tsx" must be a React component.');
-            }
-            const root = ReactDOM.createRoot(rootElement);
-            root.render(React.createElement(App));
-        } catch (err) {
-            handleError(err);
+        });
+        const basePath = pathParts.join('/');
+        if (transpiledModules.hasOwnProperty(basePath)) return basePath;
+        const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+        for (const ext of extensions) {
+            const pathWithExt = basePath + ext;
+            if (transpiledModules.hasOwnProperty(pathWithExt)) return pathWithExt;
+            const indexPath = basePath + '/index' + ext;
+            if (transpiledModules.hasOwnProperty(indexPath)) return indexPath;
         }
-    `;
+        return basePath;
+    };
+    const customRequire = (path, currentPath) => {
+        if (path === 'react') return window.React;
+        if (path === 'react-dom/client') return window.ReactDOM;
+        if (path === 'react-router-dom') return window.ReactRouterDOM;
+        if (path === 'clsx') return window.clsx;
+        if (path === 'tailwind-merge') return { twMerge: window.twMerge };
+        if (path === 'class-variance-authority') return window.cva;
+        if (path === '@radix-ui/react-slot') return window.RadixSlot;
 
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-          <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
-          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-          <script src="https://esm.sh/clsx?globalName=clsx"></script>
-          <script src="https://esm.sh/tailwind-merge?globalName=twMerge"></script>
-          <script src="https://esm.sh/class-variance-authority?globalName=cva"></script>
-          <script src="https://esm.sh/@radix-ui/react-slot?globalName=RadixSlot"></script>
-          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-          <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
-        </head>
-        <body>
-          <div id="preview-root"></div>
-          <script>${getDevToolsScript()}</script>
-          <script type="module">${iframeLogic}</script>
-        </body>
-      </html>
-    `;
+        const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
+        if (moduleCache[resolvedPath]) return moduleCache[resolvedPath].exports;
+        const code = transpiledModules[resolvedPath];
+        if (code === undefined) throw new Error(\`Module not found: Could not resolve "\${path}" from "\${currentPath || 'entry point'}". Attempted to load "\${resolvedPath}".\`);
+        const exports = {};
+        const module = { exports };
+        const factory = new Function('require', 'module', 'exports', code);
+        factory(p => customRequire(p, resolvedPath), module, exports);
+        moduleCache[resolvedPath] = module;
+        return module.exports;
+    };
+
+    try {
+        const rootElement = document.getElementById('preview-root');
+        if (!rootElement) throw new Error("Preview failed: root element '#preview-root' not found.");
+        
+        if (window.SiloPreviewRoot) {
+            window.SiloPreviewRoot.unmount();
+        }
+
+        const entryPoint = 'src/App.tsx';
+        if (!transpiledModules[entryPoint]) throw new Error('Entry point "src/App.tsx" not found.');
+        const AppContainer = customRequire(entryPoint);
+        if (!AppContainer || typeof AppContainer.default === 'undefined') {
+            throw new Error('The entry point "src/App.tsx" must have a default export.');
+        }
+        const App = AppContainer.default;
+        if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
+            throw new Error('The default export of "src/App.tsx" must be a React component.');
+        }
+        
+        const root = ReactDOM.createRoot(rootElement);
+        window.SiloPreviewRoot = root;
+        root.render(React.createElement(App));
+
+    } catch (err) {
+        handleError(err);
+    }
+  `;
+  return logic;
 };
 
+
 export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType, projectName, iframeRef }) => {
-  const [iframeContent, setIframeContent] = useState('');
+  const [htmlSrcDoc, setHtmlSrcDoc] = useState('');
   const [appetizePublicKey, setAppetizePublicKey] = useState<string | null>(null);
   const [isUploadingToAppetize, setIsUploadingToAppetize] = useState(false);
+  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
 
   // Register the service worker once, only when in service-worker mode.
   useEffect(() => {
@@ -357,7 +339,7 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
               const jsFile = files.find(f => f.path === 'script.js');
 
               if (!htmlFile) {
-                  setIframeContent('<h1>index.html not found</h1>');
+                  setHtmlSrcDoc('<h1>index.html not found</h1>');
                   return;
               }
               
@@ -368,19 +350,18 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
               if (jsFile) {
                   content = content.replace('</body>', `<script>${jsFile.code}</script></body>`);
               }
-              setIframeContent(content);
+              setHtmlSrcDoc(content);
           }
           return;
       }
 
-      // Existing React project logic
+      // React project logic
       try {
-        const isServiceWorkerMode = previewMode === 'service-worker';
-        const plugins = isServiceWorkerMode ? [] : ['transform-modules-commonjs'];
-        
         const transpiledFiles: Record<string, string> = {};
         files.forEach(file => {
              if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
+                const plugins = previewMode === 'iframe' ? ['transform-modules-commonjs'] : [];
+
                 let transformedCode = Babel.transform(file.code, {
                     presets: ['typescript', ['react', { runtime: 'classic' }]],
                     plugins: plugins,
@@ -395,7 +376,7 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
         
         if (!isMounted) return;
 
-        if (isServiceWorkerMode) {
+        if (previewMode === 'service-worker') {
             await navigator.serviceWorker.ready;
             if (navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
@@ -409,9 +390,14 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
             } else {
               onRuntimeError("Service Worker is not active. Please reload the page to activate the preview.");
             }
-        } else {
-            const content = createIframeContent(transpiledFiles);
-            setIframeContent(content);
+        } else { // iframe mode for React
+            if (isIframeLoaded && iframeRef.current?.contentWindow) {
+                const codeToExecute = createHotUpdateCode(transpiledFiles);
+                iframeRef.current.contentWindow.postMessage({
+                    type: 'EXECUTE_CODE',
+                    code: codeToExecute
+                }, '*');
+            }
         }
       } catch (e: any) {
           onRuntimeError(`Babel Transpilation Error: ${e.message}`);
@@ -426,7 +412,7 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
 
     return () => { isMounted = false; };
 
-  }, [files, onRuntimeError, previewMode, projectType, projectName]);
+  }, [files, onRuntimeError, previewMode, projectType, projectName, isIframeLoaded, iframeRef]);
 
   if (previewMode === 'appetize') {
     if (isUploadingToAppetize) {
@@ -457,32 +443,34 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
     );
   }
 
-
-  if (previewMode === 'service-worker') {
-    const initialSrc = projectType === 'html' ? '/index.html' : '/preview.html';
-    return (
-        <div className="w-full h-full bg-white">
-          <iframe
-            ref={iframeRef}
-            src={initialSrc}
-            title="Live Preview (Service Worker)"
-            className="w-full h-full border-none"
-            sandbox="allow-scripts allow-same-origin"
-          />
-        </div>
-    );
+  // For HTML projects in iframe mode, we still use srcDoc
+  if (projectType === 'html' && previewMode === 'iframe') {
+      return (
+          <div className="w-full h-full bg-white">
+              <iframe
+                  ref={iframeRef}
+                  srcDoc={htmlSrcDoc}
+                  title="Live Preview"
+                  className="w-full h-full border-none"
+                  sandbox="allow-scripts allow-same-origin"
+                  key={htmlSrcDoc}
+              />
+          </div>
+      );
   }
 
+  // For all React projects, and HTML in SW mode, use the static src iframe
+  const initialSrc = (projectType === 'html' && previewMode === 'service-worker') ? '/index.html' : '/preview.html';
   return (
-    <div className="w-full h-full bg-white">
-      <iframe
-        ref={iframeRef}
-        srcDoc={iframeContent}
-        title="Live Preview"
-        className="w-full h-full border-none"
-        sandbox="allow-scripts allow-same-origin"
-        key={iframeContent}
-      />
-    </div>
+      <div className="w-full h-full bg-white">
+        <iframe
+          ref={iframeRef}
+          src={initialSrc}
+          title={previewMode === 'service-worker' ? "Live Preview (Service Worker)" : "Live Preview (Iframe)"}
+          className="w-full h-full border-none"
+          sandbox="allow-scripts allow-same-origin"
+          onLoad={() => setIsIframeLoaded(true)}
+        />
+      </div>
   );
 };
