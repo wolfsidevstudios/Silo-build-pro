@@ -18,7 +18,13 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const path = url.pathname;
-  const filePath = path.startsWith('/') ? path.substring(1) : path;
+  let filePath = path.startsWith('/') ? path.substring(1) : path;
+  
+  // For HTML projects, the iframe src is set to a unique path to avoid collisions.
+  // The service worker maps this unique path back to the user's 'index.html'.
+  if (filePath === 'preview-entrypoint.html' && files['index.html']) {
+    filePath = 'index.html';
+  }
   
   const getContentType = (filePath) => {
     if (filePath.endsWith('.css')) return 'text/css; charset=utf-8';

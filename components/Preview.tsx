@@ -1,9 +1,154 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import type { ProjectFile, PreviewMode, ProjectType } from '../App';
 
 declare const Babel: any;
 declare const window: any;
 declare const JSZip: any;
+
+const PREVIEW_HTML_TEMPLATE = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Silo Build Preview</title>
+    <!-- Basic scripts for all modes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
+    <!-- UMD builds for iframe mode / customRequire -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+    <script src="https://esm.sh/clsx?globalName=clsx"></script>
+    <script src="https://esm.sh/tailwind-merge?globalName=twMerge"></script>
+    <script src="https://esm.sh/class-variance-authority?globalName=cva"></script>
+    <script src="https://esm.sh/@radix-ui/react-slot?globalName=RadixSlot"></script>
+  </head>
+  <body>
+    <div id="preview-root"></div>
+    <script>
+      const originalConsole = { ...window.console };
+      const serializeArg = (arg) => {
+        if (arg instanceof HTMLElement) {
+          return \`<$\{arg.tagName.toLowerCase()\} $\{arg.className ? 'class="'+arg.className+'"' : ''\} $\{arg.id ? 'id="'+arg.id+'"' : ''\} />\`;
+        }
+        if (typeof arg === 'function') {
+          return 'ƒ ' + (arg.name || '(anonymous)') + '()';
+        }
+        if (typeof arg === 'undefined') {
+          return 'undefined';
+        }
+        if (typeof arg === 'symbol') {
+            return String(arg);
+        }
+        if (typeof arg === 'bigint') {
+            return String(arg) + 'n';
+        }
+        try {
+          const seen = new WeakSet();
+          return JSON.stringify(arg, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+              if (seen.has(value)) {
+                return '[Circular]';
+              }
+              seen.add(value);
+            }
+            return value;
+          }, 2);
+        } catch (e) {
+          return String(arg);
+        }
+      };
+
+      const overrideConsole = (level) => {
+        window.console[level] = (...args) => {
+          originalConsole[level](...args);
+          try {
+            window.parent.postMessage({
+              type: 'console',
+              level,
+              args: args.map(serializeArg),
+            }, '*');
+          } catch (e) {
+            originalConsole.error('Failed to post console message to parent:', e);
+          }
+        };
+      };
+
+      ['log', 'warn', 'error', 'info'].forEach(overrideConsole);
+
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'execute_code') {
+          // Flag that we are in iframe hot-reload mode
+          window.SiloIsIframeMode = true;
+          try {
+            eval(event.data.code);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      });
+    </script>
+    <script type="module">
+      // This script is for Service Worker mode.
+      // We delay its execution slightly to allow the parent frame to send an
+      // 'EXECUTE_CODE' message, which would set \`window.SiloIsIframeMode\` to true.
+      // If that flag is set, we don't run this block.
+      setTimeout(async () => {
+        if (window.SiloIsIframeMode) {
+          return;
+        }
+
+        const React = await import('react');
+        const ReactDOM = await import('react-dom/client');
+
+        const handleError = (err) => {
+            console.error("Preview Error:", err);
+            try {
+                window.parent.postMessage({ type: 'error', message: err.message }, '*');
+            } catch (e) {
+                console.error('Failed to post error message to parent:', e);
+            }
+        };
+
+        window.addEventListener('error', (event) => {
+          event.preventDefault();
+          handleError(event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            event.preventDefault();
+            handleError(event.reason);
+        });
+
+        try {
+          // The service worker will intercept this import and serve the transpiled code.
+          const AppContainer = await import('/src/App.tsx');
+          
+          if (!AppContainer || typeof AppContainer.default === 'undefined') {
+            throw new Error('The entry point "src/App.tsx" must have a default export.');
+          }
+
+          const App = AppContainer.default;
+          
+          if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
+              throw new Error('The default export of "src/App.tsx" must be a React component.');
+          }
+
+          const rootElement = document.getElementById('preview-root');
+          const root = ReactDOM.createRoot(rootElement);
+          root.render(React.createElement(App));
+        } catch (err) {
+          handleError(err);
+        }
+      }, 50);
+    </script>
+  </body>
+</html>
+`;
+
 
 interface PreviewProps {
   files: ProjectFile[];
@@ -13,69 +158,6 @@ interface PreviewProps {
   projectName: string;
   iframeRef: React.RefObject<HTMLIFrameElement>;
 }
-
-const getDevToolsScript = () => `
-  const originalConsole = { ...window.console };
-  const serializeArg = (arg) => {
-    if (arg instanceof HTMLElement) {
-      return \`<$\{arg.tagName.toLowerCase()\} \$\{arg.className ? 'class="'+arg.className+'"' : ''\} \$\{arg.id ? 'id="'+arg.id+'"' : ''\} />\`;
-    }
-    if (typeof arg === 'function') {
-      return 'ƒ ' + (arg.name || '(anonymous)') + '()';
-    }
-    if (typeof arg === 'undefined') {
-      return 'undefined';
-    }
-    if (typeof arg === 'symbol') {
-        return String(arg);
-    }
-    if (typeof arg === 'bigint') {
-        return String(arg) + 'n';
-    }
-    try {
-      // Use a replacer to handle circular structures
-      const seen = new WeakSet();
-      return JSON.stringify(arg, (key, value) => {
-        if (typeof value === 'object' && value !== null) {
-          if (seen.has(value)) {
-            return '[Circular]';
-          }
-          seen.add(value);
-        }
-        return value;
-      }, 2);
-    } catch (e) {
-      return String(arg);
-    }
-  };
-
-  const overrideConsole = (level) => {
-    window.console[level] = (...args) => {
-      originalConsole[level](...args);
-      try {
-        window.parent.postMessage({
-          type: 'console',
-          level,
-          args: args.map(serializeArg),
-        }, '*');
-      } catch (e) {
-        originalConsole.error('Failed to post console message to parent:', e);
-      }
-    };
-  };
-
-  ['log', 'warn', 'error', 'info'].forEach(overrideConsole);
-
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'execute_code') {
-      try {
-        eval(event.data.code);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  });
-`;
 
 const createExpoAppPackage = async (files: ProjectFile[], projectName: string): Promise<Blob> => {
     const zip = new JSZip();
@@ -310,48 +392,24 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
 
     const transpileAndLoad = async () => {
       if (projectType === 'html') {
-          if (previewMode === 'service-worker') {
-              const projectFiles: Record<string, string> = {};
-              files.forEach(file => {
-                  projectFiles[file.path] = file.code;
-              });
+          // Always use srcDoc for HTML projects for reliability.
+          const htmlFile = files.find(f => f.path === 'index.html');
+          const cssFile = files.find(f => f.path === 'style.css');
+          const jsFile = files.find(f => f.path === 'script.js');
 
-              await navigator.serviceWorker.ready;
-              if (navigator.serviceWorker.controller) {
-                  navigator.serviceWorker.controller.postMessage({
-                      type: 'UPDATE_FILES',
-                      files: projectFiles,
-                  });
-                  if (iframeRef.current) {
-                      const newSrc = '/index.html';
-                      if (iframeRef.current.getAttribute('src') !== newSrc) {
-                          iframeRef.current.src = newSrc;
-                      } else {
-                          iframeRef.current.contentWindow?.location.reload();
-                      }
-                  }
-              } else {
-                  onRuntimeError("Service Worker is not active. Please reload the page to activate the preview.");
-              }
-          } else { // Iframe mode for HTML
-              const htmlFile = files.find(f => f.path === 'index.html');
-              const cssFile = files.find(f => f.path === 'style.css');
-              const jsFile = files.find(f => f.path === 'script.js');
-
-              if (!htmlFile) {
-                  setHtmlSrcDoc('<h1>index.html not found</h1>');
-                  return;
-              }
-              
-              let content = htmlFile.code;
-              if (cssFile) {
-                  content = content.replace('</head>', `<style>${cssFile.code}</style></head>`);
-              }
-              if (jsFile) {
-                  content = content.replace('</body>', `<script>${jsFile.code}</script></body>`);
-              }
-              setHtmlSrcDoc(content);
+          if (!htmlFile) {
+              if (isMounted) setHtmlSrcDoc('<h1>index.html not found</h1>');
+              return;
           }
+          
+          let content = htmlFile.code;
+          if (cssFile) {
+              content = content.replace('</head>', `<style>${cssFile.code}</style></head>`);
+          }
+          if (jsFile) {
+              content = content.replace('</body>', `<script>${jsFile.code}</script></body>`);
+          }
+          if (isMounted) setHtmlSrcDoc(content);
           return;
       }
 
@@ -384,8 +442,8 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
                     files: transpiledFiles,
                 });
 
-                if (iframeRef.current) {
-                  iframeRef.current.contentWindow?.location.reload();
+                if (iframeRef.current?.contentWindow) {
+                  iframeRef.current.contentWindow.location.reload();
                 }
             } else {
               onRuntimeError("Service Worker is not active. Please reload the page to activate the preview.");
@@ -407,7 +465,13 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
     if (previewMode === 'appetize') {
         uploadToAppetize();
     } else {
-        transpileAndLoad();
+        // For React projects, we need to wait for the initial srcDoc iframe to load.
+        // For HTML projects, we can generate the srcDoc immediately.
+        if (projectType === 'html') {
+            transpileAndLoad();
+        } else if (isIframeLoaded) {
+            transpileAndLoad();
+        }
     }
 
     return () => { isMounted = false; };
@@ -442,9 +506,9 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
         </div>
     );
   }
-
-  // For HTML projects in iframe mode, we still use srcDoc
-  if (projectType === 'html' && previewMode === 'iframe') {
+  
+  // For HTML projects, we generate a specific srcDoc.
+  if (projectType === 'html') {
       return (
           <div className="w-full h-full bg-white">
               <iframe
@@ -453,20 +517,20 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
                   title="Live Preview"
                   className="w-full h-full border-none"
                   sandbox="allow-scripts allow-same-origin"
-                  key={htmlSrcDoc}
+                  key={htmlSrcDoc} // Force re-render on content change
               />
           </div>
       );
   }
 
-  // For all React projects, and HTML in SW mode, use the static src iframe
-  const initialSrc = (projectType === 'html' && previewMode === 'service-worker') ? '/index.html' : '/preview.html';
+  // For all React projects, use the static HTML template via srcDoc.
+  // The useEffect handles updates via postMessage or SW reload.
   return (
       <div className="w-full h-full bg-white">
         <iframe
           ref={iframeRef}
-          src={initialSrc}
-          title={previewMode === 'service-worker' ? "Live Preview (Service Worker)" : "Live Preview (Iframe)"}
+          srcDoc={PREVIEW_HTML_TEMPLATE}
+          title="Live Preview"
           className="w-full h-full border-none"
           sandbox="allow-scripts allow-same-origin"
           onLoad={() => setIsIframeLoaded(true)}
