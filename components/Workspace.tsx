@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
 import { DatabasePanel } from './DatabasePanel';
@@ -8,6 +8,7 @@ import type { Project, PreviewMode } from '../App';
 import { INTEGRATION_DEFINITIONS, BROWSER_API_DEFINITIONS, Integration } from '../integrations';
 import { TokenInput, GITHUB_TOKEN_STORAGE_KEY } from './SettingsPage';
 import { MusicPlayer } from './MusicPlayer';
+import { DevToolsPanel, ConsoleMessage } from './DevToolsPanel';
 
 
 // Fix: Add declaration for the global Babel object to resolve TS error.
@@ -308,11 +309,67 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
   const [activeTab, setActiveTab] = useState<ActiveTab>('preview');
   const [activeFilePath, setActiveFilePath] = useState<string>(project.projectType === 'html' ? 'index.html' : 'src/App.tsx');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  
+  const [isDevToolsOpen, setIsDevToolsOpen] = useState(true);
+  const [devToolsHeight, setDevToolsHeight] = useState(250);
+  const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>([]);
+  
   const { files } = project;
   const sqlFile = files.find(f => f.path === 'app.sql');
   const isDeployed = !!(project.netlifyUrl || project.vercelUrl);
   const isAppetizeMode = previewMode === 'appetize';
   
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+
+      if (event.data && event.data.type === 'console') {
+        setIsDevToolsOpen(true);
+        setConsoleMessages(prev => [...prev, { level: event.data.level, args: event.data.args, timestamp: Date.now() }]);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const executeCodeInPreview = (code: string) => {
+    iframeRef.current?.contentWindow?.postMessage({
+        type: 'execute_code',
+        code,
+    }, '*');
+  };
+
+  const clearConsole = () => {
+    setConsoleMessages([]);
+  };
+
+  const isResizing = useRef(false);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+      document.addEventListener('mousemove', handleResizeMouseMove);
+      document.addEventListener('mouseup', handleResizeMouseUp);
+  }, []);
+
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+      if (isResizing.current) {
+          const newHeight = window.innerHeight - e.clientY;
+          if (newHeight > 50 && newHeight < window.innerHeight - 200) {
+              setDevToolsHeight(newHeight);
+          }
+      }
+  }, []);
+
+  const handleResizeMouseUp = useCallback(() => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleResizeMouseMove);
+      document.removeEventListener('mouseup', handleResizeMouseUp);
+  }, [handleResizeMouseMove]);
+
+
   useEffect(() => {
     const defaultFile = project.projectType === 'html' ? 'index.html' : 'src/App.tsx';
     if (!files.find(f => f.path === activeFilePath)) {
@@ -386,6 +443,58 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         onRuntimeError(`Babel Transpilation Error: ${e.message}`);
     }
   };
+
+
+  const renderDesktopPreview = () => (
+      <div className="flex-1 flex flex-col overflow-auto p-4 pt-0">
+        <div className="w-full flex-1 rounded-t-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border-x border-t border-gray-200 bg-white">
+          {isLoading ? (
+            buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
+          ) : (
+            <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} iframeRef={iframeRef} />
+          )}
+        </div>
+        {isDevToolsOpen && (
+            <>
+                <div 
+                    onMouseDown={handleResizeMouseDown}
+                    className="h-2 bg-gray-200 cursor-row-resize hover:bg-blue-300 transition-colors w-full"
+                ></div>
+                <DevToolsPanel 
+                    style={{ height: devToolsHeight }} 
+                    messages={consoleMessages}
+                    onExecuteCode={executeCodeInPreview}
+                    onClear={clearConsole}
+                    onClose={() => setIsDevToolsOpen(false)}
+                />
+            </>
+        )}
+      </div>
+  );
+
+  const renderMobilePreview = () => (
+    <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
+        <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
+        <div
+            className="rounded-[60px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
+            style={{ width: '390px', height: '780px', flexShrink: 0 }}
+        >
+            <div
+                className="w-full h-full bg-gray-900 rounded-[calc(60px-1px)] p-[5px]"
+            >
+                <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(60px-6px)]">
+                    {!isAppetizeMode && <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>}
+                    {isLoading ? (
+                        buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
+                    ) : (
+                        <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} iframeRef={iframeRef} />
+                    )}
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+  );
 
 
   return (
@@ -478,40 +587,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
       </div>
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'preview' && (
-           (previewDevice === 'desktop' && !isAppetizeMode) ? (
-            <div className="flex-1 overflow-auto p-4 pt-0">
-              <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-400/30 border border-gray-200">
-                {isLoading ? (
-                  buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
-                ) : (
-                  <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
-                )}
-              </div>
-            </div>
-          ) : (
-            // Mobile View or Appetize View
-            <div className="flex-1 overflow-auto p-4 pt-0 flex items-center justify-center">
-              <div style={{ transform: 'scale(0.8)', transformOrigin: 'center' }}>
-                <div
-                  className="rounded-[60px] shadow-2xl shadow-gray-500/40 p-[1px] bg-gray-400"
-                  style={{ width: '390px', height: '780px', flexShrink: 0 }}
-                >
-                    <div
-                        className="w-full h-full bg-gray-900 rounded-[calc(60px-1px)] p-[5px]"
-                    >
-                        <div className="relative w-full h-full bg-white overflow-hidden rounded-[calc(60px-6px)]">
-                            {!isAppetizeMode && <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-black rounded-full z-10"></div>}
-                            {isLoading ? (
-                                buildTime > 60 ? <MusicPlayer /> : <FeatureSlideshow />
-                            ) : (
-                                <Preview files={files} onRuntimeError={onRuntimeError} previewMode={previewMode} projectType={project.projectType} projectName={project.name} />
-                            )}
-                        </div>
-                    </div>
-                </div>
-              </div>
-            </div>
-          )
+           (previewDevice === 'desktop' && !isAppetizeMode) ? renderDesktopPreview() : renderMobilePreview()
         )}
         {activeTab === 'code' && (
            <div className="flex flex-1 overflow-hidden">

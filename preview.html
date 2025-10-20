@@ -23,6 +23,67 @@
       }
     }
     </script>
+    <script>
+      const originalConsole = { ...window.console };
+      const serializeArg = (arg) => {
+        if (arg instanceof HTMLElement) {
+          return `<${arg.tagName.toLowerCase()} ${arg.className ? 'class="'+arg.className+'"' : ''} ${arg.id ? 'id="'+arg.id+'"' : ''} />`;
+        }
+        if (typeof arg === 'function') {
+          return 'ƒ ' + (arg.name || '(anonymous)') + '()';
+        }
+        if (typeof arg === 'undefined') {
+          return 'undefined';
+        }
+        if (typeof arg === 'symbol') {
+            return String(arg);
+        }
+        if (typeof arg === 'bigint') {
+            return String(arg) + 'n';
+        }
+        try {
+          const seen = new WeakSet();
+          return JSON.stringify(arg, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+              if (seen.has(value)) {
+                return '[Circular]';
+              }
+              seen.add(value);
+            }
+            return value;
+          }, 2);
+        } catch (e) {
+          return String(arg);
+        }
+      };
+
+      const overrideConsole = (level) => {
+        window.console[level] = (...args) => {
+          originalConsole[level](...args);
+          try {
+            window.parent.postMessage({
+              type: 'console',
+              level,
+              args: args.map(serializeArg),
+            }, '*');
+          } catch (e) {
+            originalConsole.error('Failed to post console message to parent:', e);
+          }
+        };
+      };
+
+      ['log', 'warn', 'error', 'info'].forEach(overrideConsole);
+
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'execute_code') {
+          try {
+            eval(event.data.code);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      });
+    </script>
     <script type="module">
       import React from 'react';
       import ReactDOM from 'react-dom/client';

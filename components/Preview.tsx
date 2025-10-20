@@ -11,7 +11,71 @@ interface PreviewProps {
   previewMode: PreviewMode;
   projectType: ProjectType;
   projectName: string;
+  iframeRef: React.RefObject<HTMLIFrameElement>;
 }
+
+const getDevToolsScript = () => `
+  const originalConsole = { ...window.console };
+  const serializeArg = (arg) => {
+    if (arg instanceof HTMLElement) {
+      return \`<$\{arg.tagName.toLowerCase()\} \$\{arg.className ? 'class="'+arg.className+'"' : ''\} \$\{arg.id ? 'id="'+arg.id+'"' : ''\} />\`;
+    }
+    if (typeof arg === 'function') {
+      return 'ƒ ' + (arg.name || '(anonymous)') + '()';
+    }
+    if (typeof arg === 'undefined') {
+      return 'undefined';
+    }
+    if (typeof arg === 'symbol') {
+        return String(arg);
+    }
+    if (typeof arg === 'bigint') {
+        return String(arg) + 'n';
+    }
+    try {
+      // Use a replacer to handle circular structures
+      const seen = new WeakSet();
+      return JSON.stringify(arg, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]';
+          }
+          seen.add(value);
+        }
+        return value;
+      }, 2);
+    } catch (e) {
+      return String(arg);
+    }
+  };
+
+  const overrideConsole = (level) => {
+    window.console[level] = (...args) => {
+      originalConsole[level](...args);
+      try {
+        window.parent.postMessage({
+          type: 'console',
+          level,
+          args: args.map(serializeArg),
+        }, '*');
+      } catch (e) {
+        originalConsole.error('Failed to post console message to parent:', e);
+      }
+    };
+  };
+
+  ['log', 'warn', 'error', 'info'].forEach(overrideConsole);
+
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'execute_code') {
+      try {
+        eval(event.data.code);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  });
+`;
 
 const createExpoAppPackage = async (files: ProjectFile[], projectName: string): Promise<Blob> => {
     const zip = new JSZip();
@@ -174,15 +238,15 @@ const createIframeContent = (transpiledFiles: Record<string, string>): string =>
         </head>
         <body>
           <div id="preview-root"></div>
+          <script>${getDevToolsScript()}</script>
           <script type="module">${iframeLogic}</script>
         </body>
       </html>
     `;
 };
 
-export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType, projectName }) => {
+export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, previewMode, projectType, projectName, iframeRef }) => {
   const [iframeContent, setIframeContent] = useState('');
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [appetizePublicKey, setAppetizePublicKey] = useState<string | null>(null);
   const [isUploadingToAppetize, setIsUploadingToAppetize] = useState(false);
 
@@ -412,6 +476,7 @@ export const Preview: React.FC<PreviewProps> = ({ files, onRuntimeError, preview
   return (
     <div className="w-full h-full bg-white">
       <iframe
+        ref={iframeRef}
         srcDoc={iframeContent}
         title="Live Preview"
         className="w-full h-full border-none"
