@@ -123,6 +123,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
   const [figmaUrl, setFigmaUrl] = useState<string | null>(null);
   const [githubUrl, setGithubUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const suggestedPrompt = sessionStorage.getItem('silo_prompt_suggestion');
@@ -172,16 +173,49 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     }
   };
   
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshot(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleFile = (file: File | null) => {
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setScreenshot(reader.result as string);
+        };
+        reader.readAsDataURL(file);
     }
   };
+  
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFile(e.target.files?.[0] ?? null);
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    handleFile(e.dataTransfer.files?.[0] ?? null);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+        const file = e.clipboardData.files[0];
+        if (file.type.startsWith('image/')) {
+            e.preventDefault();
+            handleFile(file);
+        }
+    }
+  };
+
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -234,7 +268,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
 
   return (
     <div className="relative flex flex-col items-center justify-start min-h-full p-8 text-center">
-      <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+      <input type="file" ref={fileInputRef} onChange={handleFileInputChange} accept="image/*" className="hidden" />
       {showCompatibilityWarning && <CompatibilityWarningModal onClose={() => setShowCompatibilityWarning(false)} />}
       <ImportModal
         isOpen={isFigmaModalOpen}
@@ -269,12 +303,24 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         </p>
         
         <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-6">
-          <div className="relative w-full bg-white border border-gray-300 rounded-3xl shadow-lg p-2">
+          <div 
+            className={`relative w-full bg-white border rounded-3xl shadow-lg p-2 transition-all duration-300 ${isDragging ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-gray-300'}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {isDragging && (
+              <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-3xl pointer-events-none">
+                <span className="material-symbols-outlined text-5xl text-blue-600">image</span>
+                <p className="text-blue-600 font-semibold text-lg mt-2">Drop your image here</p>
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={prompt}
               onChange={handlePromptChange}
-              placeholder="Describe your app, or type '/figma' or '/git'..."
+              onPaste={handlePaste}
+              placeholder="Describe your app, or paste an image..."
               className="w-full p-3 pl-4 bg-transparent text-black placeholder-gray-500 focus:outline-none transition-all text-lg resize-none"
               rows={4}
               disabled={isLoading}
