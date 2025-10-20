@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { GeminiModel, SupabaseConfig, PreviewMode, ApiSecret, ProjectType, ApiKeyHandling, HomeBackground } from '../App';
 
@@ -491,25 +492,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) => {
                 )}
                 {activeTab === 'developer' && (
                     <>
-                        <SettingSection title="Preview Mode" description="Choose how to render your app preview. Appetize is for React Native mobile app simulation.">
+                        <SettingSection title="Preview Mode" description="Choose the preview target for your application.">
                             <div className="flex items-center space-x-2 bg-gray-100 border border-gray-200 rounded-full p-1">
                                 <button
-                                    onClick={() => props.onPreviewModeChange('iframe')}
-                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'iframe' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    onClick={() => props.onPreviewModeChange('web')}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'web' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
-                                    Iframe
-                                </button>
-                                <button
-                                    onClick={() => props.onPreviewModeChange('service-worker')}
-                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'service-worker' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
-                                >
-                                    Service Worker
+                                    Web Preview
                                 </button>
                                  <button
                                     onClick={() => props.onPreviewModeChange('appetize')}
-                                    className={`w-1/3 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'appetize' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-1/2 py-2 rounded-full text-sm font-semibold transition-colors ${props.previewMode === 'appetize' ? 'bg-white text-black shadow' : 'text-gray-600 hover:bg-gray-200'}`}
                                 >
-                                    Appetize (Mobile)
+                                    Mobile Preview
                                 </button>
                             </div>
                         </SettingSection>

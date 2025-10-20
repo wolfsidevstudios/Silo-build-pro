@@ -12,6 +12,7 @@ interface HomePageProps {
   defaultStack: ProjectType;
   userProfile: UserProfile;
   isLoggedIn: boolean;
+  onSignInRequired: () => void;
 }
 
 const BASIC_PROMPTS = [
@@ -109,7 +110,7 @@ const ImportModal: React.FC<{
     );
 };
 
-export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack, userProfile, isLoggedIn }) => {
+export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack, userProfile, isLoggedIn, onSignInRequired }) => {
   const [prompt, setPrompt] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -134,6 +135,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
         textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+        const savedPrompt = sessionStorage.getItem('silo_saved_prompt');
+        if (savedPrompt) {
+            setPrompt(savedPrompt);
+            sessionStorage.removeItem('silo_saved_prompt');
+        }
+        const savedScreenshot = sessionStorage.getItem('silo_saved_screenshot');
+        if (savedScreenshot) {
+            setScreenshot(savedScreenshot);
+            sessionStorage.removeItem('silo_saved_screenshot');
+        }
+    }
+  }, [isLoggedIn]);
 
   const handleCaptureClick = async () => {
     const isChromium = !!(window as any).chrome;
@@ -244,15 +260,23 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     const trimmedPrompt = prompt.trim();
 
     if (!trimmedPrompt && !figmaUrl && !githubUrl) return;
-
+    
     let finalPrompt = trimmedPrompt;
     if (figmaUrl) {
       finalPrompt = `Build a web application based on this Figma design: ${figmaUrl}. Additional instructions: ${trimmedPrompt}`;
     } else if (githubUrl) {
       finalPrompt = `Analyze this GitHub repository: ${githubUrl} and apply the following instructions: ${trimmedPrompt}`;
     }
-    
-    // Ensure we have a prompt to send, even if it's just from the import context
+
+    if (!isLoggedIn) {
+        sessionStorage.setItem('silo_saved_prompt', finalPrompt);
+        if (screenshot) {
+            sessionStorage.setItem('silo_saved_screenshot', screenshot);
+        }
+        onSignInRequired();
+        return;
+    }
+
     if (finalPrompt.trim()) {
         onStartBuild(finalPrompt.trim(), defaultStack, screenshot, selectedIntegration);
     }

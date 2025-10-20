@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Preview } from './Preview';
 import { CodeEditor } from './CodeEditor';
@@ -50,120 +52,6 @@ const TabButton: React.FC<{
     {icon}
   </button>
 );
-
-const createNewTabContent = (transpiledFiles: Record<string, string>): string => {
-    const iframeLogic = `
-        const handleError = (err) => {
-            console.error("Preview Error:", err);
-            try {
-                const root = document.getElementById('preview-root');
-                if (root) {
-                    const errorHtml = \`<div style="color: red; padding: 1rem; font-family: monospace; white-space: pre-wrap; word-break: break-word;"><h4>Runtime Error</h4><pre>\${err.stack || err.message}</pre></div>\`;
-                    root.innerHTML = errorHtml;
-                }
-                // This will fail silently in a new tab, which is acceptable.
-                window.parent.postMessage({ type: 'error', message: err.message }, '*');
-            } catch (e) {
-                console.error('Failed to display error in preview:', e);
-            }
-        };
-
-        window.addEventListener('error', (event) => {
-          event.preventDefault();
-          handleError(event.error);
-        });
-
-        window.addEventListener('unhandledrejection', (event) => {
-            event.preventDefault();
-            handleError(event.reason);
-        });
-
-        const transpiledModules = ${JSON.stringify(transpiledFiles)};
-        const moduleCache = {};
-
-        const resolveModulePath = (currentPath, requiredPath) => {
-            if (!requiredPath.startsWith('.')) return requiredPath;
-            const pathParts = currentPath.split('/');
-            pathParts.pop();
-            requiredPath.split('/').forEach(part => {
-                if (part === '.') return;
-                if (part === '..') {
-                    if (pathParts.length > 0) pathParts.pop();
-                } else {
-                    pathParts.push(part);
-                }
-            });
-            const basePath = pathParts.join('/');
-            if (transpiledModules.hasOwnProperty(basePath)) return basePath;
-            const extensions = ['.tsx', '.ts', '.jsx', '.js'];
-            for (const ext of extensions) {
-                const pathWithExt = basePath + ext;
-                if (transpiledModules.hasOwnProperty(pathWithExt)) return pathWithExt;
-                const indexPath = basePath + '/index' + ext;
-                if (transpiledModules.hasOwnProperty(indexPath)) return indexPath;
-            }
-            return basePath;
-        };
-        
-        const customRequire = (path, currentPath) => {
-            if (path === 'react') return window.React;
-            if (path === 'react-dom/client') return window.ReactDOM;
-            if (path === 'react-router-dom') return window.ReactRouterDOM;
-            const resolvedPath = currentPath ? resolveModulePath(currentPath, path) : path;
-            if (moduleCache[resolvedPath]) return moduleCache[resolvedPath].exports;
-            const code = transpiledModules[resolvedPath];
-            if (code === undefined) throw new Error(\`Module not found: Could not resolve "\${path}" from "\${currentPath || 'entry point'}". Attempted to load "\${resolvedPath}".\`);
-            const exports = {};
-            const module = { exports };
-            const factory = new Function('require', 'module', 'exports', code);
-            factory(p => customRequire(p, resolvedPath), module, exports);
-            moduleCache[resolvedPath] = module;
-            return module.exports;
-        };
-
-        try {
-            const rootElement = document.getElementById('preview-root');
-            if (!rootElement) throw new Error("Preview failed: root element '#preview-root' not found.");
-            
-            const entryPoint = 'src/App.tsx';
-            if (!transpiledModules[entryPoint]) throw new Error('Entry point "src/App.tsx" not found.');
-
-            const AppContainer = customRequire(entryPoint);
-            if (!AppContainer || typeof AppContainer.default === 'undefined') {
-                throw new Error('The entry point "src/App.tsx" must have a default export.');
-            }
-            const App = AppContainer.default;
-            if (typeof App !== 'function' && (typeof App !== 'object' || App === null)) {
-                throw new Error('The default export of "src/App.tsx" must be a React component.');
-            }
-            const root = ReactDOM.createRoot(rootElement);
-            root.render(React.createElement(App));
-        } catch (err) {
-            handleError(err);
-        }
-    `;
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <title>App Preview</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-          <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-          <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
-          <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-          <style> body { background-color: #ffffff; color: #111827; padding: 0; margin: 0; font-family: sans-serif; } </style>
-        </head>
-        <body>
-          <div id="preview-root"></div>
-          <script type="module">${iframeLogic}</script>
-        </body>
-      </html>
-    `;
-};
 
 const SettingCard: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
     <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6 shadow-sm">
@@ -323,8 +211,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      if (event.source !== iframeRef.current?.contentWindow) return;
-
+      // No need to check source if it's the only iframe sending messages
       if (event.data && event.data.type === 'console') {
         setIsDevToolsOpen(true);
         setConsoleMessages(prev => [...prev, { level: event.data.level, args: event.data.args, timestamp: Date.now() }]);
@@ -336,7 +223,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
 
   const executeCodeInPreview = (code: string) => {
     iframeRef.current?.contentWindow?.postMessage({
-        type: 'execute_code',
+        type: 'EXECUTE_CODE_IN_CONSOLE', // Using a different type to distinguish
         code,
     }, '*');
   };
@@ -403,44 +290,85 @@ export const Workspace: React.FC<WorkspaceProps> = ({ project, onRuntimeError, i
         const htmlFile = files.find(f => f.path === 'index.html');
         const cssFile = files.find(f => f.path === 'style.css');
         const jsFile = files.find(f => f.path === 'script.js');
-
         if (!htmlFile) {
             onRuntimeError("Cannot open in new tab: index.html not found.");
             return;
         }
-
         let htmlContent = htmlFile.code;
-        if (cssFile) {
-            htmlContent = htmlContent.replace('</head>', `<style>${cssFile.code}</style></head>`);
-        }
-        if (jsFile) {
-            htmlContent = htmlContent.replace('</body>', `<script>${jsFile.code}</script></body>`);
-        }
+        if (cssFile) htmlContent = htmlContent.replace('</head>', `<style>${cssFile.code}</style></head>`);
+        if (jsFile) htmlContent = htmlContent.replace('</body>', `<script>${jsFile.code}</script></body>`);
         
         const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        window.open(URL.createObjectURL(blob), '_blank');
         return;
     }
 
     try {
-        const transpiledFiles: Record<string, string> = {};
+        const fileMap: Record<string, string> = {};
+        const importMap: { imports: Record<string, string> } = { imports: {} };
+        const CDN_URL = 'https://esm.sh/';
+        
+        // Transpile and create data URLs for each file
         files.forEach(file => {
-             if ((file.path.endsWith('.tsx') || file.path.endsWith('.ts') || file.path.endsWith('.js') || file.path.endsWith('.jsx')) && !file.path.endsWith('.config.js')) {
-                const transformedCode = Babel.transform(file.code, {
-                    presets: ['typescript', ['react', { runtime: 'classic' }]],
-                    plugins: ['transform-modules-commonjs'],
+            if (/\.(tsx|ts|jsx|js)$/.test(file.path)) {
+                let transformedCode = Babel.transform(file.code, {
+                    presets: ['typescript', ['react', { runtime: 'automatic' }]],
                     filename: file.path,
                 }).code;
-                transpiledFiles[file.path] = transformedCode;
-             }
+                transformedCode = transformedCode.replace(/(import .* from\s+['"]\..*)\.(tsx|ts|jsx)(['"])/g, '$1.js$3');
+                
+                const blob = new Blob([transformedCode], { type: 'application/javascript' });
+                const url = URL.createObjectURL(blob);
+                const absolutePath = `/${file.path.replace(/\.(tsx|ts|jsx)$/, '.js')}`;
+                importMap.imports[absolutePath] = url;
+            }
         });
-        const htmlContent = createNewTabContent(transpiledFiles);
+
+        // Add common dependencies to import map
+        importMap.imports['react'] = `${CDN_URL}react@18.2.0`;
+        importMap.imports['react/jsx-runtime'] = `${CDN_URL}react@18.2.0/jsx-runtime`;
+        importMap.imports['react-dom/client'] = `${CDN_URL}react-dom@18.2.0/client`;
+
+        const entryPointPath = `/${files.find(f => f.path === 'src/App.tsx') ? 'src/App.tsx' : 'index.js'}`.replace(/\.tsx$/, '.js');
+        
+        // FIX: Replaced escaped backtick with a regular backtick to define a template literal.
+        // Also fixed nested template literal issue by using string concatenation.
+        const loaderScript = `
+            try {
+                const AppContainer = await import('${entryPointPath}');
+                if (AppContainer.default) {
+                    const React = await import('react');
+                    const ReactDOM = await import('react-dom/client');
+                    const root = ReactDOM.createRoot(document.getElementById('root'));
+                    root.render(React.createElement(AppContainer.default));
+                }
+            } catch (e) {
+                document.body.innerHTML = '<pre style="color: red;">' + e.stack + '</pre>';
+            }
+        `;
+
+        // FIX: Replaced escaped backtick with a regular backtick to define a template literal.
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${project.name} Preview</title>
+              <script src="https://cdn.tailwindcss.com"></script>
+              <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+              <script type="importmap">${JSON.stringify(importMap)}</script>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module">${loaderScript}</script>
+            </body>
+          </html>
+        `;
+
         const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        window.open(URL.createObjectURL(blob), '_blank');
+
     } catch (e: any) {
-        onRuntimeError(`Babel Transpilation Error: ${e.message}`);
+        onRuntimeError(`New Tab Error: ${e.message}`);
     }
   };
 

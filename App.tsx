@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -114,6 +115,30 @@ const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({ isOpen, onC
   );
 };
 
+const SignInModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center animate-fade-in" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
+                <span className="material-symbols-outlined text-5xl text-blue-500">login</span>
+                <h3 className="text-xl font-bold text-gray-800 mt-4">Please Sign In</h3>
+                <p className="text-gray-600 mt-2 mb-6">
+                    To start building your app, please sign in with your Google account. Your prompt will be waiting for you.
+                </p>
+                <div id="googleSignInModalContainer" className="flex justify-center"></div>
+                <button
+                    onClick={onClose}
+                    className="mt-6 w-full py-2 text-gray-500 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
 // PKCE Helper Functions
 const generateRandomString = (length: number): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -141,7 +166,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type ProjectType = 'single' | 'multi' | 'html' | 'shadcn';
-export type PreviewMode = 'service-worker' | 'iframe' | 'appetize';
+export type PreviewMode = 'web' | 'appetize';
 export type ApiKeyHandling = 'hardcode' | 'env';
 export type HomeBackground = 'nebula' | 'sunset';
 
@@ -266,7 +291,7 @@ const App: React.FC = () => {
   const [location, setLocation] = useState(window.location.hash.replace(/^#/, '') || '/home');
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
   const [defaultStack, setDefaultStack] = useState<ProjectType>('multi');
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('service-worker');
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('web');
   const [apiKeyHandling, setApiKeyHandling] = useState<ApiKeyHandling>('hardcode');
   const [isStreamingEnabled, setIsStreamingEnabled] = useState(true);
   const [isFreeUiEnabled, setIsFreeUiEnabled] = useState(false);
@@ -293,6 +318,7 @@ const App: React.FC = () => {
     profilePicture: null,
   });
   const isLoggedIn = !!userProfile.email;
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
 
   // Community Publish State
   const [isPublishCommunityModalOpen, setIsPublishCommunityModalOpen] = useState(false);
@@ -331,6 +357,7 @@ const App: React.FC = () => {
             email: userObject.email,
         };
         setUserProfile(newUserProfile);
+        setIsSignInModalOpen(false);
     }
   }, [userProfile.username]);
 
@@ -368,10 +395,14 @@ const App: React.FC = () => {
       if (savedSupabaseConfig) {
         setSupabaseConfig(JSON.parse(savedSupabaseConfig));
       }
-      const savedPreviewMode = localStorage.getItem('silo_preview_mode') as PreviewMode;
-      if (savedPreviewMode) {
-        setPreviewMode(savedPreviewMode);
-      }
+      let savedPreviewMode = localStorage.getItem('silo_preview_mode') as PreviewMode | 'service-worker' | 'iframe';
+        if (savedPreviewMode === 'service-worker' || savedPreviewMode === 'iframe') {
+            savedPreviewMode = 'web';
+            localStorage.setItem('silo_preview_mode', 'web');
+        }
+        if (savedPreviewMode) {
+            setPreviewMode(savedPreviewMode as PreviewMode);
+        }
       const savedApiKeyHandling = localStorage.getItem('silo_api_key_handling') as ApiKeyHandling;
       if (savedApiKeyHandling) {
         setApiKeyHandling(savedApiKeyHandling);
@@ -436,6 +467,21 @@ const App: React.FC = () => {
           }
       }
   }, [isLoggedIn, location]); // Re-run when navigation changes to ensure button is rendered
+
+  useEffect(() => {
+    if (isSignInModalOpen && !isLoggedIn && google) {
+        const signInButtonContainer = document.getElementById('googleSignInModalContainer');
+        if (signInButtonContainer && signInButtonContainer.childElementCount === 0) {
+            google.accounts.id.renderButton(signInButtonContainer, {
+                theme: 'filled_blue',
+                size: 'large',
+                type: 'standard',
+                text: 'signin_with',
+                shape: 'pill',
+            });
+        }
+    }
+  }, [isSignInModalOpen, isLoggedIn]);
 
   useEffect(() => {
     try {
@@ -666,6 +712,19 @@ const App: React.FC = () => {
   }, []);
   
   useEffect(() => {
+    if (isLoggedIn) {
+        const savedPrompt = sessionStorage.getItem('silo_saved_prompt');
+        if (savedPrompt) {
+            const isOnProjectPage = location.startsWith('/project/');
+            if (isOnProjectPage) {
+                setUserInput(savedPrompt);
+                sessionStorage.removeItem('silo_saved_prompt');
+            }
+        }
+    }
+  }, [isLoggedIn, location]);
+
+  useEffect(() => {
     const build = async () => {
       if (projectToBuild) {
         const { projectId, prompt, projectType, screenshot, integration } = projectToBuild;
@@ -687,8 +746,8 @@ const App: React.FC = () => {
 
   const handleRuntimeError = useCallback((message: string) => {
     setErrors(prev => {
-      const filtered = prev.filter(e => e !== message);
-      return [message, ...filtered];
+      if (prev.includes(message)) return prev;
+      return [message, ...prev];
     });
     setIsDebugAssistOpen(true);
   }, []);
@@ -757,7 +816,7 @@ const App: React.FC = () => {
       model: selectedModel,
       contents: { parts: contents.map(c => typeof c === 'string' ? { text: c } : c) },
       config: {
-        responseMimeType: 'application/json',
+        responseMimeType: 'json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -908,23 +967,33 @@ ${integrationsList.join('\n')}
     }
     
     let projectTypeInstructions = '';
-
-    const freeUiReactStylingGuidelines = `...`; // This section is long and unchanged
-    const freeUiHtmlStylingGuidelines = `...`; // This section is long and unchanged
+    
+    switch (projectType) {
+        case 'single':
+            projectTypeInstructions = `**Project Type: Single-File React App**\n- You MUST generate all code within a single 'src/App.tsx' file.\n- Do NOT create any other files or components.`;
+            break;
+        case 'multi':
+            projectTypeInstructions = `**Project Type: Multi-File React App**\n- You can create multiple component files in a 'src/components/' directory.\n- Ensure all necessary files are listed in \`filesToGenerate\`.`;
+            break;
+        case 'shadcn':
+            projectTypeInstructions = `**Project Type: React + shadcn/ui**\n- Use shadcn/ui components where appropriate.\n- You MUST generate the full source code for any shadcn/ui components you use (e.g., Button, Card, Input) and place them in 'src/components/ui/'.\n- Use relative paths for imports (e.g., '../../lib/utils.ts'). Do NOT use path aliases like '@/*'.`;
+            break;
+        case 'html':
+            projectTypeInstructions = `**Project Type: Vanilla HTML/JS/CSS**\n- You MUST generate code for three files: 'index.html', 'style.css', and 'script.js'.\n- Do NOT use React or JSX.`;
+            break;
+    }
     
     if (previewMode === 'appetize' && projectType !== 'html') {
-        projectTypeInstructions = `...`; // Unchanged
-    } else {
-        switch (projectType) {
-            case 'single': projectTypeInstructions = `...`; break;
-            case 'multi': projectTypeInstructions = `...`; break;
-            case 'shadcn': projectTypeInstructions = `...`; break;
-            case 'html': projectTypeInstructions = `...`; break;
-        }
+      projectTypeInstructions += `\n**CRITICAL PLATFORM TARGET: React Native**\n- You MUST generate React Native code using components from 'react-native' (e.g., View, Text, StyleSheet).\n- Do NOT use any HTML elements (like div, h1, button).\n- Styling MUST be done using \`StyleSheet.create\`.`;
     }
 
     const reactStylingGuidelines = `...`; // Unchanged
-    const reactFileRules = `...`; // Unchanged
+    const reactFileRules = `
+      **React Code Rules:**
+      - The main component MUST be the default export of 'src/App.tsx'.
+      - Use React hooks for state and effects.
+      - Use ES modules for imports (e.g., \`import React from 'react';\`). For any external NPM packages (e.g., 'react-router-dom', 'canvas-confetti'), just import them by name. The preview environment will resolve them automatically from a CDN.
+    `;
     
     const fullPrompt = `
       You are an expert web developer. Your task is to generate the complete code for a set of files based on a plan.
@@ -934,7 +1003,7 @@ ${integrationsList.join('\n')}
       Your output must be a JSON object containing an array of file objects. Each object in the array must have a 'path' and a 'code' property.
 
       ${projectTypeInstructions}
-      ${previewMode !== 'appetize' && projectType !== 'html' ? (isFreeUi ? freeUiReactStylingGuidelines : reactStylingGuidelines) : ''}
+      ${previewMode !== 'appetize' && projectType !== 'html' ? (isFreeUi ? '' : reactStylingGuidelines) : ''}
       ${previewMode !== 'appetize' && projectType !== 'html' ? reactFileRules : ''}
 
       ${supabaseIntegrationPrompt}
@@ -979,7 +1048,7 @@ ${integrationsList.join('\n')}
           model: selectedModel,
           contents: { parts: contentParts },
           config: {
-            responseMimeType: "application/json",
+            responseMimeType: "json",
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
@@ -1143,6 +1212,12 @@ ${integrationsList.join('\n')}
   };
   
   const handleSend = async () => {
+    if (!isLoggedIn) {
+        sessionStorage.setItem('silo_saved_prompt', userInput);
+        setIsSignInModalOpen(true);
+        return;
+    }
+
     if (!userInput.trim() || isLoading || !activeProject) return;
     const currentInput = userInput;
     setUserInput('');
@@ -1336,7 +1411,7 @@ ${integrationsList.join('\n')}
         model,
         contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
         config: {
-          responseMimeType: "application/json",
+          responseMimeType: "json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -1396,7 +1471,7 @@ ${integrationsList.join('\n')}
         model,
         contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
          config: {
-          responseMimeType: "application/json",
+          responseMimeType: "json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -1565,7 +1640,7 @@ ${integrationsList.join('\n')}
           try {
             // Keep ES modules, don't transform to commonjs
             const transformedCode = Babel.transform(file.code, {
-              presets: ['typescript', ['react', { runtime: 'classic' }]],
+              presets: ['typescript', ['react', { runtime: 'automatic' }]],
               filename: file.path,
             }).code;
 
@@ -1605,6 +1680,7 @@ ${integrationsList.join('\n')}
             {
               "imports": {
                 "react": "https://esm.sh/react@18.2.0",
+                "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
                 "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
                 "react-router-dom": "https://esm.sh/react-router-dom@6"
               }
@@ -1645,7 +1721,7 @@ ${integrationsList.join('\n')}
             if (file.path.match(/\.(tsx|ts|jsx|js)$/)) {
                 try {
                     const transformedCode = Babel.transform(file.code, {
-                        presets: ['typescript', ['react', { runtime: 'classic' }]],
+                        presets: ['typescript', ['react', { runtime: 'automatic' }]],
                         filename: file.path,
                     }).code;
                     const codeWithJsImports = transformedCode.replace(
@@ -1680,6 +1756,7 @@ ${integrationsList.join('\n')}
                 {
                   "imports": {
                     "react": "https://esm.sh/react@18.2.0",
+                    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
                     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
                     "react-router-dom": "https://esm.sh/react-router-dom@6"
                   }
@@ -2061,7 +2138,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
             contents: promptToGemini,
             config: {
               systemInstruction,
-              responseMimeType: 'application/json',
+              responseMimeType: 'json',
               responseSchema: {
                 type: Type.OBJECT,
                 properties: {
@@ -2152,13 +2229,17 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
       setMaxCursorPosition(null);
   };
 
+  const handleSignInRequired = () => {
+    setIsSignInModalOpen(true);
+  };
+
   // --- END MAX AGENT LOGIC ---
 
   const renderContent = () => {
     const path = location.startsWith('/') ? location : `/${location}`;
 
     if (path === '/home' || path === '/') {
-      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} />;
+      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
     }
     if (path === '/silo-ai') {
         return <SiloAiPage />;
@@ -2310,7 +2391,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
       );
     }
 
-    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} />;
+    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
   };
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem(NETLIFY_TOKEN_STORAGE_KEY));
@@ -2401,6 +2482,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
       )}
       <FocusTimer isOpen={isFocusTimerOpen} onClose={() => setIsFocusTimerOpen(false)} />
       <MaxCursor position={maxCursorPosition} isClicking={isMaxCursorClicking} />
+      <SignInModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
       <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end space-y-4">
         {activeProject && (
           <>

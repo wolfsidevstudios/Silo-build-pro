@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Preview } from './Preview';
 import type { SupabaseConfig, ProjectFile, ProjectType } from '../App';
@@ -14,6 +15,7 @@ export const CommunityAppViewerPage: React.FC<CommunityAppViewerPageProps> = ({ 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [runtimeError, setRuntimeError] = useState<string | null>(null);
+    const iframeRef = React.useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
         const fetchApp = async () => {
@@ -52,7 +54,7 @@ export const CommunityAppViewerPage: React.FC<CommunityAppViewerPageProps> = ({ 
     if (isLoading) {
         return (
             <div className="w-screen h-screen flex flex-col items-center justify-center text-center bg-gray-50">
-                <div className="w-8 h-8 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-gray-300 border-t-transparent rounded-full animate-spin mx-auto"></div>
                 <p className="text-gray-500 mt-4">Loading <span className="font-semibold">{appName}</span>...</p>
             </div>
         );
@@ -78,10 +80,10 @@ export const CommunityAppViewerPage: React.FC<CommunityAppViewerPageProps> = ({ 
             <Preview 
                 files={project.files}
                 projectType={project.projectType}
-                // FIX: Pass the appName as projectName to the Preview component.
                 projectName={appName}
-                previewMode="iframe" // Always use iframe for security in community apps
+                previewMode="web" // Always use 'web' mode for community apps
                 onRuntimeError={(msg) => setRuntimeError(msg)}
+                iframeRef={iframeRef}
             />
             {runtimeError && (
                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-red-900/80 backdrop-blur-sm text-white p-3 rounded-lg text-xs font-mono max-w-xl shadow-lg">
