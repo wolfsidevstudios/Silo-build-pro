@@ -562,7 +562,6 @@ export const AgentBuilderPage: React.FC = () => {
         const node = nodesMap.get(nodeId);
         if (node && canvasRef.current) {
             const canvasRect = canvasRef.current.getBoundingClientRect();
-            // FIX: Explicitly cast `node` as `NodeData` to resolve 'property does not exist on type unknown' error.
             const offsetX = e.clientX - canvasRect.left + canvasRef.current.scrollLeft - (node as NodeData).x;
             const offsetY = e.clientY - canvasRect.top + canvasRef.current.scrollTop - (node as NodeData).y;
             setDraggingNode({ id: nodeId, offsetX, offsetY });
@@ -622,11 +621,10 @@ export const AgentBuilderPage: React.FC = () => {
         if (connecting) {
             if (connecting.nodeId === nodeId) return;
 
-            // FIX: Explicitly type `fromNode` as `NodeData` to resolve 'property does not exist on type unknown' error.
-            const fromNode = nodesMap.get(connecting.nodeId) as NodeData | undefined;
+            // FIX: Add optional chaining to prevent crash if fromNode or toNode is not found.
+            const fromNode = nodesMap.get(connecting.nodeId);
             const fromPort = fromNode?.outputs.find(p => p.id === connecting.portId);
-            // FIX: Explicitly type `toNode` as `NodeData` to resolve 'property does not exist on type unknown' error.
-            const toNode = nodesMap.get(nodeId) as NodeData | undefined;
+            const toNode = nodesMap.get(nodeId);
             const toPort = toNode?.inputs.find(i => i.id === portId);
 
             if (fromNode && toNode && fromPort && toPort) {

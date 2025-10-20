@@ -8,6 +8,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { Workspace } from './components/Workspace';
 import { TopNavBar } from './components/TopNavBar';
 import { HomePage } from './components/HomePage';
+import { PlanningPage } from './components/PlanningPage';
 import { ProfilePage } from './components/ProfilePage';
 import { SettingsPage, GITHUB_TOKEN_STORAGE_KEY, NETLIFY_TOKEN_STORAGE_KEY, VERCEL_TOKEN_STORAGE_KEY } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
@@ -175,6 +176,7 @@ export interface Message {
   text: string;
   plan?: string[];
   files_to_generate?: { path: string, status: 'added' | 'modified' }[];
+  color_palette?: string[];
   generated_files?: string[];
 }
 
@@ -205,6 +207,7 @@ export interface UserProfile {
 export interface Project {
   id: string;
   name: string;
+  status: 'planning' | 'active';
   files: ProjectFile[];
   messages: Message[];
   projectType: ProjectType;
@@ -304,7 +307,6 @@ const App: React.FC = () => {
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [isDebugAssistOpen, setIsDebugAssistOpen] = useState(false);
   
-  const [projectToBuild, setProjectToBuild] = useState<{projectId: string, prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null} | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishState, setPublishState] = useState<PublishState>({ status: 'idle' });
   const [isGitHubSaveModalOpen, setIsGitHubSaveModalOpen] = useState(false);
@@ -376,6 +378,7 @@ const App: React.FC = () => {
             const migratedProject: Project = {
                 id: p.id,
                 name: p.name,
+                status: p.status || 'active', // Default old projects to active
                 files: newFiles,
                 messages: p.messages,
                 projectType: p.projectType || 'multi',
@@ -724,25 +727,6 @@ const App: React.FC = () => {
     }
   }, [isLoggedIn, location]);
 
-  useEffect(() => {
-    const build = async () => {
-      if (projectToBuild) {
-        const { projectId, prompt, projectType, screenshot, integration } = projectToBuild;
-        setProjectToBuild(null);
-
-        try {
-          await runBuildProcess(prompt, [], projectId, projectType, true, screenshot, integration);
-        } catch (err: any) {
-          const errorMessage = `AI Error: ${err.message}`;
-          setErrors(prev => [errorMessage, ...prev]);
-          addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error starting the build. ${err.message}` });
-          setIsLoading(false);
-        }
-      }
-    };
-    build();
-  }, [projectToBuild]);
-
 
   const handleRuntimeError = useCallback((message: string) => {
     setErrors(prev => {
@@ -762,7 +746,7 @@ const App: React.FC = () => {
     return new GoogleGenAI({ apiKey });
   }
 
-  const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType, screenshotBase64: string | null): Promise<{plan: string[], sql: string, files_to_generate: string[]}> => {
+  const generatePlan = async (prompt: string, selectedModel: GeminiModel, projectType: ProjectType, screenshotBase64: string | null): Promise<{plan: string[], sql: string, files_to_generate: string[], color_palette: string[]}> => {
     const ai = getAiClient();
 
     let projectConstraints = '';
@@ -780,15 +764,16 @@ const App: React.FC = () => {
     }
 
     const planPrompt = `
-      You are a senior software architect. Your task is to create a plan to build a web application based on the user's request.
+      You are a senior software architect and UI/UX designer. Your task is to create a plan to build a web application based on the user's request.
       ${imagePrompt}
 
       **Instructions:**
       1.  Create a concise, step-by-step plan for the implementation.
       2.  List all the file paths you intend to create or modify. This list should be comprehensive.
-      3.  If the application requires data persistence, you MUST provide the complete PostgreSQL schema for the database. Assume it is for a Neon serverless Postgres database unless Supabase is connected.
-      4.  If the project is connected to Supabase (${!!supabaseConfig}), ensure the PostgreSQL schema is compatible with Supabase's environment.
-      5.  If no database is needed, the "sql" field in your response must be an empty string.
+      3.  Propose a modern and aesthetically pleasing color palette of 5-6 hex codes that would suit this application.
+      4.  If the application requires data persistence, you MUST provide the complete PostgreSQL schema for the database. Assume it is for a Neon serverless Postgres database unless Supabase is connected.
+      5.  If the project is connected to Supabase (${!!supabaseConfig}), ensure the PostgreSQL schema is compatible with Supabase's environment.
+      6.  If no database is needed, the "sql" field in your response must be an empty string.
       ${projectConstraints}
 
       **Output Format:**
@@ -796,7 +781,8 @@ const App: React.FC = () => {
       {
         "plan": ["A list of steps for the implementation."],
         "sql": "The complete SQL code for the database schema, if needed. Use 'CREATE TABLE IF NOT EXISTS' syntax.",
-        "files_to_generate": ["A list of file paths you will create or modify, e.g., 'src/App.tsx', 'src/components/Header.tsx'."]
+        "files_to_generate": ["A list of file paths you will create or modify, e.g., 'src/App.tsx', 'src/components/Header.tsx'."],
+        "color_palette": ["An array of 5-6 hex color codes, e.g., "#FFFFFF", "#000000"]
       }
       
       **User Request:** "${prompt}"
@@ -822,9 +808,10 @@ const App: React.FC = () => {
           properties: {
             plan: { type: Type.ARRAY, items: { type: Type.STRING } },
             sql: { type: Type.STRING },
-            files_to_generate: { type: Type.ARRAY, items: { type: Type.STRING } }
+            files_to_generate: { type: Type.ARRAY, items: { type: Type.STRING } },
+            color_palette: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
-          required: ['plan', 'sql', 'files_to_generate']
+          required: ['plan', 'sql', 'files_to_generate', 'color_palette']
         }
       }
     });
@@ -851,14 +838,16 @@ const App: React.FC = () => {
       return {
           plan: parsed.plan || [],
           sql: parsed.sql || '',
-          files_to_generate: parsed.files_to_generate || []
+          files_to_generate: parsed.files_to_generate || [],
+          color_palette: parsed.color_palette || [],
       };
     } catch (e) {
       console.error("Failed to parse plan and SQL:", e);
       return {
           plan: ["Could not generate a plan, proceeding with build.", "I will try my best to match your request."],
           sql: "",
-          files_to_generate: projectType === 'single' ? ['src/App.tsx'] : (projectType === 'html' ? ['index.html', 'style.css', 'script.js'] : [])
+          files_to_generate: projectType === 'single' ? ['src/App.tsx'] : (projectType === 'html' ? ['index.html', 'style.css', 'script.js'] : []),
+          color_palette: ['#FFFFFF', '#000000', '#3B82F6', '#10B981', '#F59E0B'],
       };
     }
   };
@@ -1095,7 +1084,7 @@ ${integrationsList.join('\n')}
     ));
   };
 
-  const runBuildProcess = async (prompt: string, baseFiles: ProjectFile[], projectId: string, projectTypeOverride?: ProjectType, isInitialBuild: boolean = false, screenshotBase64: string | null = null, integration: Integration | null = null) => {
+  const startPlanningProcess = async (projectId: string, prompt: string, screenshotBase64: string | null = null, integration: Integration | null = null) => {
     setIsLoading(true);
     setErrors([]);
 
@@ -1108,88 +1097,109 @@ ${integrationsList.join('\n')}
         addMessageToProject(projectId, { actor: 'system', text: `Using ${integration.name} integration context.` });
     }
     
-    let projectForGeneration = projects.find(p => p.id === projectId)!;
-    const projectType = projectTypeOverride || projectForGeneration.projectType || 'multi';
+    const project = projects.find(p => p.id === projectId)!;
     
-    const { plan, sql, files_to_generate } = await generatePlan(finalPrompt, model, projectType, screenshotBase64);
-    
-    if (projectType !== 'html' && files_to_generate.length > 0 && !files_to_generate.some(f => f === 'src/App.tsx')) {
-        files_to_generate.unshift('src/App.tsx');
-    }
-
-    const existingFilePaths = new Set((projectForGeneration.files || []).map(f => f.path));
-    const filesWithStatus = files_to_generate.map(path => ({
-        path,
-        status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
-    }));
-
-
-    addMessageToProject(projectId, { 
-        actor: 'ai', 
-        text: "Here's the plan:", 
-        plan,
-        files_to_generate: filesWithStatus,
-        generated_files: []
-    });
-    
-    let filesWithSql = [...projectForGeneration.files];
-    if (sql) {
-        const sqlFileIndex = filesWithSql.findIndex(f => f.path === 'app.sql');
-        if (sqlFileIndex > -1) {
-            filesWithSql[sqlFileIndex] = { ...filesWithSql[sqlFileIndex], code: sql };
-        } else {
-            filesWithSql.push({ path: 'app.sql', code: sql });
+    try {
+        const { plan, sql, files_to_generate, color_palette } = await generatePlan(finalPrompt, model, project.projectType, screenshotBase64);
+        
+        const filesToGenerateWithMain = [...files_to_generate];
+        if (project.projectType !== 'html' && !filesToGenerateWithMain.some(f => f === 'src/App.tsx')) {
+            filesToGenerateWithMain.unshift('src/App.tsx');
         }
-    } else if (!isInitialBuild) {
-        filesWithSql = filesWithSql.filter(f => f.path !== 'app.sql');
-    }
 
-    if (isInitialBuild && sql) {
-         updateProjectState(projectId, { files: filesWithSql });
-    }
-    
-    projectForGeneration = { ...projectForGeneration, files: filesWithSql };
-    
-    // A single, fast call to generate all code
-    const generatedCode = await generateCode(
-        finalPrompt,
-        projectForGeneration.files,
-        plan,
-        files_to_generate,
-        model,
-        projectType,
-        screenshotBase64,
-        isFreeUiEnabled
-    );
+        const existingFilePaths = new Set((project.files || []).map(f => f.path));
+        const filesWithStatus = filesToGenerateWithMain.map(path => ({
+            path,
+            status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
+        }));
 
-    // Update state with all the new files at once
-    setProjects(prev => prev.map(p => {
-        if (p.id === projectId) {
-            const newFilesMap = new Map(generatedCode.map(f => [f.path, f]));
-            // Keep existing files that were NOT regenerated
-            const existingFilesToKeep = filesWithSql.filter(f => !newFilesMap.has(f.path));
-            const updatedFiles = [...existingFilesToKeep, ...generatedCode];
-            
-            // Also update the checklist in the last AI message
-            const messages = [...p.messages];
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage?.actor === 'ai' && lastMessage.files_to_generate) {
-                messages[messages.length - 1] = { ...lastMessage, generated_files: files_to_generate };
+        addMessageToProject(projectId, { 
+            actor: 'ai', 
+            text: "Here's my plan to build your application:", 
+            plan,
+            files_to_generate: filesWithStatus,
+            color_palette,
+            generated_files: []
+        });
+        
+        let filesWithSql = [...project.files];
+        if (sql) {
+            const sqlFileIndex = filesWithSql.findIndex(f => f.path === 'app.sql');
+            if (sqlFileIndex > -1) {
+                filesWithSql[sqlFileIndex] = { ...filesWithSql[sqlFileIndex], code: sql };
+            } else {
+                filesWithSql.push({ path: 'app.sql', code: sql });
             }
-
-            return { ...p, files: updatedFiles, messages };
+            updateProjectState(projectId, { files: filesWithSql });
         }
-        return p;
-    }));
 
-
-    addMessageToProject(projectId, { actor: 'ai', text: 'I have finished generating the code. Let me know what to do next!' });
-    
-    setIsLoading(false);
+    } catch (err: any) {
+        const errorMessage = `AI Planning Error: ${err.message}`;
+        setErrors(prev => [errorMessage, ...prev]);
+        addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error during planning. ${err.message}` });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
-  const createNewProject = (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => {
+  const handleApprovePlanAndBuild = async (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    const lastUserMessage = [...project.messages].reverse().find(m => m.actor === 'user');
+    const lastAiPlanMessage = [...project.messages].reverse().find(m => m.actor === 'ai' && m.plan);
+
+    if (!lastUserMessage || !lastAiPlanMessage || !lastAiPlanMessage.files_to_generate) {
+        setErrors(prev => ["Could not find a valid plan to build from.", ...prev]);
+        return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+        const generatedCode = await generateCode(
+            lastUserMessage.text,
+            project.files,
+            lastAiPlanMessage.plan || [],
+            lastAiPlanMessage.files_to_generate.map(f => f.path),
+            model,
+            project.projectType,
+            null, // Screenshot is not passed to code gen for now to save tokens
+            isFreeUiEnabled
+        );
+        
+        // Update state with all the new files at once
+        setProjects(prev => prev.map(p => {
+            if (p.id === projectId) {
+                const newFilesMap = new Map(generatedCode.map(f => [f.path, f]));
+                // Keep existing files that were NOT regenerated (like app.sql)
+                const existingFilesToKeep = p.files.filter(f => !newFilesMap.has(f.path));
+                const updatedFiles = [...existingFilesToKeep, ...generatedCode];
+                
+                return { ...p, files: updatedFiles, status: 'active' };
+            }
+            return p;
+        }));
+
+        addMessageToProject(projectId, { actor: 'system', text: 'Build complete! You can now see the preview and code.' });
+    } catch (err: any) {
+        const errorMessage = `AI Code Generation Error: ${err.message}`;
+        setErrors(prev => [errorMessage, ...prev]);
+        addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error during code generation. ${err.message}` });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleStartNewProject = (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => {
     if (!prompt.trim()) return;
+
+    if (!isLoggedIn) {
+        sessionStorage.setItem('silo_saved_prompt', prompt);
+        if (screenshot) sessionStorage.setItem('silo_saved_screenshot', screenshot);
+        setIsSignInModalOpen(true);
+        return;
+    }
     
     const initialFiles = projectType === 'html'
       ? DEFAULT_HTML_FILES
@@ -1200,36 +1210,105 @@ ${integrationsList.join('\n')}
     const newProject: Project = {
         id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
+        status: 'planning',
         files: initialFiles,
         messages: [],
         projectType,
     };
     
     setProjects(prev => [...prev, newProject]);
-    
-    setProjectToBuild({ projectId: newProject.id, prompt, projectType, screenshot, integration });
     window.location.hash = `/project/${newProject.id}`;
+
+    // Asynchronously start the planning process after navigation
+    setTimeout(() => {
+        startPlanningProcess(newProject.id, prompt, screenshot, integration);
+    }, 100);
   };
   
-  const handleSend = async () => {
-    if (!isLoggedIn) {
-        sessionStorage.setItem('silo_saved_prompt', userInput);
-        setIsSignInModalOpen(true);
-        return;
-    }
+  // For requesting changes during planning phase OR iterating in workspace
+  const handlePromptRequest = async (projectId: string, prompt: string) => {
+     if (!prompt.trim() || isLoading) return;
 
-    if (!userInput.trim() || isLoading || !activeProject) return;
-    const currentInput = userInput;
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
     setUserInput('');
-    try {
-      await runBuildProcess(currentInput, activeProject.files, activeProject.id);
-    } catch (err: any) {
-      const errorMessage = `AI Error: ${err.message}`;
-      setErrors(prev => [errorMessage, ...prev]);
-      addMessageToProject(activeProject.id, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
-      setIsLoading(false);
+    
+    if (project.status === 'planning') {
+        // Re-plan
+        await startPlanningProcess(projectId, prompt);
+    } else {
+        // Iterate (plan + build)
+        setIsLoading(true);
+        setErrors([]);
+        addMessageToProject(projectId, { actor: 'user', text: prompt });
+        try {
+            const { plan, sql, files_to_generate, color_palette } = await generatePlan(prompt, model, project.projectType, null);
+            
+            const filesToGenerateWithMain = [...files_to_generate];
+            if (project.projectType !== 'html' && !filesToGenerateWithMain.some(f => f.path === 'src/App.tsx')) {
+                filesToGenerateWithMain.unshift('src/App.tsx');
+            }
+
+            const existingFilePaths = new Set(project.files.map(f => f.path));
+            const filesWithStatus = filesToGenerateWithMain.map(path => ({
+                path,
+                status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
+            }));
+
+            addMessageToProject(projectId, { 
+                actor: 'ai', 
+                text: "Here's the plan for the changes:", 
+                plan,
+                files_to_generate: filesWithStatus,
+                color_palette,
+                generated_files: []
+            });
+
+            // Handle SQL
+            let currentFiles = [...project.files];
+            if (sql) {
+                 const sqlFileIndex = currentFiles.findIndex(f => f.path === 'app.sql');
+                if (sqlFileIndex > -1) {
+                    currentFiles[sqlFileIndex] = { ...currentFiles[sqlFileIndex], code: sql };
+                } else {
+                    currentFiles.push({ path: 'app.sql', code: sql });
+                }
+            }
+            
+            // Generate Code
+             const generatedCode = await generateCode(prompt, currentFiles, plan, filesToGenerateWithMain, model, project.projectType, null, isFreeUiEnabled);
+
+            // Update state with all the new files at once
+            setProjects(prev => prev.map(p => {
+                if (p.id === projectId) {
+                    const newFilesMap = new Map(generatedCode.map(f => [f.path, f]));
+                    const existingFilesToKeep = currentFiles.filter(f => !newFilesMap.has(f.path));
+                    const updatedFiles = [...existingFilesToKeep, ...generatedCode];
+                    
+                    const messages = [...p.messages];
+                    const lastMessage = messages[messages.length - 1];
+                    if (lastMessage?.actor === 'ai' && lastMessage.files_to_generate) {
+                        messages[messages.length - 1] = { ...lastMessage, generated_files: filesToGenerateWithMain };
+                    }
+
+                    return { ...p, files: updatedFiles, messages };
+                }
+                return p;
+            }));
+
+             addMessageToProject(projectId, { actor: 'ai', text: 'I have finished generating the changes. Let me know what to do next!' });
+
+        } catch (err: any) {
+            const errorMessage = `AI Error: ${err.message}`;
+            setErrors(prev => [errorMessage, ...prev]);
+            addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
+        } finally {
+            setIsLoading(false);
+        }
     }
-  };
+  }
+
 
   const pushFilesToGitHub = async (token: string, repo: string, files: ProjectFile[], message: string, branch: string = 'main', isInitialCommit: boolean = false) => {
     const apiBase = 'https://api.github.com';
@@ -1403,7 +1482,6 @@ ${integrationsList.join('\n')}
     try {
       const plan = [`Identify the cause of the error: "${errorToFix}"`, "Correct the code in the appropriate file(s).", "Ensure the application still meets the original requirements."];
       
-      const filesToModify = activeProject.files.map(f => f.path);
       // This is a placeholder for where a streaming version of `generateCode` would go.
       // For now, we'll keep the non-streaming fix.
       const ai = getAiClient();
@@ -1465,7 +1543,7 @@ ${integrationsList.join('\n')}
     try {
       const plan = ["Analyze all reported errors.", "Identify the root causes in the codebase.", "Correct the code in all affected files.", "Ensure the fixes do not introduce new issues."];
       
-      const filesToModify = activeProject.files.map(f => f.path);
+      // FIX: This unused variable was causing a compilation error due to type inference issues.
        const ai = getAiClient();
       const response = await ai.models.generateContent({
         model,
@@ -2239,7 +2317,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
     const path = location.startsWith('/') ? location : `/${location}`;
 
     if (path === '/home' || path === '/') {
-      return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
+      return <HomePage onStartNewProject={handleStartNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
     }
     if (path === '/silo-ai') {
         return <SiloAiPage />;
@@ -2328,59 +2406,69 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
 
     const projectMatch = path.match(/^\/project\/([\w-]+)$/);
     if (projectMatch && activeProject) {
-      return (
-        <>
-          <main className="flex flex-1 overflow-hidden pt-20">
-            <div className="w-1/3 max-w-md flex-col border-r border-gray-200 hidden md:flex">
-              <ChatPanel
-                messages={activeProject.messages}
-                userInput={userInput}
-                onUserInput={setUserInput}
-                onSend={handleSend}
-                isLoading={isLoading}
-                buildTime={buildTime}
-                onToggleMaxAgent={() => setIsMaxAgentPanelOpen(p => !p)}
-              />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <Workspace
-                project={activeProject}
-                onRuntimeError={handleRuntimeError}
-                isSupabaseConnected={!!supabaseConfig}
-                previewMode={previewMode}
-                onPublish={() => {
-                    setPublishState({ status: 'idle' });
-                    setIsPublishModalOpen(true)
-                }}
-                onInitiateGitHubSave={() => setIsGitHubSaveModalOpen(true)}
-                onPushToGitHub={handlePushToGitHub}
-                onExportProject={handleExportProject}
-                isLoading={isLoading}
-                buildTime={buildTime}
-              />
-            </div>
-             {isMaxAgentPanelOpen && (
-              <div className="hidden md:block">
-                <MaxAgentPanel
-                  thoughts={maxThoughts}
-                  isRunning={isMaxAgentRunning}
-                  onStart={startAgent}
-                  onStop={stopAgent}
+        if (activeProject.status === 'planning') {
+            return (
+                <PlanningPage 
+                    project={activeProject}
+                    isLoading={isLoading}
+                    onApprove={() => handleApprovePlanAndBuild(activeProject.id)}
+                    onRequestChanges={(prompt) => handlePromptRequest(activeProject.id, prompt)}
                 />
-              </div>
-            )}
-          </main>
-          <ErrorDisplay error={errors[0] || null} onClose={() => setErrors(prev => prev.slice(1))} />
-            <DebugAssistPanel
-                isOpen={isDebugAssistOpen}
-                onClose={() => setIsDebugAssistOpen(false)}
-                errors={errors}
-                onFixError={handleFixError}
-                onFixAllErrors={handleFixAllErrors}
-                isLoading={isLoading}
-            />
-        </>
-      );
+            );
+        }
+        return (
+            <>
+            <main className="flex flex-1 overflow-hidden pt-20">
+                <div className="w-1/3 max-w-md flex-col border-r border-gray-200 hidden md:flex">
+                <ChatPanel
+                    messages={activeProject.messages}
+                    userInput={userInput}
+                    onUserInput={setUserInput}
+                    onSend={() => handlePromptRequest(activeProject.id, userInput)}
+                    isLoading={isLoading}
+                    buildTime={buildTime}
+                    onToggleMaxAgent={() => setIsMaxAgentPanelOpen(p => !p)}
+                />
+                </div>
+                <div className="flex-1 flex flex-col">
+                <Workspace
+                    project={activeProject}
+                    onRuntimeError={handleRuntimeError}
+                    isSupabaseConnected={!!supabaseConfig}
+                    previewMode={previewMode}
+                    onPublish={() => {
+                        setPublishState({ status: 'idle' });
+                        setIsPublishModalOpen(true)
+                    }}
+                    onInitiateGitHubSave={() => setIsGitHubSaveModalOpen(true)}
+                    onPushToGitHub={handlePushToGitHub}
+                    onExportProject={handleExportProject}
+                    isLoading={isLoading}
+                    buildTime={buildTime}
+                />
+                </div>
+                {isMaxAgentPanelOpen && (
+                <div className="hidden md:block">
+                    <MaxAgentPanel
+                    thoughts={maxThoughts}
+                    isRunning={isMaxAgentRunning}
+                    onStart={startAgent}
+                    onStop={stopAgent}
+                    />
+                </div>
+                )}
+            </main>
+            <ErrorDisplay error={errors[0] || null} onClose={() => setErrors(prev => prev.slice(1))} />
+                <DebugAssistPanel
+                    isOpen={isDebugAssistOpen}
+                    onClose={() => setIsDebugAssistOpen(false)}
+                    errors={errors}
+                    onFixError={handleFixError}
+                    onFixAllErrors={handleFixAllErrors}
+                    isLoading={isLoading}
+                />
+            </>
+        );
     }
      if (projectMatch && !activeProject && projects.length > 0) {
        return (
@@ -2391,7 +2479,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
       );
     }
 
-    return <HomePage onStartBuild={createNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
+    return <HomePage onStartNewProject={handleStartNewProject} isLoading={isLoading} defaultStack={defaultStack} userProfile={userProfile} isLoggedIn={isLoggedIn} onSignInRequired={handleSignInRequired} />;
   };
 
   const isNetlifyConfigured = !!(typeof window !== 'undefined' && localStorage.getItem(NETLIFY_TOKEN_STORAGE_KEY));

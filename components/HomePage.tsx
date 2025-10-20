@@ -7,7 +7,7 @@ import type { Integration } from '../integrations';
 import { ALL_INTEGRATIONS } from '../integrations';
 
 interface HomePageProps {
-  onStartBuild: (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => void;
+  onStartNewProject: (prompt: string, projectType: ProjectType, screenshot: string | null, integration: Integration | null) => void;
   isLoading: boolean;
   defaultStack: ProjectType;
   userProfile: UserProfile;
@@ -110,7 +110,7 @@ const ImportModal: React.FC<{
     );
 };
 
-export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, defaultStack, userProfile, isLoggedIn, onSignInRequired }) => {
+export const HomePage: React.FC<HomePageProps> = ({ onStartNewProject, isLoading, defaultStack, userProfile, isLoggedIn, onSignInRequired }) => {
   const [prompt, setPrompt] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -278,7 +278,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     }
 
     if (finalPrompt.trim()) {
-        onStartBuild(finalPrompt.trim(), defaultStack, screenshot, selectedIntegration);
+        onStartNewProject(finalPrompt.trim(), defaultStack, screenshot, selectedIntegration);
     }
   };
 
@@ -287,7 +287,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartBuild, isLoading, def
     setSelectedIntegration(null);
     setFigmaUrl(null);
     setGithubUrl(null);
-    onStartBuild(suggestion, defaultStack, null, null);
+    onStartNewProject(suggestion, defaultStack, null, null);
   };
 
   return (
