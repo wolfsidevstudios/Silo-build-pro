@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { ErrorDisplay } from './components/ErrorDisplay';
@@ -8,7 +10,6 @@ import { ChatPanel } from './components/ChatPanel';
 import { Workspace } from './components/Workspace';
 import { TopNavBar } from './components/TopNavBar';
 import { HomePage } from './components/HomePage';
-import { PlanningPage } from './components/PlanningPage';
 import { ProfilePage } from './components/ProfilePage';
 import { SettingsPage, GITHUB_TOKEN_STORAGE_KEY, NETLIFY_TOKEN_STORAGE_KEY, VERCEL_TOKEN_STORAGE_KEY } from './components/SettingsPage';
 import { AuthorizedPage } from './components/AuthorizedPage';
@@ -1074,40 +1075,48 @@ ${integrationsList.join('\n')}
     }
   };
 
-  const updateProjectState = (projectId: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
-  };
-  
   const addMessageToProject = (projectId: string, message: Message) => {
     setProjects(prev => prev.map(p => 
       p.id === projectId ? { ...p, messages: [...p.messages, message] } : p
     ));
   };
+// FIX: Define updateProjectState to resolve multiple 'Cannot find name' errors.
+  const updateProjectState = (projectId: string, updates: Partial<Project>) => {
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === projectId ? { ...p, ...updates } : p
+      )
+    );
+  };
 
-  const startPlanningProcess = async (projectId: string, prompt: string, screenshotBase64: string | null = null, integration: Integration | null = null) => {
+  const executePlanAndBuild = async (projectId: string, prompt: string, screenshot: string | null = null, integration: Integration | null = null) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) {
+        setErrors(prev => ["Project not found.", ...prev]);
+        return;
+    }
+    
     setIsLoading(true);
     setErrors([]);
 
-    const finalPrompt = integration 
-      ? `The user wants to build an application using the "${integration.name}" integration. Fulfill the following request using this context: "${prompt}"`
-      : prompt;
-
+    const finalPrompt = integration
+        ? `The user wants to build an application using the "${integration.name}" integration. Fulfill the following request using this context: "${prompt}"`
+        : prompt;
+        
     addMessageToProject(projectId, { actor: 'user', text: prompt });
     if (integration) {
         addMessageToProject(projectId, { actor: 'system', text: `Using ${integration.name} integration context.` });
     }
-    
-    const project = projects.find(p => p.id === projectId)!;
-    
+
     try {
-        const { plan, sql, files_to_generate, color_palette } = await generatePlan(finalPrompt, model, project.projectType, screenshotBase64);
+        const { plan, sql, files_to_generate, color_palette } = await generatePlan(finalPrompt, model, project.projectType, screenshot);
         
-        const filesToGenerateWithMain = [...files_to_generate];
+        const filesToGenerateWithMain = [...new Set(files_to_generate)];
         if (project.projectType !== 'html' && !filesToGenerateWithMain.some(f => f === 'src/App.tsx')) {
             filesToGenerateWithMain.unshift('src/App.tsx');
         }
 
-        const existingFilePaths = new Set((project.files || []).map(f => f.path));
+        const existingFilePaths = new Set(project.files.map(f => f.path));
         const filesWithStatus = filesToGenerateWithMain.map(path => ({
             path,
             status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
@@ -1115,77 +1124,59 @@ ${integrationsList.join('\n')}
 
         addMessageToProject(projectId, { 
             actor: 'ai', 
-            text: "Here's my plan to build your application:", 
+            text: "Here's the plan I'm following:",
             plan,
             files_to_generate: filesWithStatus,
             color_palette,
             generated_files: []
         });
-        
-        let filesWithSql = [...project.files];
+
+        let currentFiles = [...project.files];
         if (sql) {
-            const sqlFileIndex = filesWithSql.findIndex(f => f.path === 'app.sql');
+            const sqlFileIndex = currentFiles.findIndex(f => f.path === 'app.sql');
             if (sqlFileIndex > -1) {
-                filesWithSql[sqlFileIndex] = { ...filesWithSql[sqlFileIndex], code: sql };
+                currentFiles[sqlFileIndex] = { ...currentFiles[sqlFileIndex], code: sql };
             } else {
-                filesWithSql.push({ path: 'app.sql', code: sql });
+                currentFiles.push({ path: 'app.sql', code: sql });
             }
-            updateProjectState(projectId, { files: filesWithSql });
         }
-
-    } catch (err: any) {
-        const errorMessage = `AI Planning Error: ${err.message}`;
-        setErrors(prev => [errorMessage, ...prev]);
-        addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error during planning. ${err.message}` });
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const handleApprovePlanAndBuild = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-    
-    const lastUserMessage = [...project.messages].reverse().find(m => m.actor === 'user');
-    const lastAiPlanMessage = [...project.messages].reverse().find(m => m.actor === 'ai' && m.plan);
-
-    if (!lastUserMessage || !lastAiPlanMessage || !lastAiPlanMessage.files_to_generate) {
-        setErrors(prev => ["Could not find a valid plan to build from.", ...prev]);
-        return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-        const generatedCode = await generateCode(
-            lastUserMessage.text,
-            project.files,
-            lastAiPlanMessage.plan || [],
-            lastAiPlanMessage.files_to_generate.map(f => f.path),
-            model,
-            project.projectType,
-            null, // Screenshot is not passed to code gen for now to save tokens
-            isFreeUiEnabled
-        );
         
-        // Update state with all the new files at once
+        const generatedCode = await generateCode(finalPrompt, currentFiles, plan, filesToGenerateWithMain, model, project.projectType, screenshot, isFreeUiEnabled);
+
         setProjects(prev => prev.map(p => {
             if (p.id === projectId) {
                 const newFilesMap = new Map(generatedCode.map(f => [f.path, f]));
-                // Keep existing files that were NOT regenerated (like app.sql)
-                const existingFilesToKeep = p.files.filter(f => !newFilesMap.has(f.path));
+                
+                let baseFiles = [...p.files];
+                 if (sql) {
+                    const sqlFileIndex = baseFiles.findIndex(f => f.path === 'app.sql');
+                    if (sqlFileIndex > -1) {
+                        baseFiles[sqlFileIndex] = { ...baseFiles[sqlFileIndex], code: sql };
+                    } else {
+                        baseFiles.push({ path: 'app.sql', code: sql });
+                    }
+                }
+
+                const existingFilesToKeep = baseFiles.filter(f => !newFilesMap.has(f.path));
                 const updatedFiles = [...existingFilesToKeep, ...generatedCode];
                 
-                return { ...p, files: updatedFiles, status: 'active' };
+                const messages = [...p.messages];
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage?.actor === 'ai' && lastMessage.files_to_generate) {
+                    messages[messages.length - 1] = { ...lastMessage, generated_files: filesToGenerateWithMain };
+                }
+
+                return { ...p, files: updatedFiles, messages, status: 'active' };
             }
             return p;
         }));
 
-        addMessageToProject(projectId, { actor: 'system', text: 'Build complete! You can now see the preview and code.' });
+        addMessageToProject(projectId, { actor: 'ai', text: 'I have finished generating the changes. Let me know what to do next!' });
+
     } catch (err: any) {
-        const errorMessage = `AI Code Generation Error: ${err.message}`;
+        const errorMessage = `AI Error: ${err.message}`;
         setErrors(prev => [errorMessage, ...prev]);
-        addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error during code generation. ${err.message}` });
+        addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
     } finally {
         setIsLoading(false);
     }
@@ -1210,7 +1201,7 @@ ${integrationsList.join('\n')}
     const newProject: Project = {
         id: Date.now().toString(),
         name: prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt,
-        status: 'planning',
+        status: 'active',
         files: initialFiles,
         messages: [],
         projectType,
@@ -1219,13 +1210,12 @@ ${integrationsList.join('\n')}
     setProjects(prev => [...prev, newProject]);
     window.location.hash = `/project/${newProject.id}`;
 
-    // Asynchronously start the planning process after navigation
+    // Asynchronously start the generation process after navigation
     setTimeout(() => {
-        startPlanningProcess(newProject.id, prompt, screenshot, integration);
+        executePlanAndBuild(newProject.id, prompt, screenshot, integration);
     }, 100);
   };
   
-  // For requesting changes during planning phase OR iterating in workspace
   const handlePromptRequest = async (projectId: string, prompt: string) => {
      if (!prompt.trim() || isLoading) return;
 
@@ -1234,80 +1224,8 @@ ${integrationsList.join('\n')}
     
     setUserInput('');
     
-    if (project.status === 'planning') {
-        // Re-plan
-        await startPlanningProcess(projectId, prompt);
-    } else {
-        // Iterate (plan + build)
-        setIsLoading(true);
-        setErrors([]);
-        addMessageToProject(projectId, { actor: 'user', text: prompt });
-        try {
-            const { plan, sql, files_to_generate, color_palette } = await generatePlan(prompt, model, project.projectType, null);
-            
-            const filesToGenerateWithMain = [...files_to_generate];
-            if (project.projectType !== 'html' && !filesToGenerateWithMain.some(f => f.path === 'src/App.tsx')) {
-                filesToGenerateWithMain.unshift('src/App.tsx');
-            }
-
-            const existingFilePaths = new Set(project.files.map(f => f.path));
-            const filesWithStatus = filesToGenerateWithMain.map(path => ({
-                path,
-                status: existingFilePaths.has(path) ? 'modified' : 'added' as 'modified' | 'added',
-            }));
-
-            addMessageToProject(projectId, { 
-                actor: 'ai', 
-                text: "Here's the plan for the changes:", 
-                plan,
-                files_to_generate: filesWithStatus,
-                color_palette,
-                generated_files: []
-            });
-
-            // Handle SQL
-            let currentFiles = [...project.files];
-            if (sql) {
-                 const sqlFileIndex = currentFiles.findIndex(f => f.path === 'app.sql');
-                if (sqlFileIndex > -1) {
-                    currentFiles[sqlFileIndex] = { ...currentFiles[sqlFileIndex], code: sql };
-                } else {
-                    currentFiles.push({ path: 'app.sql', code: sql });
-                }
-            }
-            
-            // Generate Code
-             const generatedCode = await generateCode(prompt, currentFiles, plan, filesToGenerateWithMain, model, project.projectType, null, isFreeUiEnabled);
-
-            // Update state with all the new files at once
-            setProjects(prev => prev.map(p => {
-                if (p.id === projectId) {
-                    const newFilesMap = new Map(generatedCode.map(f => [f.path, f]));
-                    const existingFilesToKeep = currentFiles.filter(f => !newFilesMap.has(f.path));
-                    const updatedFiles = [...existingFilesToKeep, ...generatedCode];
-                    
-                    const messages = [...p.messages];
-                    const lastMessage = messages[messages.length - 1];
-                    if (lastMessage?.actor === 'ai' && lastMessage.files_to_generate) {
-                        messages[messages.length - 1] = { ...lastMessage, generated_files: filesToGenerateWithMain };
-                    }
-
-                    return { ...p, files: updatedFiles, messages };
-                }
-                return p;
-            }));
-
-             addMessageToProject(projectId, { actor: 'ai', text: 'I have finished generating the changes. Let me know what to do next!' });
-
-        } catch (err: any) {
-            const errorMessage = `AI Error: ${err.message}`;
-            setErrors(prev => [errorMessage, ...prev]);
-            addMessageToProject(projectId, { actor: 'system', text: `Sorry, I encountered an error. ${err.message}` });
-        } finally {
-            setIsLoading(false);
-        }
-    }
-  }
+    await executePlanAndBuild(projectId, prompt);
+  };
 
 
   const pushFilesToGitHub = async (token: string, repo: string, files: ProjectFile[], message: string, branch: string = 'main', isInitialCommit: boolean = false) => {
@@ -2406,16 +2324,6 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
 
     const projectMatch = path.match(/^\/project\/([\w-]+)$/);
     if (projectMatch && activeProject) {
-        if (activeProject.status === 'planning') {
-            return (
-                <PlanningPage 
-                    project={activeProject}
-                    isLoading={isLoading}
-                    onApprove={() => handleApprovePlanAndBuild(activeProject.id)}
-                    onRequestChanges={(prompt) => handlePromptRequest(activeProject.id, prompt)}
-                />
-            );
-        }
         return (
             <>
             <main className="flex flex-1 overflow-hidden pt-20">
