@@ -816,7 +816,7 @@ const App: React.FC = () => {
       model: selectedModel,
       contents: { parts: contents.map(c => typeof c === 'string' ? { text: c } : c) },
       config: {
-        responseMimeType: 'json',
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -1048,7 +1048,7 @@ ${integrationsList.join('\n')}
           model: selectedModel,
           contents: { parts: contentParts },
           config: {
-            responseMimeType: "json",
+            responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
@@ -1411,7 +1411,7 @@ ${integrationsList.join('\n')}
         model,
         contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
         config: {
-          responseMimeType: "json",
+          responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -1471,7 +1471,7 @@ ${integrationsList.join('\n')}
         model,
         contents: { parts: [{text: fixPrompt}, ...activeProject.files.map(f => ({text: `File: ${f.path}\n\`\`\`\n${f.code}\n\`\`\``}))] },
          config: {
-          responseMimeType: "json",
+          responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -2138,7 +2138,7 @@ Your generated 'prompt' must be grammatically correct and free of spelling error
             contents: promptToGemini,
             config: {
               systemInstruction,
-              responseMimeType: 'json',
+              responseMimeType: 'application/json',
               responseSchema: {
                 type: Type.OBJECT,
                 properties: {
